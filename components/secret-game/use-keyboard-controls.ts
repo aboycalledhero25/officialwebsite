@@ -31,9 +31,18 @@ export const sharedTouch = {
   targetY: null as number | null,
 };
 
+function isTyping() {
+  const el = document.activeElement;
+  if (!el) return false;
+  const tag = el.tagName.toLowerCase();
+  return tag === "input" || tag === "textarea" || (el as HTMLElement).isContentEditable;
+}
+
 export function useKeyboardControls() {
   useEffect(() => {
     const handleDown = (e: KeyboardEvent) => {
+      if (isTyping()) return;
+
       switch (e.key) {
         case "ArrowLeft":
         case "a":

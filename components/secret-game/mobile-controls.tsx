@@ -6,6 +6,7 @@ import { useSiteData } from "@/components/data-provider";
 
 const BASE_W = 240;
 const BASE_H = 320;
+const MOBILE_Y_OFFSET = 32; // base units — moves guitar above finger
 
 interface MobileControlsProps {
   onShoot: (active: boolean) => void;
@@ -50,7 +51,7 @@ export function MobileControls({ onShoot }: MobileControlsProps) {
       const t = e.touches[0];
       const pos = screenToBase(t.clientX, t.clientY);
       sharedTouch.targetX = pos.x;
-      sharedTouch.targetY = pos.y;
+      sharedTouch.targetY = Math.max(0, pos.y - MOBILE_Y_OFFSET);
     },
     [screenToBase]
   );
@@ -62,7 +63,7 @@ export function MobileControls({ onShoot }: MobileControlsProps) {
       const t = e.touches[0];
       const pos = screenToBase(t.clientX, t.clientY);
       sharedTouch.targetX = pos.x;
-      sharedTouch.targetY = pos.y;
+      sharedTouch.targetY = Math.max(0, pos.y - MOBILE_Y_OFFSET);
     },
     [isTouching, screenToBase]
   );
@@ -80,7 +81,7 @@ export function MobileControls({ onShoot }: MobileControlsProps) {
       setIsTouching(true);
       const pos = screenToBase(e.clientX, e.clientY);
       sharedTouch.targetX = pos.x;
-      sharedTouch.targetY = pos.y;
+      sharedTouch.targetY = Math.max(0, pos.y - MOBILE_Y_OFFSET);
     },
     [screenToBase]
   );
@@ -90,7 +91,7 @@ export function MobileControls({ onShoot }: MobileControlsProps) {
       if (!isTouching) return;
       const pos = screenToBase(e.clientX, e.clientY);
       sharedTouch.targetX = pos.x;
-      sharedTouch.targetY = pos.y;
+      sharedTouch.targetY = Math.max(0, pos.y - MOBILE_Y_OFFSET);
     },
     [isTouching, screenToBase]
   );
