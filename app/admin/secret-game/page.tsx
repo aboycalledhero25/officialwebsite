@@ -13,9 +13,9 @@ const DEFAULT_PLATFORM: GamePlatformSettings = {
   arrowKeys: { visible: false, x: 8, y: 280, size: 40 },
   touchArea: { visible: false, x: 0, y: 200, width: 240, height: 120 },
   fireButton: { visible: true, x: 200, y: 270, size: 44 },
-  score: { visible: true, x: 8, y: 8 },
-  wave: { visible: true, x: 120, y: 8 },
-  powerUps: { visible: true, x: 120, y: 28 },
+  score: { visible: true, x: 8, y: 8, size: 14 },
+  wave: { visible: true, x: 120, y: 8, size: 14 },
+  powerUps: { visible: true, x: 120, y: 28, size: 8 },
   enemy: {
     speed: 18,
     fireRate: 0.003,
@@ -279,9 +279,10 @@ export default function SecretGameAdminPage() {
             <div className="flex items-center gap-4 mb-3">
               <Toggle label="Visible" checked={plat.score.visible} onChange={(v) => updateField(`${platform}.score.visible`, v)} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <NumberField label="X" value={plat.score.x} onChange={(v) => updateField(`${platform}.score.x`, v)} min={0} max={240} step={1} />
               <NumberField label="Y" value={plat.score.y} onChange={(v) => updateField(`${platform}.score.y`, v)} min={0} max={320} step={1} />
+              <NumberField label="Size" value={plat.score.size ?? 14} onChange={(v) => updateField(`${platform}.score.size`, v)} min={4} max={64} step={1} />
             </div>
           </Section>
 
@@ -290,9 +291,10 @@ export default function SecretGameAdminPage() {
             <div className="flex items-center gap-4 mb-3">
               <Toggle label="Visible" checked={plat.wave.visible} onChange={(v) => updateField(`${platform}.wave.visible`, v)} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <NumberField label="X" value={plat.wave.x} onChange={(v) => updateField(`${platform}.wave.x`, v)} min={0} max={240} step={1} />
               <NumberField label="Y" value={plat.wave.y} onChange={(v) => updateField(`${platform}.wave.y`, v)} min={0} max={320} step={1} />
+              <NumberField label="Size" value={plat.wave.size ?? 14} onChange={(v) => updateField(`${platform}.wave.size`, v)} min={4} max={64} step={1} />
             </div>
           </Section>
 
@@ -301,9 +303,10 @@ export default function SecretGameAdminPage() {
             <div className="flex items-center gap-4 mb-3">
               <Toggle label="Visible" checked={plat.powerUps.visible} onChange={(v) => updateField(`${platform}.powerUps.visible`, v)} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <NumberField label="X" value={plat.powerUps.x} onChange={(v) => updateField(`${platform}.powerUps.x`, v)} min={0} max={240} step={1} />
               <NumberField label="Y" value={plat.powerUps.y} onChange={(v) => updateField(`${platform}.powerUps.y`, v)} min={0} max={320} step={1} />
+              <NumberField label="Size" value={plat.powerUps.size ?? 8} onChange={(v) => updateField(`${platform}.powerUps.size`, v)} min={4} max={64} step={1} />
             </div>
           </Section>
 

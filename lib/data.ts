@@ -146,6 +146,7 @@ export interface GameUIElement {
   visible: boolean;
   x: number;
   y: number;
+  size?: number;
 }
 
 export interface GameHeartsSettings extends GameUIElement {

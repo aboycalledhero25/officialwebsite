@@ -315,7 +315,7 @@ export function GameEditorPreview({
           itemKey="hearts"
           left={settings.hearts.x * scaleX}
           top={settings.hearts.y * scaleY}
-          width={(settings.hearts.size * 3 + 8) * scaleY}
+          width={(settings.hearts.size * 5 + 8) * scaleY}
           height={(settings.hearts.size + 4) * scaleY}
           visible={settings.hearts.visible}
           color="#ff006e"
@@ -363,8 +363,8 @@ export function GameEditorPreview({
           itemKey="score"
           left={settings.score.x * scaleX}
           top={settings.score.y * scaleY}
-          width={70 * scaleY}
-          height={36 * scaleY}
+          width={((settings.score.size ?? 14) * 4.5) * scaleY}
+          height={((settings.score.size ?? 14) * 1.8) * scaleY}
           visible={settings.score.visible}
           color="#00f0ff"
         />
@@ -375,8 +375,8 @@ export function GameEditorPreview({
           itemKey="wave"
           left={settings.wave.x * scaleX}
           top={settings.wave.y * scaleY}
-          width={50 * scaleY}
-          height={36 * scaleY}
+          width={((settings.wave.size ?? 14) * 3.2) * scaleY}
+          height={((settings.wave.size ?? 14) * 1.8) * scaleY}
           visible={settings.wave.visible}
           color="#fcee0a"
         />
@@ -387,8 +387,8 @@ export function GameEditorPreview({
           itemKey="powerUps"
           left={settings.powerUps.x * scaleX}
           top={settings.powerUps.y * scaleY}
-          width={110 * scaleY}
-          height={24 * scaleY}
+          width={((settings.powerUps.size ?? 8) * 14) * scaleY}
+          height={((settings.powerUps.size ?? 8) * 2.5) * scaleY}
           visible={settings.powerUps.visible}
           color="#ff8800"
         />
