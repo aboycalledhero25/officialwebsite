@@ -5,7 +5,7 @@ import { GameCanvas, GamePhase } from "./game-canvas";
 import { GameHUD } from "./game-hud";
 import { GameOverlay } from "./game-overlay";
 import { MobileControls } from "./mobile-controls";
-import { sharedKeys } from "./use-keyboard-controls";
+import { sharedKeys, sharedAim } from "./use-keyboard-controls";
 import { useAudioSfx } from "./use-audio-sfx";
 import { useGameMusic } from "./use-game-music";
 import { getLeaderboard } from "@/lib/actions";
@@ -66,8 +66,11 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
     }
   }, [phase]);
 
+  const isTouchDevice = typeof window !== "undefined" && "ontouchstart" in window;
+
   const handleStart = useCallback(() => {
     sharedKeys.shoot = false;
+    sharedAim.firing = false;
     setScore(0);
     setLives(3);
     setWave(1);
@@ -78,6 +81,7 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
 
   const handleRestart = useCallback(() => {
     sharedKeys.shoot = false;
+    sharedAim.firing = false;
     setScore(0);
     setLives(3);
     setWave(1);
@@ -187,11 +191,7 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
       />
 
       {/* Mobile controls */}
-      {phase === "playing" && (
-        <MobileControls
-          onShoot={handleMobileShoot}
-        />
-      )}
+      {phase === "playing" && isTouchDevice && <MobileControls />}
     </div>
   );
 }

@@ -31,6 +31,13 @@ export const sharedTouch = {
   targetY: null as number | null,
 };
 
+// Shared aim state — where the player is aiming (base coords) and whether firing
+export const sharedAim = {
+  x: null as number | null,
+  y: null as number | null,
+  firing: false,
+};
+
 function isTyping() {
   const el = document.activeElement;
   if (!el) return false;

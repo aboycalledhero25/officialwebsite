@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useCallback } from "react";
 import { useGameLoop } from "./use-game-loop";
-import { useKeyboardControls, sharedKeys, sharedTouch } from "./use-keyboard-controls";
+import { useKeyboardControls, sharedKeys, sharedTouch, sharedAim } from "./use-keyboard-controls";
 import { useAudioSfx } from "./use-audio-sfx";
 import { useSiteData } from "@/components/data-provider";
 import {
@@ -120,7 +120,7 @@ export function GameCanvas({
       alive: boolean;
       cooldown: number;
     }[],
-    bullets: [] as { x: number; y: number; vy: number; isPlayer: boolean; variant?: 0 | 1 | 2 }[],
+    bullets: [] as { x: number; y: number; vx: number; vy: number; isPlayer: boolean; variant?: 0 | 1 | 2 }[],
     particles: [] as {
       x: number;
       y: number;
@@ -145,6 +145,30 @@ export function GameCanvas({
     spawnAnim: 0,
     playAreaW: BASE_W,
   });
+
+  // Desktop mouse aim tracking
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      sharedAim.x = (e.clientX / w) * BASE_W;
+      sharedAim.y = (e.clientY / h) * BASE_H;
+    };
+    const handleMouseDown = (e: MouseEvent) => {
+      if (e.button === 0) sharedAim.firing = true;
+    };
+    const handleMouseUp = (e: MouseEvent) => {
+      if (e.button === 0) sharedAim.firing = false;
+    };
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mousedown", handleMouseDown);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mousedown", handleMouseDown);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
 
   // Resize canvas to fill viewport
   useEffect(() => {
@@ -348,21 +372,62 @@ export function GameCanvas({
 
       // ── Player shooting ──
       s.playerCooldown -= dt;
-      if (keys.shoot && s.playerCooldown <= 0) {
+      const firing = keys.shoot || sharedAim.firing;
+      if (firing && s.playerCooldown <= 0) {
         const isWideShot = s.activePowerUps.some((p) => p.type === "wideshot");
         const isRapid = s.activePowerUps.some((p) => p.type === "rapid");
         const baseCooldown = isRapid ? 0.12 : 0.35;
 
+        const px = s.playerX + PLAYER_W_BASE / 2;
+        const py = s.playerY + PLAYER_H_BASE / 2;
+        let aimX = sharedAim.x;
+        let aimY = sharedAim.y;
+        if (aimX == null || aimY == null) {
+          aimX = px;
+          aimY = py - 10;
+        }
+        const dx = aimX - px;
+        const dy = aimY - py;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const speed = BULLET_SPEED_BASE;
+
+        let vx = 0;
+        let vy = -speed;
+        if (dist > 1) {
+          vx = (dx / dist) * speed;
+          vy = (dy / dist) * speed;
+        }
+
         if (isWideShot) {
-          // Three bullets spread
-          s.bullets.push({ x: s.playerX + PLAYER_W_BASE / 2 - 6, y: s.playerY, vy: -BULLET_SPEED_BASE, isPlayer: true });
-          s.bullets.push({ x: s.playerX + PLAYER_W_BASE / 2, y: s.playerY, vy: -BULLET_SPEED_BASE, isPlayer: true });
-          s.bullets.push({ x: s.playerX + PLAYER_W_BASE / 2 + 6, y: s.playerY, vy: -BULLET_SPEED_BASE, isPlayer: true });
+          const baseAngle = Math.atan2(vy, vx);
+          const spread = 0.26; // ~15°
+          s.bullets.push({
+            x: px,
+            y: py,
+            vx: Math.cos(baseAngle - spread) * speed,
+            vy: Math.sin(baseAngle - spread) * speed,
+            isPlayer: true,
+          });
+          s.bullets.push({
+            x: px,
+            y: py,
+            vx,
+            vy,
+            isPlayer: true,
+          });
+          s.bullets.push({
+            x: px,
+            y: py,
+            vx: Math.cos(baseAngle + spread) * speed,
+            vy: Math.sin(baseAngle + spread) * speed,
+            isPlayer: true,
+          });
         } else {
           s.bullets.push({
-            x: s.playerX + PLAYER_W_BASE / 2,
-            y: s.playerY,
-            vy: -BULLET_SPEED_BASE,
+            x: px,
+            y: py,
+            vx,
+            vy,
             isPlayer: true,
           });
         }
@@ -405,6 +470,7 @@ export function GameCanvas({
           s.bullets.push({
             x: e.x + ENEMY_W_BASE / 2,
             y: e.y + ENEMY_H_BASE,
+            vx: 0,
             vy: cfg.projectileSpeed,
             isPlayer: false,
             variant: Math.floor(Math.random() * 3) as 0 | 1 | 2,
@@ -462,8 +528,9 @@ export function GameCanvas({
       // ── Bullet update ──
       for (let i = s.bullets.length - 1; i >= 0; i--) {
         const b = s.bullets[i];
+        b.x += (b.vx || 0) * dt;
         b.y += b.vy * dt;
-        if (b.y < -20 || b.y > BASE_H + 20) {
+        if (b.y < -20 || b.y > BASE_H + 20 || b.x < -20 || b.x > playAreaW + 20) {
           s.bullets.splice(i, 1);
         }
       }
