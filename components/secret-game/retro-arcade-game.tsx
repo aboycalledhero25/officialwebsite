@@ -8,6 +8,14 @@ import { MobileControls } from "./mobile-controls";
 import { sharedKeys } from "./use-keyboard-controls";
 import { useAudioSfx } from "./use-audio-sfx";
 import { useGameMusic } from "./use-game-music";
+import { getLeaderboard } from "@/lib/actions";
+
+interface LeaderboardEntry {
+  name: string;
+  score: number;
+  wave: number;
+  created_at: string;
+}
 
 interface RetroArcadeGameProps {
   title: string;
@@ -23,15 +31,25 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
   const [highScore, setHighScore] = useState(0);
   const [muted, setMuted] = useState(false);
   const [resetKey, setResetKey] = useState(0);
+  const [activePowerUp, setActivePowerUp] = useState<{ type: "rapid" | "shield" | "wideshot" | "extralife"; timer: number } | null>(null);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [leaderboardLoading, setLeaderboardLoading] = useState(true);
   const { setMuted: setAudioMuted } = useAudioSfx();
   const { setMuted: setMusicMuted } = useGameMusic("/audio/8-bit.mp3");
 
-  // Load high score on mount
+  // Load high score + leaderboard on mount
   useEffect(() => {
     try {
       const hs = localStorage.getItem("abch-guitar-invaders-highscore");
       if (hs) setHighScore(parseInt(hs, 10));
     } catch {}
+
+    getLeaderboard(10)
+      .then((data) => {
+        setLeaderboard(data);
+        setLeaderboardLoading(false);
+      })
+      .catch(() => setLeaderboardLoading(false));
   }, []);
 
   // Refresh high score when game ends
@@ -41,6 +59,10 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
         const hs = localStorage.getItem("abch-guitar-invaders-highscore");
         if (hs) setHighScore(parseInt(hs, 10));
       } catch {}
+      // Also refresh leaderboard
+      getLeaderboard(10)
+        .then((data) => setLeaderboard(data))
+        .catch(() => {});
     }
   }, [phase]);
 
@@ -49,6 +71,7 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
     setScore(0);
     setLives(3);
     setWave(1);
+    setActivePowerUp(null);
     setResetKey((k) => k + 1);
     setPhase("playing");
   }, []);
@@ -58,6 +81,7 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
     setScore(0);
     setLives(3);
     setWave(1);
+    setActivePowerUp(null);
     setResetKey((k) => k + 1);
     setPhase("playing");
   }, []);
@@ -127,6 +151,7 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
         onScoreChange={setScore}
         onLivesChange={setLives}
         onWaveChange={setWave}
+        onPowerUpChange={setActivePowerUp}
         score={score}
         lives={lives}
         wave={wave}
@@ -139,6 +164,7 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
           lives={lives}
           wave={wave}
           muted={muted}
+          activePowerUp={activePowerUp}
           onPause={() => phase === "playing" && setPhase("paused")}
           onToggleMute={handleToggleMute}
         />
@@ -152,6 +178,8 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
         wave={wave}
         title={title}
         instructions={instructions}
+        leaderboard={leaderboard}
+        leaderboardLoading={leaderboardLoading}
         onStart={handleStart}
         onResume={() => setPhase("playing")}
         onRestart={handleRestart}

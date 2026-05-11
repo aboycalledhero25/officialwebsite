@@ -5,6 +5,8 @@ import { useEffect } from "react";
 export interface KeyState {
   left: boolean;
   right: boolean;
+  up: boolean;
+  down: boolean;
   shoot: boolean;
   pause: boolean;
   mute: boolean;
@@ -15,14 +17,19 @@ export interface KeyState {
 export const sharedKeys: KeyState = {
   left: false,
   right: false,
+  up: false,
+  down: false,
   shoot: false,
   pause: false,
   mute: false,
   escape: false,
 };
 
-// Shared touch target for mobile drag-to-move (null = no active touch)
-export const sharedTouch = { targetX: null as number | null };
+// Shared touch target for mobile follow-finger (null = no active touch)
+export const sharedTouch = {
+  targetX: null as number | null,
+  targetY: null as number | null,
+};
 
 export function useKeyboardControls() {
   useEffect(() => {
@@ -37,6 +44,16 @@ export function useKeyboardControls() {
         case "d":
         case "D":
           sharedKeys.right = true;
+          break;
+        case "ArrowUp":
+        case "w":
+        case "W":
+          sharedKeys.up = true;
+          break;
+        case "ArrowDown":
+        case "s":
+        case "S":
+          sharedKeys.down = true;
           break;
         case " ":
           sharedKeys.shoot = true;
@@ -67,6 +84,16 @@ export function useKeyboardControls() {
         case "d":
         case "D":
           sharedKeys.right = false;
+          break;
+        case "ArrowUp":
+        case "w":
+        case "W":
+          sharedKeys.up = false;
+          break;
+        case "ArrowDown":
+        case "s":
+        case "S":
+          sharedKeys.down = false;
           break;
         case " ":
           sharedKeys.shoot = false;

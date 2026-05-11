@@ -7,11 +7,17 @@ const BASE_H = 320;
 const BASE_W = 240;
 const MAX_LIVES = 3;
 
+interface ActivePowerUp {
+  type: "rapid" | "shield" | "wideshot" | "extralife";
+  timer: number;
+}
+
 interface GameHUDProps {
   score: number;
   lives: number;
   wave: number;
   muted: boolean;
+  activePowerUp?: ActivePowerUp | null;
   onPause: () => void;
   onToggleMute: () => void;
 }
@@ -39,7 +45,22 @@ function Heart({ filled, size }: { filled: boolean; size: number }) {
   );
 }
 
-export function GameHUD({ score, lives, wave, muted, onPause, onToggleMute }: GameHUDProps) {
+function PowerUpLabel({ type }: { type: ActivePowerUp["type"] }) {
+  const labels: Record<ActivePowerUp["type"], { text: string; color: string }> = {
+    rapid: { text: "RAPID FIRE", color: "#ff8800" },
+    shield: { text: "SHIELD", color: "#00f0ff" },
+    wideshot: { text: "WIDE SHOT", color: "#fcee0a" },
+    extralife: { text: "EXTRA LIFE", color: "#ff006e" },
+  };
+  const l = labels[type];
+  return (
+    <span className="text-[10px] font-mono font-bold tracking-wider" style={{ color: l.color }}>
+      {l.text}
+    </span>
+  );
+}
+
+export function GameHUD({ score, lives, wave, muted, activePowerUp, onPause, onToggleMute }: GameHUDProps) {
   const filledLives = Math.max(0, Math.min(lives, MAX_LIVES));
   const siteData = useSiteData();
   const [dims, setDims] = useState({ w: 1920, h: 1080 });
@@ -75,6 +96,28 @@ export function GameHUD({ score, lives, wave, muted, onPause, onToggleMute }: Ga
         <span className="text-xs text-neutral-400 font-mono leading-none tracking-wider block">WAVE</span>
         <span className="text-lg text-[#fcee0a] font-mono font-bold leading-tight drop-shadow-[0_0_6px_rgba(252,238,10,0.5)]">{wave}</span>
       </div>
+
+      {/* Active power-up indicator */}
+      {activePowerUp && (
+        <div className="absolute left-1/2 -translate-x-1/2 select-none text-center" style={{ top: screenY(28) }}>
+          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10">
+            <PowerUpLabel type={activePowerUp.type} />
+            <div className="w-16 h-1.5 rounded-full bg-white/20 overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${Math.max(0, Math.min(100, (activePowerUp.timer / (
+                    activePowerUp.type === "rapid" ? 5 :
+                    activePowerUp.type === "shield" ? 6 : 4
+                  )) * 100))}%`,
+                  backgroundColor: activePowerUp.type === "rapid" ? "#ff8800" :
+                    activePowerUp.type === "shield" ? "#00f0ff" : "#fcee0a",
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hearts - positioned from settings */}
       {hearts.visible && (

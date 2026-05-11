@@ -11,6 +11,7 @@ import {
   drawPlayerBullet,
   drawEnemyBullet,
   drawParticle,
+  drawPowerUp,
 } from "./draw-sprites";
 
 export type GamePhase = "menu" | "playing" | "paused" | "gameover" | "levelcomplete";
@@ -28,6 +29,27 @@ const PLAYER_W_BASE = 10;
 const PLAYER_H_BASE = 20;
 const MAX_LIVES = 3;
 
+/* ── Power-up constants ── */
+const POWERUP_SPAWN_CHANCE = 0.12;
+const POWERUP_DRIFT_SPEED = 20;
+const POWERUP_SIZE = 8;
+const POWERUP_RAPID_DURATION = 5;
+const POWERUP_SHIELD_DURATION = 6;
+const POWERUP_WIDESHOT_DURATION = 4;
+
+type PowerUpType = "rapid" | "shield" | "wideshot" | "extralife";
+
+interface PowerUp {
+  x: number;
+  y: number;
+  type: PowerUpType;
+}
+
+interface ActivePowerUp {
+  type: PowerUpType;
+  timer: number;
+}
+
 interface GameCanvasProps {
   phase: GamePhase;
   resetKey: number;
@@ -35,6 +57,7 @@ interface GameCanvasProps {
   onScoreChange: (s: number) => void;
   onLivesChange: (l: number) => void;
   onWaveChange: (w: number) => void;
+  onPowerUpChange?: (p: ActivePowerUp | null) => void;
   score: number;
   lives: number;
   wave: number;
@@ -47,6 +70,7 @@ export function GameCanvas({
   onScoreChange,
   onLivesChange,
   onWaveChange,
+  onPowerUpChange,
   score,
   lives,
   wave,
@@ -96,7 +120,7 @@ export function GameCanvas({
       alive: boolean;
       cooldown: number;
     }[],
-    bullets: [] as { x: number; y: number; vy: number; isPlayer: boolean }[],
+    bullets: [] as { x: number; y: number; vy: number; isPlayer: boolean; variant?: 0 | 1 | 2 }[],
     particles: [] as {
       x: number;
       y: number;
@@ -107,6 +131,8 @@ export function GameCanvas({
       color: string;
       size: number;
     }[],
+    powerups: [] as PowerUp[],
+    activePowerUp: null as ActivePowerUp | null,
     enemyDir: 1,
     enemySpeed: 18,
     enemyDropAccum: 0,
@@ -139,7 +165,7 @@ export function GameCanvas({
       const xScale = logW / BASE_W;
       s.playAreaW = logW;
       s.playerX = Math.min(s.playerX, logW - PLAYER_W_BASE);
-      s.playerY = settingsRef.current.player.y;
+      s.playerY = Math.max(0, Math.min(BASE_H - PLAYER_H_BASE, s.playerY));
     };
 
     resize();
@@ -178,8 +204,8 @@ export function GameCanvas({
       }
     }
 
-    s.enemySpeed = cfg.speed + (w - 1) * 4;
-    s.enemyFireChance = cfg.fireRate + (w - 1) * 0.002;
+    s.enemySpeed = cfg.speed;
+    s.enemyFireChance = cfg.fireRate;
     s.wave = w;
     s.spawnAnim = 0;
     s.playAreaW = logW;
@@ -197,6 +223,8 @@ export function GameCanvas({
     s.playerCooldown = 0;
     s.bullets = [];
     s.particles = [];
+    s.powerups = [];
+    s.activePowerUp = null;
     s.enemyDir = 1;
     s.enemyDropAccum = 0;
     s.screenShake = 0;
@@ -207,9 +235,10 @@ export function GameCanvas({
     onScoreChange(0);
     onLivesChange(MAX_LIVES);
     onWaveChange(1);
+    if (onPowerUpChange) onPowerUpChange(null);
     s.playAreaW = logW;
     initWave(1);
-  }, [initWave, onScoreChange, onLivesChange, onWaveChange]);
+  }, [initWave, onScoreChange, onLivesChange, onWaveChange, onPowerUpChange]);
 
   const spawnParticles = useCallback(
     (x: number, y: number, color: string, count: number) => {
@@ -288,29 +317,54 @@ export function GameCanvas({
 
       // ── Player movement ──
       const pSpeed = PLAYER_SPEED_BASE;
-      if (sharedTouch.targetX !== null) {
-        // Mobile drag control: smooth lerp toward touch target
-        // sharedTouch.targetX is in base coordinates (0-240), scale to logical width
-        const target = Math.max(0, Math.min(playAreaW - PLAYER_W_BASE, sharedTouch.targetX * (logW / BASE_W)));
-        const diff = target - s.playerX;
-        s.playerX += diff * Math.min(1, pSpeed * 2.5 * dt);
+      if (sharedTouch.targetX !== null && sharedTouch.targetY !== null) {
+        // Mobile follow-finger: smooth lerp toward touch target
+        const targetX = Math.max(0, Math.min(playAreaW - PLAYER_W_BASE, sharedTouch.targetX * (logW / BASE_W)));
+        const targetY = Math.max(0, Math.min(BASE_H - PLAYER_H_BASE, sharedTouch.targetY));
+        s.playerX += (targetX - s.playerX) * Math.min(1, pSpeed * 2.5 * dt);
+        s.playerY += (targetY - s.playerY) * Math.min(1, pSpeed * 2.5 * dt);
       } else {
         // Keyboard control
         if (keys.left) s.playerX -= pSpeed * dt;
         if (keys.right) s.playerX += pSpeed * dt;
+        if (keys.up) s.playerY -= pSpeed * dt;
+        if (keys.down) s.playerY += pSpeed * dt;
       }
       s.playerX = Math.max(0, Math.min(playAreaW - PLAYER_W_BASE, s.playerX));
+      s.playerY = Math.max(0, Math.min(BASE_H - PLAYER_H_BASE, s.playerY));
+
+      // ── Active power-up timer ──
+      if (s.activePowerUp) {
+        s.activePowerUp.timer -= dt;
+        if (s.activePowerUp.timer <= 0) {
+          s.activePowerUp = null;
+          if (onPowerUpChange) onPowerUpChange(null);
+        } else {
+          if (onPowerUpChange) onPowerUpChange(s.activePowerUp);
+        }
+      }
 
       // ── Player shooting ──
       s.playerCooldown -= dt;
       if (keys.shoot && s.playerCooldown <= 0) {
-        s.bullets.push({
-          x: s.playerX + PLAYER_W_BASE / 2,
-          y: s.playerY,
-          vy: -BULLET_SPEED_BASE,
-          isPlayer: true,
-        });
-        s.playerCooldown = 0.35;
+        const isWideShot = s.activePowerUp?.type === "wideshot";
+        const isRapid = s.activePowerUp?.type === "rapid";
+        const baseCooldown = isRapid ? 0.12 : 0.35;
+
+        if (isWideShot) {
+          // Three bullets spread
+          s.bullets.push({ x: s.playerX + PLAYER_W_BASE / 2 - 6, y: s.playerY, vy: -BULLET_SPEED_BASE, isPlayer: true });
+          s.bullets.push({ x: s.playerX + PLAYER_W_BASE / 2, y: s.playerY, vy: -BULLET_SPEED_BASE, isPlayer: true });
+          s.bullets.push({ x: s.playerX + PLAYER_W_BASE / 2 + 6, y: s.playerY, vy: -BULLET_SPEED_BASE, isPlayer: true });
+        } else {
+          s.bullets.push({
+            x: s.playerX + PLAYER_W_BASE / 2,
+            y: s.playerY,
+            vy: -BULLET_SPEED_BASE,
+            isPlayer: true,
+          });
+        }
+        s.playerCooldown = baseCooldown;
         play("shoot");
       }
 
@@ -329,13 +383,9 @@ export function GameCanvas({
         }
       }
 
-      const cfg = settingsRef.current.enemy;
       if (hitEdge) {
-        // Reverse and drop, but don't move horizontally this frame
+        // Reverse direction only — no descent
         s.enemyDir *= -1;
-        s.enemies.forEach((e) => {
-          if (e.alive) e.y += cfg.dropDistance;
-        });
       } else {
         // Safe to move horizontally
         for (const e of s.enemies) {
@@ -346,6 +396,7 @@ export function GameCanvas({
 
       // ── Enemy shooting (rate-limited: 1 shot per second per enemy) ──
       const aliveEnemies = s.enemies.filter((e) => e.alive);
+      const cfg = settingsRef.current.enemy;
       aliveEnemies.forEach((e) => {
         e.cooldown -= dt;
         if (e.cooldown <= 0 && Math.random() < s.enemyFireChance) {
@@ -354,10 +405,52 @@ export function GameCanvas({
             y: e.y + ENEMY_H_BASE,
             vy: cfg.projectileSpeed,
             isPlayer: false,
+            variant: Math.floor(Math.random() * 3) as 0 | 1 | 2,
           });
           e.cooldown = 1; // 1 second cooldown
         }
       });
+
+      // ── Power-up drift ──
+      for (let i = s.powerups.length - 1; i >= 0; i--) {
+        const pu = s.powerups[i];
+        pu.y += POWERUP_DRIFT_SPEED * dt;
+        if (pu.y > BASE_H + 10) {
+          s.powerups.splice(i, 1);
+        }
+      }
+
+      // ── Power-up collection ──
+      for (let i = s.powerups.length - 1; i >= 0; i--) {
+        const pu = s.powerups[i];
+        // AABB collision with player
+        if (
+          pu.x < s.playerX + PLAYER_W_BASE &&
+          pu.x + POWERUP_SIZE > s.playerX &&
+          pu.y < s.playerY + PLAYER_H_BASE &&
+          pu.y + POWERUP_SIZE > s.playerY
+        ) {
+          // Apply power-up
+          if (pu.type === "extralife") {
+            s.lives = Math.min(MAX_LIVES + 2, s.lives + 1); // allow up to 5 lives total
+            onLivesChange(s.lives);
+            play("levelComplete"); // reuse cheerful sound
+          } else {
+            const duration =
+              pu.type === "rapid" ? POWERUP_RAPID_DURATION :
+              pu.type === "shield" ? POWERUP_SHIELD_DURATION :
+              POWERUP_WIDESHOT_DURATION;
+            s.activePowerUp = { type: pu.type, timer: duration };
+            if (onPowerUpChange) onPowerUpChange(s.activePowerUp);
+          }
+          const puColor =
+            pu.type === "rapid" ? "#ff8800" :
+            pu.type === "shield" ? "#00f0ff" :
+            pu.type === "wideshot" ? "#fcee0a" : "#ff006e";
+          spawnParticles(pu.x + POWERUP_SIZE / 2, pu.y + POWERUP_SIZE / 2, puColor, 6);
+          s.powerups.splice(i, 1);
+        }
+      }
 
       // ── Bullet update ──
       for (let i = s.bullets.length - 1; i >= 0; i--) {
@@ -388,6 +481,17 @@ export function GameCanvas({
             spawnParticles(e.x + ENEMY_W_BASE / 2, e.y + ENEMY_H_BASE / 2, "#ff006e", 8);
             spawnParticles(e.x + ENEMY_W_BASE / 2, e.y + ENEMY_H_BASE / 2, "#fcee0a", 4);
             play("enemyHit");
+
+            // Chance to spawn power-up
+            if (Math.random() < POWERUP_SPAWN_CHANCE) {
+              const types: PowerUpType[] = ["rapid", "shield", "wideshot", "extralife"];
+              const type = types[Math.floor(Math.random() * types.length)];
+              s.powerups.push({
+                x: e.x + ENEMY_W_BASE / 2 - POWERUP_SIZE / 2,
+                y: e.y + ENEMY_H_BASE / 2,
+                type,
+              });
+            }
             break;
           }
         }
@@ -398,11 +502,18 @@ export function GameCanvas({
       const py = s.playerY;
       const pw = PLAYER_W_BASE;
       const ph = PLAYER_H_BASE;
+      const hasShield = s.activePowerUp?.type === "shield";
       for (let bi = s.bullets.length - 1; bi >= 0; bi--) {
         const b = s.bullets[bi];
         if (b.isPlayer) continue;
         if (b.x >= px && b.x <= px + pw && b.y >= py && b.y <= py + ph) {
           s.bullets.splice(bi, 1);
+          if (hasShield) {
+            // Shield absorbs hit — visual feedback only
+            spawnParticles(px + pw / 2, py + ph / 2, "#00f0ff", 4);
+            play("shoot"); // reuse a light sound
+            continue;
+          }
           s.lives--;
           onLivesChange(s.lives);
           s.screenShake = 0.2;
@@ -419,23 +530,6 @@ export function GameCanvas({
             } catch {}
             return;
           }
-        }
-      }
-
-      // ── Check enemies reached bottom ──
-      for (const e of s.enemies) {
-        if (e.alive && e.y + ENEMY_H_BASE >= s.playerY - 4) {
-          s.lives = 0;
-          onLivesChange(0);
-          play("gameOver");
-          onPhaseChange("gameover");
-          try {
-            const currentHigh = parseInt(localStorage.getItem("abch-guitar-invaders-highscore") || "0", 10);
-            if (s.score > currentHigh) {
-              localStorage.setItem("abch-guitar-invaders-highscore", String(s.score));
-            }
-          } catch {}
-          return;
         }
       }
 
@@ -465,7 +559,7 @@ export function GameCanvas({
       // ── Render ──
       render(ctx, s, CW, CH, sc);
     },
-    [phase, onPhaseChange, onScoreChange, onLivesChange, onWaveChange, play, setMuted, isMuted, spawnParticles]
+    [phase, onPhaseChange, onScoreChange, onLivesChange, onWaveChange, play, setMuted, isMuted, spawnParticles, onPowerUpChange]
   );
 
   function render(
@@ -500,6 +594,11 @@ export function GameCanvas({
       ctx.fillRect(sx, sy, 1, 1);
     }
 
+    // Draw power-ups
+    for (const pu of s.powerups) {
+      drawPowerUp(ctx, pu.x, pu.y, pu.type, s.frame);
+    }
+
     // Draw enemies with spawn animation
     for (const e of s.enemies) {
       if (!e.alive) continue;
@@ -528,12 +627,29 @@ export function GameCanvas({
       drawPlayer(ctx, s.playerX, s.playerY, s.frame);
     }
 
+    // Draw shield bubble if active
+    if (s.activePowerUp?.type === "shield") {
+      ctx.strokeStyle = `rgba(0, 240, 255, ${0.4 + Math.sin(s.frame * 0.3) * 0.2})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(
+        s.playerX + PLAYER_W_BASE / 2,
+        s.playerY + PLAYER_H_BASE / 2,
+        16,
+        0,
+        Math.PI * 2
+      );
+      ctx.stroke();
+      ctx.fillStyle = `rgba(0, 240, 255, 0.08)`;
+      ctx.fill();
+    }
+
     // Draw bullets
     for (const b of s.bullets) {
       if (b.isPlayer) {
         drawPlayerBullet(ctx, b.x, b.y, s.frame);
       } else {
-        drawEnemyBullet(ctx, b.x, b.y);
+        drawEnemyBullet(ctx, b.x, b.y, b.variant ?? 0);
       }
     }
 
@@ -558,3 +674,5 @@ export function GameCanvas({
     />
   );
 }
+
+

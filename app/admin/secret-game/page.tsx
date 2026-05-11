@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Save, Gamepad2, RotateCcw, Play, Smartphone, Monitor } from "lucide-react";
+import { Save, Gamepad2, RotateCcw, Play, Smartphone, Monitor, Trophy } from "lucide-react";
 import { GameEditorPreview } from "@/components/secret-game/game-editor-preview";
-import { updateSecretGameSettings } from "@/lib/actions";
+import { updateSecretGameSettings, resetLeaderboard } from "@/lib/actions";
 import { useRouter } from "next/navigation";
 import type { SecretGameSettings, GamePlatformSettings } from "@/lib/data";
 
@@ -33,6 +33,7 @@ export default function SecretGameAdminPage() {
   const [saving, setSaving] = useState(false);
   const [highScore, setHighScore] = useState(0);
   const [platform, setPlatform] = useState<"desktop" | "mobile">("desktop");
+  const [resettingBoard, setResettingBoard] = useState(false);
 
   useEffect(() => {
     fetch("/api/admin/data")
@@ -72,6 +73,19 @@ export default function SecretGameAdminPage() {
       localStorage.removeItem("abch-guitar-invaders-highscore");
       setHighScore(0);
     } catch {}
+  }, []);
+
+  const handleResetLeaderboard = useCallback(async () => {
+    if (!confirm("Are you sure you want to delete ALL leaderboard scores? This cannot be undone.")) return;
+    setResettingBoard(true);
+    try {
+      await resetLeaderboard();
+      alert("Leaderboard reset successfully.");
+    } catch {
+      alert("Failed to reset leaderboard.");
+    } finally {
+      setResettingBoard(false);
+    }
   }, []);
 
   const updateField = useCallback((path: string, value: any) => {
@@ -195,7 +209,7 @@ export default function SecretGameAdminPage() {
               <NumberField label="Start Y" value={plat.enemy.startY} onChange={(v) => updateField(`${platform}.enemy.startY`, v)} min={0} max={300} step={1} />
               <NumberField label="Padding X" value={plat.enemy.paddingX} onChange={(v) => updateField(`${platform}.enemy.paddingX`, v)} min={0} max={50} step={1} />
               <NumberField label="Padding Y" value={plat.enemy.paddingY} onChange={(v) => updateField(`${platform}.enemy.paddingY`, v)} min={0} max={50} step={1} />
-              <NumberField label="Drop Distance" value={plat.enemy.dropDistance} onChange={(v) => updateField(`${platform}.enemy.dropDistance`, v)} min={0} max={50} step={1} />
+
             </div>
           </Section>
 
@@ -277,22 +291,42 @@ export default function SecretGameAdminPage() {
 
           {/* High Scores */}
           <Section title="High Scores">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-neutral-300">
-                  Current local high score: <span className="text-[#fcee0a] font-mono font-bold">{highScore}</span>
-                </p>
-                <p className="text-xs text-neutral-500 mt-1">
-                  Stored in visitors&apos; browsers via localStorage.
-                </p>
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-neutral-300">
+                    Current local high score: <span className="text-[#fcee0a] font-mono font-bold">{highScore}</span>
+                  </p>
+                  <p className="text-xs text-neutral-500 mt-1">
+                    Stored in visitors&apos; browsers via localStorage.
+                  </p>
+                </div>
+                <button
+                  onClick={handleResetHighScore}
+                  className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-400 hover:bg-red-500/20 transition-colors"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  Reset Local Scores
+                </button>
               </div>
-              <button
-                onClick={handleResetHighScore}
-                className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-400 hover:bg-red-500/20 transition-colors"
-              >
-                <RotateCcw className="w-4 h-4" />
-                Reset Local Scores
-              </button>
+              <div className="flex items-center justify-between border-t border-[#1e1e1e] pt-4">
+                <div>
+                  <p className="text-sm text-neutral-300">
+                    Global leaderboard (Supabase Postgres)
+                  </p>
+                  <p className="text-xs text-neutral-500 mt-1">
+                    Deletes all submitted scores from the database.
+                  </p>
+                </div>
+                <button
+                  onClick={handleResetLeaderboard}
+                  disabled={resettingBoard}
+                  className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                >
+                  <Trophy className="w-4 h-4" />
+                  {resettingBoard ? "Resetting..." : "Reset Scoreboard"}
+                </button>
+              </div>
             </div>
           </Section>
         </div>

@@ -1,8 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { submitScore } from "@/lib/actions";
 
 export type OverlayPhase = "menu" | "playing" | "paused" | "gameover" | "levelcomplete";
+
+export interface LeaderboardEntry {
+  name: string;
+  score: number;
+  wave: number;
+  created_at: string;
+}
 
 export interface OverlayProps {
   phase: OverlayPhase;
@@ -11,6 +19,8 @@ export interface OverlayProps {
   wave: number;
   title: string;
   instructions: string;
+  leaderboard: LeaderboardEntry[];
+  leaderboardLoading: boolean;
   onStart: () => void;
   onResume: () => void;
   onRestart: () => void;
@@ -24,16 +34,43 @@ export function GameOverlay({
   wave,
   title,
   instructions,
+  leaderboard,
+  leaderboardLoading,
   onStart,
   onResume,
   onRestart,
   onClose,
 }: OverlayProps) {
   const [isMobile, setIsMobile] = useState(false);
+  const [playerName, setPlayerName] = useState("");
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [savedName, setSavedName] = useState("");
 
   useEffect(() => {
     setIsMobile(window.innerWidth < 768 || "ontouchstart" in window);
   }, []);
+
+  // Reset save state when game over appears
+  useEffect(() => {
+    if (phase === "gameover") {
+      setSaveStatus("idle");
+      setPlayerName("");
+      setSavedName("");
+    }
+  }, [phase]);
+
+  const handleSaveScore = useCallback(async () => {
+    const name = playerName.trim();
+    if (!name || name.length > 20) return;
+    setSaveStatus("saving");
+    try {
+      await submitScore(name, score, wave);
+      setSaveStatus("saved");
+      setSavedName(name);
+    } catch {
+      setSaveStatus("error");
+    }
+  }, [playerName, score, wave]);
 
   const handleKeyStart = useCallback(
     (e: React.KeyboardEvent) => {
@@ -47,12 +84,44 @@ export function GameOverlay({
     [phase, onStart, onRestart, onResume]
   );
 
+  const LeaderboardTable = () => (
+    <div className="w-full max-w-xs mt-2">
+      <div className="text-white/70 text-xs font-mono uppercase tracking-widest mb-2 text-center">
+        Top Scores
+      </div>
+      {leaderboardLoading ? (
+        <div className="text-white/40 text-xs text-center py-2">Loading...</div>
+      ) : leaderboard.length === 0 ? (
+        <div className="text-white/40 text-xs text-center py-2">No scores yet</div>
+      ) : (
+        <div className="flex flex-col gap-1">
+          {leaderboard.map((entry, i) => (
+            <div
+              key={i}
+              className={`flex items-center justify-between text-xs font-mono px-2 py-1 rounded ${
+                savedName && entry.name === savedName && entry.score === score
+                  ? "bg-[#ff006e]/20 text-white"
+                  : "text-white/70"
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <span className="text-white/40 w-4">{i + 1}</span>
+                <span className="truncate max-w-[100px]">{entry.name}</span>
+              </span>
+              <span className="text-white/90">{entry.score.toLocaleString()}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   const content = (() => {
     switch (phase) {
       case "menu":
         return (
           <div
-            className="flex flex-col items-center gap-6 animate-in fade-in duration-500 text-center px-6"
+            className="flex flex-col items-center gap-4 animate-in fade-in duration-500 text-center px-6 max-h-[90vh] overflow-y-auto"
             tabIndex={0}
             onKeyDown={handleKeyStart}
             autoFocus
@@ -70,21 +139,22 @@ export function GameOverlay({
               <span>{instructions}</span>
               <span className="text-white/50">
                 {isMobile
-                  ? "Tap arrows to move, fire button to shoot"
-                  : "Arrow keys / A-D to move · Space to shoot · P to pause · M to mute"}
+                  ? "Touch and drag to move, fire button to shoot"
+                  : "Arrow keys / WASD to move · Space to shoot · P to pause · M to mute"}
               </span>
             </div>
             <button
               onClick={onStart}
-              className="mt-4 px-10 py-4 bg-[#ff006e] hover:bg-[#e6005f] text-white font-bold text-lg rounded-sm uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(255,0,110,0.4)] hover:shadow-[0_0_30px_rgba(255,0,110,0.6)] active:scale-95 focus:outline-none focus:ring-2 focus:ring-white/50"
+              className="mt-2 px-10 py-4 bg-[#ff006e] hover:bg-[#e6005f] text-white font-bold text-lg rounded-sm uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(255,0,110,0.4)] hover:shadow-[0_0_30px_rgba(255,0,110,0.6)] active:scale-95 focus:outline-none focus:ring-2 focus:ring-white/50"
             >
               Start Game
             </button>
             {highScore > 0 && (
-              <div className="text-white/60 text-sm mt-2">
+              <div className="text-white/60 text-sm">
                 High Score: {highScore}
               </div>
             )}
+            <LeaderboardTable />
           </div>
         );
       case "paused":
@@ -110,7 +180,7 @@ export function GameOverlay({
       case "gameover":
         return (
           <div
-            className="flex flex-col items-center gap-6 animate-in fade-in duration-500 text-center px-6"
+            className="flex flex-col items-center gap-4 animate-in fade-in duration-500 text-center px-6 max-h-[90vh] overflow-y-auto"
             tabIndex={0}
             onKeyDown={handleKeyStart}
             autoFocus
@@ -129,6 +199,40 @@ export function GameOverlay({
                 </span>
               )}
             </div>
+            {/* Name input */}
+            {saveStatus !== "saved" && (
+              <div className="flex flex-col items-center gap-2 w-full max-w-xs">
+                <input
+                  type="text"
+                  value={playerName}
+                  onChange={(e) => setPlayerName(e.target.value)}
+                  placeholder="Enter your name"
+                  maxLength={20}
+                  className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-sm text-white text-sm text-center placeholder:text-white/30 focus:outline-none focus:border-white/50"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (playerName.trim()) handleSaveScore();
+                    }
+                  }}
+                />
+                <button
+                  onClick={handleSaveScore}
+                  disabled={!playerName.trim() || saveStatus === "saving"}
+                  className="px-6 py-2 bg-[#00b4d8] hover:bg-[#0096c7] disabled:bg-white/10 disabled:text-white/30 text-white font-bold text-sm rounded-sm uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(0,180,216,0.4)] hover:shadow-[0_0_25px_rgba(0,180,216,0.6)] active:scale-95 focus:outline-none focus:ring-2 focus:ring-white/50 disabled:shadow-none"
+                >
+                  {saveStatus === "saving" ? "Saving..." : "Save Score"}
+                </button>
+                {saveStatus === "error" && (
+                  <span className="text-red-400 text-xs">Failed to save. Try again.</span>
+                )}
+              </div>
+            )}
+            {saveStatus === "saved" && (
+              <div className="text-[#00b4d8] text-sm font-bold animate-pulse">
+                Score saved!
+              </div>
+            )}
             <button
               onClick={onRestart}
               className="mt-2 px-10 py-4 bg-[#ff006e] hover:bg-[#e6005f] text-white font-bold text-lg rounded-sm uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(255,0,110,0.4)] hover:shadow-[0_0_30px_rgba(255,0,110,0.6)] active:scale-95 focus:outline-none focus:ring-2 focus:ring-white/50"
@@ -141,6 +245,7 @@ export function GameOverlay({
             >
               Main Menu
             </button>
+            <LeaderboardTable />
           </div>
         );
       case "levelcomplete":

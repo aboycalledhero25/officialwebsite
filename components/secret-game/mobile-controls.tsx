@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { sharedKeys, sharedTouch } from "./use-keyboard-controls";
 import { useSiteData } from "@/components/data-provider";
 
@@ -12,7 +12,6 @@ interface MobileControlsProps {
 }
 
 export function MobileControls({ onShoot }: MobileControlsProps) {
-  const touchAreaRef = useRef<HTMLDivElement>(null);
   const [isTouching, setIsTouching] = useState(false);
   const siteData = useSiteData();
   const [dims, setDims] = useState({ w: 375, h: 812 });
@@ -26,70 +25,87 @@ export function MobileControls({ onShoot }: MobileControlsProps) {
 
   const isMobile = typeof window !== "undefined" && (window.innerWidth < 768 || "ontouchstart" in window);
   const plat = siteData.secretGame?.[isMobile ? "mobile" : "desktop"];
-  const touchArea = plat?.touchArea ?? { visible: true, x: 0, y: 200, width: 240, height: 120 };
   const fireBtn = plat?.fireButton ?? { visible: true, x: 200, y: 270, size: 44 };
 
   // Scale stored positions (0-240 x, 0-320 y) to actual screen
   const sx = (v: number) => (v / BASE_W) * dims.w;
   const sy = (v: number) => (v / BASE_H) * dims.h;
 
-  const updateTargetFromTouch = useCallback((clientX: number) => {
-    const area = touchAreaRef.current;
-    if (!area) return;
-    const rect = area.getBoundingClientRect();
-    const x = clientX - rect.left;
-    const ratio = Math.max(0, Math.min(1, x / rect.width));
-    // Map to game base coordinates (0-240)
-    sharedTouch.targetX = ratio * BASE_W;
-  }, []);
+  // Convert screen pixel to base game coordinates
+  const screenToBase = useCallback(
+    (clientX: number, clientY: number) => ({
+      x: Math.max(0, Math.min(BASE_W, (clientX / dims.w) * BASE_W)),
+      y: Math.max(0, Math.min(BASE_H, (clientY / dims.h) * BASE_H)),
+    }),
+    [dims.w, dims.h]
+  );
 
   const handleTouchStart = useCallback(
     (e: React.TouchEvent) => {
+      // Ignore if touching the fire button area
+      const target = e.target as HTMLElement;
+      if (target.closest("[data-fire-btn]")) return;
       e.preventDefault();
       setIsTouching(true);
-      updateTargetFromTouch(e.touches[0].clientX);
+      const t = e.touches[0];
+      const pos = screenToBase(t.clientX, t.clientY);
+      sharedTouch.targetX = pos.x;
+      sharedTouch.targetY = pos.y;
     },
-    [updateTargetFromTouch]
+    [screenToBase]
   );
 
   const handleTouchMove = useCallback(
     (e: React.TouchEvent) => {
+      if (!isTouching) return;
       e.preventDefault();
-      updateTargetFromTouch(e.touches[0].clientX);
+      const t = e.touches[0];
+      const pos = screenToBase(t.clientX, t.clientY);
+      sharedTouch.targetX = pos.x;
+      sharedTouch.targetY = pos.y;
     },
-    [updateTargetFromTouch]
+    [isTouching, screenToBase]
   );
 
   const handleTouchEnd = useCallback(() => {
     setIsTouching(false);
     sharedTouch.targetX = null;
+    sharedTouch.targetY = null;
   }, []);
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest("[data-fire-btn]")) return;
       setIsTouching(true);
-      updateTargetFromTouch(e.clientX);
+      const pos = screenToBase(e.clientX, e.clientY);
+      sharedTouch.targetX = pos.x;
+      sharedTouch.targetY = pos.y;
     },
-    [updateTargetFromTouch]
+    [screenToBase]
   );
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent) => {
       if (!isTouching) return;
-      updateTargetFromTouch(e.clientX);
+      const pos = screenToBase(e.clientX, e.clientY);
+      sharedTouch.targetX = pos.x;
+      sharedTouch.targetY = pos.y;
     },
-    [isTouching, updateTargetFromTouch]
+    [isTouching, screenToBase]
   );
 
   const handleMouseUp = useCallback(() => {
     setIsTouching(false);
     sharedTouch.targetX = null;
+    sharedTouch.targetY = null;
   }, []);
 
   useEffect(() => {
     const onUp = () => {
       setIsTouching(false);
       sharedTouch.targetX = null;
+      sharedTouch.targetY = null;
     };
     window.addEventListener("mouseup", onUp);
     return () => window.removeEventListener("mouseup", onUp);
@@ -97,31 +113,22 @@ export function MobileControls({ onShoot }: MobileControlsProps) {
 
   return (
     <>
-      {/* Touch area for drag-to-move */}
-      {touchArea.visible && (
-        <div
-          ref={touchAreaRef}
-          className="absolute z-20 touch-none select-none"
-          style={{
-            left: sx(touchArea.x),
-            top: sy(touchArea.y),
-            width: sx(touchArea.width),
-            height: sy(touchArea.height),
-            cursor: isTouching ? "grabbing" : "grab",
-          }}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-        />
-      )}
+      {/* Full-screen movement layer — finger follows sprite */}
+      <div
+        className="fixed inset-0 z-20 touch-none select-none"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+      />
 
       {/* Fire button */}
       {fireBtn.visible && (
         <div
+          data-fire-btn
           className="absolute z-30 pointer-events-auto"
           style={{
             left: sx(fireBtn.x),

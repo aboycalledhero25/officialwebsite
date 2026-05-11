@@ -527,3 +527,68 @@ export async function updatePageVisibility(visibility: any) {
   revalidateAll();
   return { success: true };
 }
+
+// ═══════════════════════════════════════════════════════════
+//  LEADERBOARD (Supabase Postgres)
+// ═══════════════════════════════════════════════════════════
+
+const LeaderboardEntrySchema = z.object({
+  name: z.string().min(1).max(20),
+  score: z.number().int().min(0),
+  wave: z.number().int().min(1),
+});
+
+export async function submitScore(name: string, score: number, wave: number) {
+  const parsed = LeaderboardEntrySchema.safeParse({ name, score, wave });
+  if (!parsed.success) {
+    throw new Error("Invalid score data");
+  }
+
+  const { error } = await supabaseAdmin
+    .from("leaderboard")
+    .insert([
+      {
+        name: parsed.data.name,
+        score: parsed.data.score,
+        wave: parsed.data.wave,
+      },
+    ]);
+
+  if (error) {
+    console.error("Failed to submit score:", error);
+    throw new Error("Failed to save score");
+  }
+
+  return { success: true };
+}
+
+export async function getLeaderboard(limit = 10) {
+  const { data, error } = await supabaseAdmin
+    .from("leaderboard")
+    .select("name, score, wave, created_at")
+    .order("score", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("Failed to fetch leaderboard:", error);
+    return [];
+  }
+
+  return data ?? [];
+}
+
+export async function resetLeaderboard() {
+  await requireAuth();
+
+  const { error } = await supabaseAdmin
+    .from("leaderboard")
+    .delete()
+    .neq("id", 0); // delete all rows
+
+  if (error) {
+    console.error("Failed to reset leaderboard:", error);
+    throw new Error("Failed to reset leaderboard");
+  }
+
+  return { success: true };
+}
