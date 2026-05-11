@@ -42,13 +42,19 @@ export default function SettingsAdminPage() {
   const handleSave = useCallback(async () => {
     if (!siteMeta || !siteCopy) return;
     setSaving(true);
-    await updateSiteMeta(siteMeta);
-    await updateSiteCopy(siteCopy);
-    if (pageVisibility) {
-      await updatePageVisibility(pageVisibility);
+    try {
+      await updateSiteMeta(siteMeta);
+      await updateSiteCopy(siteCopy);
+      if (pageVisibility) {
+        await updatePageVisibility(pageVisibility);
+      }
+      router.refresh();
+    } catch (err) {
+      console.error("Save failed:", err);
+      alert("Save failed. Please check your connection and try again.");
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
-    router.refresh();
   }, [siteMeta, siteCopy, pageVisibility, router]);
 
   async function handleBannerUpload(file: File) {

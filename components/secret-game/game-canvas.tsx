@@ -33,7 +33,7 @@ const ENEMY_PAD_Y_BASE = 8;
 const ENEMY_START_Y_BASE = 30;
 const PLAYER_W_BASE = 10;
 const PLAYER_H_BASE = 20;
-const POWER_UP_DURATION = 3;
+const POWER_UP_DURATION = 1;
 const POWER_UP_BEAM_W = 14;
 const MAX_LIVES = 3;
 
@@ -66,8 +66,18 @@ export function GameCanvas({
 }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const dimsRef = useRef({ w: BASE_W, h: BASE_H, scale: 1 });
+  const playerImageRef = useRef<HTMLImageElement | null>(null);
   useKeyboardControls();
   const { play, setMuted, isMuted } = useAudioSfx();
+
+  // Load custom guitar sprite
+  useEffect(() => {
+    const img = new Image();
+    img.src = "/images/guitar.png";
+    img.onload = () => {
+      playerImageRef.current = img;
+    };
+  }, []);
 
   // Mutable game state
   const stateRef = useRef({
@@ -522,8 +532,15 @@ export function GameCanvas({
       }
     }
 
-    // Draw player
-    drawPlayer(ctx, s.playerX, s.playerY, s.frame);
+    // Draw player (custom sprite if loaded, else fallback)
+    const playerImg = playerImageRef.current;
+    if (playerImg && playerImg.complete) {
+      const pw = 14;
+      const ph = 42;
+      ctx.drawImage(playerImg, s.playerX - 2, s.playerY - 12, pw, ph);
+    } else {
+      drawPlayer(ctx, s.playerX, s.playerY, s.frame);
+    }
 
     // Draw bullets
     for (const b of s.bullets) {
