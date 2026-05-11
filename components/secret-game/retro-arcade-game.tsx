@@ -20,7 +20,6 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(3);
   const [wave, setWave] = useState(1);
-  const [powerUps, setPowerUps] = useState(0);
   const [highScore, setHighScore] = useState(0);
   const [muted, setMuted] = useState(false);
   const [resetKey, setResetKey] = useState(0);
@@ -47,22 +46,18 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
 
   const handleStart = useCallback(() => {
     sharedKeys.shoot = false;
-    sharedKeys.powerUp = false;
     setScore(0);
     setLives(3);
     setWave(1);
-    setPowerUps(0);
     setResetKey((k) => k + 1);
     setPhase("playing");
   }, []);
 
   const handleRestart = useCallback(() => {
     sharedKeys.shoot = false;
-    sharedKeys.powerUp = false;
     setScore(0);
     setLives(3);
     setWave(1);
-    setPowerUps(0);
     setResetKey((k) => k + 1);
     setPhase("playing");
   }, []);
@@ -118,21 +113,8 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
   }, [muted, setAudioMuted, setMusicMuted]);
 
   // Mobile control handlers
-  const handleMobileLeft = useCallback((active: boolean) => {
-    sharedKeys.left = active;
-  }, []);
-  const handleMobileRight = useCallback((active: boolean) => {
-    sharedKeys.right = active;
-  }, []);
   const handleMobileShoot = useCallback((active: boolean) => {
     sharedKeys.shoot = active;
-  }, []);
-  const handleMobilePowerUp = useCallback(() => {
-    sharedKeys.powerUp = true;
-    // Reset after a short delay so it acts as a one-shot
-    setTimeout(() => {
-      sharedKeys.powerUp = false;
-    }, 100);
   }, []);
 
   return (
@@ -145,11 +127,9 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
         onScoreChange={setScore}
         onLivesChange={setLives}
         onWaveChange={setWave}
-        onPowerUpsChange={setPowerUps}
         score={score}
         lives={lives}
         wave={wave}
-        powerUps={powerUps}
       />
 
       {/* HUD overlays the canvas */}
@@ -158,7 +138,6 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
           score={score}
           lives={lives}
           wave={wave}
-          powerUps={powerUps}
           muted={muted}
           onPause={() => phase === "playing" && setPhase("paused")}
           onToggleMute={handleToggleMute}
@@ -182,11 +161,7 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
       {/* Mobile controls */}
       {phase === "playing" && (
         <MobileControls
-          onMoveLeft={handleMobileLeft}
-          onMoveRight={handleMobileRight}
           onShoot={handleMobileShoot}
-          onPowerUp={handleMobilePowerUp}
-          powerUps={powerUps}
         />
       )}
     </div>

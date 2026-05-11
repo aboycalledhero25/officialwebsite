@@ -63,8 +63,12 @@ export default function MerchAdminPage() {
 
   const handleDelete = useCallback(async (id: string) => {
     if (!confirm("Delete this product?")) return;
-    await deleteMerchItem(id);
-    setItems((prev) => prev.filter((m) => m.id !== id));
+    try {
+      await deleteMerchItem(id);
+      setItems((prev) => prev.filter((m) => m.id !== id));
+    } catch (err: any) {
+      alert("Delete failed: " + (err?.message || "Unknown error"));
+    }
   }, []);
 
   const updateItem = useCallback((id: string, updates: Partial<MerchItem>) => {
@@ -199,6 +203,7 @@ export default function MerchAdminPage() {
                 </div>
                 <button
                   onClick={() => handleDelete(item.id)}
+                  onPointerDown={(e) => e.stopPropagation()}
                   className="p-2 rounded-lg text-neutral-500 hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0"
                 >
                   <Trash2 className="w-4 h-4" />

@@ -2,7 +2,7 @@
 
 import { useRef, useCallback } from "react";
 
-export type SoundName = "shoot" | "enemyHit" | "playerHit" | "gameOver" | "levelComplete" | "powerUp";
+export type SoundName = "shoot" | "enemyHit" | "playerHit" | "gameOver" | "levelComplete";
 
 export function useAudioSfx() {
   const ctxRef = useRef<AudioContext | null>(null);
@@ -100,22 +100,7 @@ export function useAudioSfx() {
         });
         break;
       }
-      case "powerUp": {
-        const notes = [880, 1100, 1320, 1760];
-        notes.forEach((freq, i) => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = "sawtooth";
-          osc.frequency.setValueAtTime(freq, t + i * 0.04);
-          gain.gain.setValueAtTime(0.15, t + i * 0.04);
-          gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.04 + 0.12);
-          osc.connect(gain);
-          gain.connect(master);
-          osc.start(t + i * 0.04);
-          osc.stop(t + i * 0.04 + 0.12);
-        });
-        break;
-      }
+
     }
   }, []);
 

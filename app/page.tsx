@@ -5,16 +5,11 @@ import { HomeInstagram } from "@/sections/home-instagram";
 import { HomeMailingList } from "@/sections/home-mailing-list";
 import { HomeMerchPreview } from "@/sections/home-merch-preview";
 import { HomeShows } from "@/sections/home-shows";
-import { HomepageSecretHotspot } from "@/components/secret-game/homepage-hotspot";
-import { getData } from "@/lib/data-server";
 
 export default function Home() {
-  const data = getData();
-  const game = data.secretGame;
-
   return (
     <>
-      <HomeHero hotspot={game?.enabled ? <HomepageSecretHotspot /> : null} />
+      <HomeHero />
       <HomeMusic />
       <HomeNews />
       <HomeShows />

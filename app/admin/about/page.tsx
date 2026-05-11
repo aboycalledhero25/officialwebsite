@@ -85,12 +85,16 @@ export default function AboutAdminPage() {
   }, []);
 
   async function handleImageUpload(index: number, file: File) {
-    const formData = new FormData();
-    formData.append("file", file);
-    const result = await uploadImage(formData);
-    setAboutImages((prev) =>
-      prev.map((img, i) => (i === index ? { ...img, src: result.path } : img))
-    );
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const result = await uploadImage(formData);
+      setAboutImages((prev) =>
+        prev.map((img, i) => (i === index ? { ...img, src: result.path } : img))
+      );
+    } catch (err: any) {
+      alert("Upload failed: " + (err?.message || "Unknown error"));
+    }
   }
 
   if (loading || !band) {

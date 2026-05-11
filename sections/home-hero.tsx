@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback, type ReactNode } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { ArrowRight, Play } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useSiteData } from "@/components/data-provider";
 import { EditableText } from "@/components/edit-mode/editable-text";
 import { updateSiteCopyPath } from "@/lib/actions";
@@ -72,8 +73,10 @@ function getTintStyle(settings: BannerSettings): React.CSSProperties {
   }
 }
 
-export function HomeHero({ hotspot }: { hotspot?: ReactNode }) {
+export function HomeHero() {
   const data = useSiteData();
+  const router = useRouter();
+  const secretGameEnabled = data.secretGame?.enabled ?? false;
   const copy = data.siteCopy.home.hero;
   const hasBanner = data.bannerImage && !data.bannerImage.includes("placeholder");
 
@@ -129,7 +132,6 @@ export function HomeHero({ hotspot }: { hotspot?: ReactNode }) {
       )}
 
       <div className="relative mx-auto flex max-w-7xl flex-col items-center px-4 py-20 text-center sm:px-6 sm:py-28 lg:px-8 lg:py-36">
-        {hotspot}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -152,7 +154,25 @@ export function HomeHero({ hotspot }: { hotspot?: ReactNode }) {
           transition={{ duration: 0.7, delay: 0.1 }}
           className="mt-6 font-display text-6xl tracking-wider text-foreground sm:text-7xl md:text-8xl lg:text-9xl"
         >
-          {data.band.name.toUpperCase()}
+          {(() => {
+            const name = data.band.name.toUpperCase();
+            const heroIndex = name.lastIndexOf("HERO");
+            if (!secretGameEnabled || heroIndex === -1) {
+              return name;
+            }
+            return (
+              <>
+                {name.slice(0, heroIndex)}
+                <span
+                  onClick={() => router.push("/secret-game")}
+                  className="cursor-pointer hover:brightness-125 hover:text-[#ff006e] transition-all duration-300 inline-block"
+                  title="Click to play a secret game!"
+                >
+                  HERO
+                </span>
+              </>
+            );
+          })()}
         </motion.h1>
 
         <motion.p

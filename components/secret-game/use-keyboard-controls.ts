@@ -6,7 +6,6 @@ export interface KeyState {
   left: boolean;
   right: boolean;
   shoot: boolean;
-  powerUp: boolean;
   pause: boolean;
   mute: boolean;
   escape: boolean;
@@ -17,11 +16,13 @@ export const sharedKeys: KeyState = {
   left: false,
   right: false,
   shoot: false,
-  powerUp: false,
   pause: false,
   mute: false,
   escape: false,
 };
+
+// Shared touch target for mobile drag-to-move (null = no active touch)
+export const sharedTouch = { targetX: null as number | null };
 
 export function useKeyboardControls() {
   useEffect(() => {
@@ -39,10 +40,6 @@ export function useKeyboardControls() {
           break;
         case " ":
           sharedKeys.shoot = true;
-          e.preventDefault();
-          break;
-        case "Control":
-          sharedKeys.powerUp = true;
           e.preventDefault();
           break;
         case "p":
@@ -73,9 +70,6 @@ export function useKeyboardControls() {
           break;
         case " ":
           sharedKeys.shoot = false;
-          break;
-        case "Control":
-          sharedKeys.powerUp = false;
           break;
         case "p":
         case "P":

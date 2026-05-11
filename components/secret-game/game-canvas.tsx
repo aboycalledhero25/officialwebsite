@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useCallback } from "react";
 import { useGameLoop } from "./use-game-loop";
-import { useKeyboardControls, sharedKeys } from "./use-keyboard-controls";
+import { useKeyboardControls, sharedKeys, sharedTouch } from "./use-keyboard-controls";
 import { useAudioSfx } from "./use-audio-sfx";
 import { useSiteData } from "@/components/data-provider";
 import {
@@ -11,7 +11,6 @@ import {
   drawPlayerBullet,
   drawEnemyBullet,
   drawParticle,
-  drawPowerUpBeam,
 } from "./draw-sprites";
 
 export type GamePhase = "menu" | "playing" | "paused" | "gameover" | "levelcomplete";
@@ -34,8 +33,6 @@ const ENEMY_PAD_Y_BASE = 8;
 const ENEMY_START_Y_BASE = 30;
 const PLAYER_W_BASE = 10;
 const PLAYER_H_BASE = 20;
-const POWER_UP_DURATION = 1;
-const POWER_UP_BEAM_W = 14;
 const MAX_LIVES = 3;
 
 interface GameCanvasProps {
@@ -45,11 +42,9 @@ interface GameCanvasProps {
   onScoreChange: (s: number) => void;
   onLivesChange: (l: number) => void;
   onWaveChange: (w: number) => void;
-  onPowerUpsChange: (p: number) => void;
   score: number;
   lives: number;
   wave: number;
-  powerUps: number;
 }
 
 export function GameCanvas({
@@ -59,11 +54,9 @@ export function GameCanvas({
   onScoreChange,
   onLivesChange,
   onWaveChange,
-  onPowerUpsChange,
   score,
   lives,
   wave,
-  powerUps,
 }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const dimsRef = useRef({ w: BASE_W, h: BASE_H, scale: 1 });
@@ -85,7 +78,7 @@ export function GameCanvas({
   // Mutable game state
   const stateRef = useRef({
     playerX: BASE_W / 2,
-    playerY: BASE_H - 28,
+    playerY: BASE_H - 55,
     playerCooldown: 0,
     enemies: [] as {
       x: number;
@@ -115,11 +108,7 @@ export function GameCanvas({
     lives: MAX_LIVES,
     wave: 1,
     spawnAnim: 0,
-    powerUps: 0,
-    powerUpActive: false,
-    powerUpTimer: 0,
-    powerUpX: 0,
-    powerUpKeyConsumed: false,
+    playAreaW: BASE_W,
   });
 
   // Resize canvas to fill viewport
@@ -137,8 +126,9 @@ export function GameCanvas({
       // Keep player in bounds after resize
       const s = stateRef.current;
       const sc = dimsRef.current.scale;
-      s.playerX = Math.min(s.playerX, (w / sc) - PLAYER_W_BASE);
-      s.playerY = (h / sc) - PLAYER_H_BASE - 8;
+      const newPlayAreaW = Math.min(BASE_W, w / sc);
+      s.playerX = Math.min(s.playerX, newPlayAreaW - PLAYER_W_BASE);
+      s.playerY = BASE_H - 55;
     };
 
     resize();
@@ -152,10 +142,16 @@ export function GameCanvas({
     const s = stateRef.current;
     s.enemies = [];
     s.bullets = []; // clear all projectiles on new wave
-    const cols = ENEMY_COLS_BASE + Math.floor((w - 1) / 2);
+    const edgeMargin = 4;
+    const { w: CW, scale: sc } = dimsRef.current;
+    const LOG_W = CW > 0 ? CW / sc : BASE_W;
+    const maxW = Math.min(BASE_W, LOG_W) - edgeMargin * 2;
+    const colUnit = ENEMY_W_BASE + ENEMY_PAD_X_BASE;
+    const maxCols = Math.max(1, Math.floor((maxW + ENEMY_PAD_X_BASE) / colUnit));
+    const cols = Math.min(maxCols, ENEMY_COLS_BASE + Math.floor((w - 1) / 2));
     const rows = ENEMY_ROWS_BASE + Math.floor((w - 1) / 3);
-    const totalW = cols * (ENEMY_W_BASE + ENEMY_PAD_X_BASE) - ENEMY_PAD_X_BASE;
-    const startX = (BASE_W - totalW) / 2;
+    const totalW = cols * colUnit - ENEMY_PAD_X_BASE;
+    const startX = Math.max(edgeMargin, (Math.min(BASE_W, LOG_W) - totalW) / 2);
 
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
@@ -173,13 +169,13 @@ export function GameCanvas({
     s.enemyFireChance = 0.003 + (w - 1) * 0.002;
     s.wave = w;
     s.spawnAnim = 0;
+    s.playAreaW = Math.min(BASE_W, LOG_W);
   }, []);
 
   const resetGame = useCallback(() => {
     const s = stateRef.current;
-    const sc = getScaled();
     s.playerX = BASE_W / 2;
-    s.playerY = BASE_H - 28;
+    s.playerY = BASE_H - 55;
     s.playerCooldown = 0;
     s.bullets = [];
     s.particles = [];
@@ -190,16 +186,11 @@ export function GameCanvas({
     s.score = 0;
     s.lives = MAX_LIVES;
     s.wave = 1;
-    s.powerUps = 0;
-    s.powerUpActive = false;
-    s.powerUpTimer = 0;
-    s.powerUpKeyConsumed = false;
     onScoreChange(0);
     onLivesChange(MAX_LIVES);
     onWaveChange(1);
-    onPowerUpsChange(0);
     initWave(1);
-  }, [initWave, onScoreChange, onLivesChange, onWaveChange, onPowerUpsChange]);
+  }, [initWave, onScoreChange, onLivesChange, onWaveChange]);
 
   const spawnParticles = useCallback(
     (x: number, y: number, color: string, count: number) => {
@@ -220,11 +211,10 @@ export function GameCanvas({
     []
   );
 
-  // Sync external score/lives/wave/powerUps
+  // Sync external score/lives/wave
   useEffect(() => { stateRef.current.score = score; }, [score]);
   useEffect(() => { stateRef.current.lives = lives; }, [lives]);
   useEffect(() => { stateRef.current.wave = wave; }, [wave]);
-  useEffect(() => { stateRef.current.powerUps = powerUps; }, [powerUps]);
 
   // Handle phase transitions
   useEffect(() => {
@@ -254,6 +244,7 @@ export function GameCanvas({
 
       const { w: CW, h: CH, scale: sc } = dimsRef.current;
       const LOG_W = CW / sc;
+      const playAreaW = s.playAreaW;
 
       // ── Input handling (one-shot keys) ──
       if (keys.pause) {
@@ -278,9 +269,17 @@ export function GameCanvas({
 
       // ── Player movement ──
       const pSpeed = PLAYER_SPEED_BASE;
-      if (keys.left) s.playerX -= pSpeed * dt;
-      if (keys.right) s.playerX += pSpeed * dt;
-      s.playerX = Math.max(0, Math.min(LOG_W - PLAYER_W_BASE, s.playerX));
+      if (sharedTouch.targetX !== null) {
+        // Mobile drag control: smooth lerp toward touch target
+        const target = Math.max(0, Math.min(playAreaW - PLAYER_W_BASE, sharedTouch.targetX));
+        const diff = target - s.playerX;
+        s.playerX += diff * Math.min(1, pSpeed * 2.5 * dt);
+      } else {
+        // Keyboard control
+        if (keys.left) s.playerX -= pSpeed * dt;
+        if (keys.right) s.playerX += pSpeed * dt;
+      }
+      s.playerX = Math.max(0, Math.min(playAreaW - PLAYER_W_BASE, s.playerX));
 
       // ── Player shooting ──
       s.playerCooldown -= dt;
@@ -295,66 +294,33 @@ export function GameCanvas({
         play("shoot");
       }
 
-      // ── Power-up activation ──
-      if (keys.powerUp && !s.powerUpKeyConsumed && s.powerUps > 0 && !s.powerUpActive) {
-        s.powerUps--;
-        onPowerUpsChange(s.powerUps);
-        s.powerUpActive = true;
-        s.powerUpTimer = POWER_UP_DURATION;
-        s.powerUpX = s.playerX + PLAYER_W_BASE / 2;
-        s.powerUpKeyConsumed = true;
-        play("powerUp");
-      }
-      if (!keys.powerUp) {
-        s.powerUpKeyConsumed = false;
-      }
-
-      // ── Power-up active logic ──
-      if (s.powerUpActive) {
-        s.powerUpTimer -= dt;
-        // Move beam with player
-        s.powerUpX = s.playerX + PLAYER_W_BASE / 2;
-
-        // Destroy enemies in beam column
-        const beamLeft = s.powerUpX - POWER_UP_BEAM_W / 2;
-        const beamRight = s.powerUpX + POWER_UP_BEAM_W / 2;
-        for (const e of s.enemies) {
-          if (!e.alive) continue;
-          const enemyLeft = e.x;
-          const enemyRight = e.x + ENEMY_W_BASE;
-          if (enemyRight >= beamLeft && enemyLeft <= beamRight) {
-            e.alive = false;
-            s.score += 10 * s.wave;
-            onScoreChange(s.score);
-            spawnParticles(e.x + ENEMY_W_BASE / 2, e.y + ENEMY_H_BASE / 2, "#00f0ff", 6);
-            spawnParticles(e.x + ENEMY_W_BASE / 2, e.y + ENEMY_H_BASE / 2, "#ffffff", 4);
-            play("enemyHit");
-          }
-        }
-
-        if (s.powerUpTimer <= 0) {
-          s.powerUpActive = false;
-        }
-      }
-
       // ── Enemy movement ──
       const edgeMargin = 4;
       let hitEdge = false;
       const moveAmount = s.enemySpeed * dt;
 
+      // Check if next move would hit edge BEFORE moving
       for (const e of s.enemies) {
         if (!e.alive) continue;
-        e.x += s.enemyDir * moveAmount;
-        if (e.x <= edgeMargin || e.x + ENEMY_W_BASE >= LOG_W - edgeMargin) {
+        const nextX = e.x + s.enemyDir * moveAmount;
+        if (nextX <= edgeMargin || nextX + ENEMY_W_BASE >= playAreaW - edgeMargin) {
           hitEdge = true;
+          break;
         }
       }
 
       if (hitEdge) {
+        // Reverse and drop, but don't move horizontally this frame
         s.enemyDir *= -1;
         s.enemies.forEach((e) => {
           if (e.alive) e.y += 6;
         });
+      } else {
+        // Safe to move horizontally
+        for (const e of s.enemies) {
+          if (!e.alive) continue;
+          e.x += s.enemyDir * moveAmount;
+        }
       }
 
       // ── Enemy shooting (rate-limited: 1 shot per second per enemy) ──
@@ -437,7 +403,7 @@ export function GameCanvas({
 
       // ── Check enemies reached bottom ──
       for (const e of s.enemies) {
-        if (e.alive && e.y + ENEMY_H_BASE >= s.playerY) {
+        if (e.alive && e.y + ENEMY_H_BASE >= s.playerY - 4) {
           s.lives = 0;
           onLivesChange(0);
           play("gameOver");
@@ -454,9 +420,6 @@ export function GameCanvas({
 
       // ── Wave complete? ──
       if (aliveEnemies.length === 0) {
-        // Award power-up for clearing wave
-        s.powerUps++;
-        onPowerUpsChange(s.powerUps);
         play("levelComplete");
         s.wave++;
         onWaveChange(s.wave);
@@ -481,7 +444,7 @@ export function GameCanvas({
       // ── Render ──
       render(ctx, s, CW, CH, sc);
     },
-    [phase, onPhaseChange, onScoreChange, onLivesChange, onWaveChange, onPowerUpsChange, play, setMuted, isMuted, spawnParticles]
+    [phase, onPhaseChange, onScoreChange, onLivesChange, onWaveChange, play, setMuted, isMuted, spawnParticles]
   );
 
   function render(
@@ -514,11 +477,6 @@ export function GameCanvas({
       const sx = ((i * 37 + s.frame * 0.2) % (LOG_W + 20)) - 10;
       const sy = ((i * 53) % (LOG_H + 20)) - 10;
       ctx.fillRect(sx, sy, 1, 1);
-    }
-
-    // Draw power-up beam behind enemies
-    if (s.powerUpActive) {
-      drawPowerUpBeam(ctx, s.powerUpX, s.frame, LOG_H);
     }
 
     // Draw enemies with spawn animation

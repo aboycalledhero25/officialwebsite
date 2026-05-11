@@ -213,59 +213,6 @@ export function drawEnemyBullet(ctx: CanvasRenderingContext2D, x: number, y: num
   ctx.fillRect(x, y, 2, 4);
 }
 
-/* ── Power-up beam: vertical electric column ── */
-export function drawPowerUpBeam(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  frame: number,
-  screenH: number
-) {
-  const beamW = 14;
-  const halfW = beamW / 2;
-  const jitter = (n: number) => Math.sin(frame * 1.2 + n * 4.7) * 2.5;
-
-  // Outer glow
-  ctx.fillStyle = "rgba(0, 240, 255, 0.15)";
-  for (let y = 0; y < screenH; y += 2) {
-    const j = jitter(y);
-    ctx.fillRect(x - halfW - 4 + j, y, beamW + 8, 2);
-  }
-
-  // Mid glow
-  ctx.fillStyle = "rgba(0, 240, 255, 0.35)";
-  for (let y = 0; y < screenH; y += 2) {
-    const j = jitter(y + 1);
-    ctx.fillRect(x - halfW - 2 + j, y, beamW + 4, 2);
-  }
-
-  // Core beam
-  ctx.fillStyle = "rgba(0, 240, 255, 0.7)";
-  for (let y = 0; y < screenH; y += 1) {
-    const j = jitter(y + 2);
-    ctx.fillRect(x - halfW + j, y, beamW, 1);
-  }
-
-  // Bright white inner core (flickers)
-  if (frame % 2 === 0) {
-    ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-    for (let y = 0; y < screenH; y += 3) {
-      const j = jitter(y + 3);
-      ctx.fillRect(x - 2 + j, y, 4, 2);
-    }
-  }
-
-  // Electric arcs branching off
-  ctx.fillStyle = "#ffffff";
-  const arcCount = 6;
-  for (let i = 0; i < arcCount; i++) {
-    const ay = ((frame * 3 + i * 53) % (screenH - 10)) + 5;
-    const dir = i % 2 === 0 ? -1 : 1;
-    const ax = x + dir * (halfW + 2 + Math.sin(frame * 0.5 + i) * 3);
-    ctx.fillRect(ax, ay, 2 + Math.random() * 2, 1);
-    ctx.fillRect(ax + dir * 2, ay + 1, 2, 1);
-  }
-}
-
 /* ── Particle explosion ── */
 export function drawParticle(
   ctx: CanvasRenderingContext2D,
