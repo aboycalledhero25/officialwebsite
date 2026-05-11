@@ -31,7 +31,7 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
   const [highScore, setHighScore] = useState(0);
   const [muted, setMuted] = useState(false);
   const [resetKey, setResetKey] = useState(0);
-  const [activePowerUp, setActivePowerUp] = useState<{ type: "rapid" | "shield" | "wideshot" | "extralife"; timer: number } | null>(null);
+  const [activePowerUps, setActivePowerUps] = useState<{ type: "rapid" | "shield" | "wideshot" | "extralife"; timer: number }[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(true);
   const { setMuted: setAudioMuted } = useAudioSfx();
@@ -71,7 +71,7 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
     setScore(0);
     setLives(3);
     setWave(1);
-    setActivePowerUp(null);
+    setActivePowerUps([]);
     setResetKey((k) => k + 1);
     setPhase("playing");
   }, []);
@@ -81,7 +81,7 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
     setScore(0);
     setLives(3);
     setWave(1);
-    setActivePowerUp(null);
+    setActivePowerUps([]);
     setResetKey((k) => k + 1);
     setPhase("playing");
   }, []);
@@ -151,7 +151,7 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
         onScoreChange={setScore}
         onLivesChange={setLives}
         onWaveChange={setWave}
-        onPowerUpChange={setActivePowerUp}
+        onPowerUpChange={setActivePowerUps}
         score={score}
         lives={lives}
         wave={wave}
@@ -164,7 +164,7 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
           lives={lives}
           wave={wave}
           muted={muted}
-          activePowerUp={activePowerUp}
+          activePowerUps={activePowerUps}
           onPause={() => phase === "playing" && setPhase("paused")}
           onToggleMute={handleToggleMute}
         />

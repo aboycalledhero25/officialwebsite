@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 const BASE_H = 320;
 const BASE_W = 240;
 const MAX_LIVES = 3;
+const ABSOLUTE_MAX_LIVES = MAX_LIVES + 2; // extralife can push to 5
 
 interface ActivePowerUp {
   type: "rapid" | "shield" | "wideshot" | "extralife";
@@ -17,7 +18,7 @@ interface GameHUDProps {
   lives: number;
   wave: number;
   muted: boolean;
-  activePowerUp?: ActivePowerUp | null;
+  activePowerUps?: ActivePowerUp[];
   onPause: () => void;
   onToggleMute: () => void;
 }
@@ -60,10 +61,10 @@ function PowerUpLabel({ type }: { type: ActivePowerUp["type"] }) {
   );
 }
 
-export function GameHUD({ score, lives, wave, muted, activePowerUp, onPause, onToggleMute }: GameHUDProps) {
-  const filledLives = Math.max(0, Math.min(lives, MAX_LIVES));
+export function GameHUD({ score, lives, wave, muted, activePowerUps, onPause, onToggleMute }: GameHUDProps) {
   const siteData = useSiteData();
   const [dims, setDims] = useState({ w: 1920, h: 1080 });
+  const [scoreBump, setScoreBump] = useState(false);
 
   useEffect(() => {
     const update = () => setDims({ w: window.innerWidth, h: window.innerHeight });
@@ -71,6 +72,13 @@ export function GameHUD({ score, lives, wave, muted, activePowerUp, onPause, onT
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
   }, []);
+
+  // Score bump animation
+  useEffect(() => {
+    setScoreBump(true);
+    const t = setTimeout(() => setScoreBump(false), 150);
+    return () => clearTimeout(t);
+  }, [score]);
 
   const isMobile = typeof window !== "undefined" && (window.innerWidth < 768 || "ontouchstart" in window);
   const plat = siteData.secretGame?.[isMobile ? "mobile" : "desktop"];
@@ -81,12 +89,22 @@ export function GameHUD({ score, lives, wave, muted, activePowerUp, onPause, onT
   const screenY = (baseY: number) => (baseY / BASE_H) * dims.h;
   const scaleSize = (baseSize: number) => (baseSize / BASE_H) * dims.h;
 
+  const powerUpDurations: Record<ActivePowerUp["type"], number> = {
+    rapid: 5,
+    shield: 6,
+    wideshot: 4,
+    extralife: 0,
+  };
+
   return (
     <div className="absolute top-0 left-0 right-0 bottom-0 z-50 pointer-events-none">
       {/* Score - top left */}
       <div className="absolute select-none" style={{ left: screenX(8), top: screenY(8) }}>
         <span className="text-xs text-neutral-400 font-mono leading-none tracking-wider block">SCORE</span>
-        <span className="text-lg text-[#00f0ff] font-mono font-bold leading-tight drop-shadow-[0_0_6px_rgba(0,240,255,0.5)]">
+        <span
+          className="text-lg text-[#00f0ff] font-mono font-bold leading-tight drop-shadow-[0_0_6px_rgba(0,240,255,0.5)] inline-block transition-transform duration-150"
+          style={{ transform: scoreBump ? "scale(1.2)" : "scale(1)" }}
+        >
           {score.toString().padStart(6, "0")}
         </span>
       </div>
@@ -97,29 +115,30 @@ export function GameHUD({ score, lives, wave, muted, activePowerUp, onPause, onT
         <span className="text-lg text-[#fcee0a] font-mono font-bold leading-tight drop-shadow-[0_0_6px_rgba(252,238,10,0.5)]">{wave}</span>
       </div>
 
-      {/* Active power-up indicator */}
-      {activePowerUp && (
-        <div className="absolute left-1/2 -translate-x-1/2 select-none text-center" style={{ top: screenY(28) }}>
-          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10">
-            <PowerUpLabel type={activePowerUp.type} />
-            <div className="w-16 h-1.5 rounded-full bg-white/20 overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all"
-                style={{
-                  width: `${Math.max(0, Math.min(100, (activePowerUp.timer / (
-                    activePowerUp.type === "rapid" ? 5 :
-                    activePowerUp.type === "shield" ? 6 : 4
-                  )) * 100))}%`,
-                  backgroundColor: activePowerUp.type === "rapid" ? "#ff8800" :
-                    activePowerUp.type === "shield" ? "#00f0ff" : "#fcee0a",
-                }}
-              />
+      {/* Active power-up indicators */}
+      {activePowerUps && activePowerUps.length > 0 && (
+        <div className="absolute left-1/2 -translate-x-1/2 select-none text-center flex flex-col gap-1" style={{ top: screenY(28) }}>
+          {activePowerUps.map((pu, i) => (
+            <div key={`${pu.type}-${i}`} className="flex items-center gap-2 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10">
+              <PowerUpLabel type={pu.type} />
+              {pu.type !== "extralife" && (
+                <div className="w-16 h-1.5 rounded-full bg-white/20 overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${Math.max(0, Math.min(100, (pu.timer / powerUpDurations[pu.type]) * 100))}%`,
+                      backgroundColor: pu.type === "rapid" ? "#ff8800" :
+                        pu.type === "shield" ? "#00f0ff" : "#fcee0a",
+                    }}
+                  />
+                </div>
+              )}
             </div>
-          </div>
+          ))}
         </div>
       )}
 
-      {/* Hearts - positioned from settings */}
+      {/* Hearts - positioned from settings, show up to absolute max */}
       {hearts.visible && (
         <div
           className="absolute select-none"
@@ -129,8 +148,8 @@ export function GameHUD({ score, lives, wave, muted, activePowerUp, onPause, onT
           }}
         >
           <div className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-black/70 backdrop-blur-md border border-white/15 shadow-lg">
-            {Array.from({ length: MAX_LIVES }).map((_, i) => (
-              <Heart key={i} filled={i < filledLives} size={Math.round(scaleSize(hearts.size))} />
+            {Array.from({ length: ABSOLUTE_MAX_LIVES }).map((_, i) => (
+              <Heart key={i} filled={i < lives} size={Math.round(scaleSize(hearts.size))} />
             ))}
           </div>
         </div>

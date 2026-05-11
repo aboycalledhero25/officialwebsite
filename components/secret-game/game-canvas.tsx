@@ -57,7 +57,7 @@ interface GameCanvasProps {
   onScoreChange: (s: number) => void;
   onLivesChange: (l: number) => void;
   onWaveChange: (w: number) => void;
-  onPowerUpChange?: (p: ActivePowerUp | null) => void;
+  onPowerUpChange?: (p: ActivePowerUp[]) => void;
   score: number;
   lives: number;
   wave: number;
@@ -132,7 +132,7 @@ export function GameCanvas({
       size: number;
     }[],
     powerups: [] as PowerUp[],
-    activePowerUp: null as ActivePowerUp | null,
+    activePowerUps: [] as ActivePowerUp[],
     enemyDir: 1,
     enemySpeed: 18,
     enemyDropAccum: 0,
@@ -224,7 +224,7 @@ export function GameCanvas({
     s.bullets = [];
     s.particles = [];
     s.powerups = [];
-    s.activePowerUp = null;
+    s.activePowerUps = [];
     s.enemyDir = 1;
     s.enemyDropAccum = 0;
     s.screenShake = 0;
@@ -235,7 +235,7 @@ export function GameCanvas({
     onScoreChange(0);
     onLivesChange(MAX_LIVES);
     onWaveChange(1);
-    if (onPowerUpChange) onPowerUpChange(null);
+    if (onPowerUpChange) onPowerUpChange([]);
     s.playAreaW = logW;
     initWave(1);
   }, [initWave, onScoreChange, onLivesChange, onWaveChange, onPowerUpChange]);
@@ -333,22 +333,22 @@ export function GameCanvas({
       s.playerX = Math.max(0, Math.min(playAreaW - PLAYER_W_BASE, s.playerX));
       s.playerY = Math.max(0, Math.min(BASE_H - PLAYER_H_BASE, s.playerY));
 
-      // ── Active power-up timer ──
-      if (s.activePowerUp) {
-        s.activePowerUp.timer -= dt;
-        if (s.activePowerUp.timer <= 0) {
-          s.activePowerUp = null;
-          if (onPowerUpChange) onPowerUpChange(null);
-        } else {
-          if (onPowerUpChange) onPowerUpChange(s.activePowerUp);
+      // ── Active power-up timers ──
+      if (s.activePowerUps.length > 0) {
+        for (let i = s.activePowerUps.length - 1; i >= 0; i--) {
+          s.activePowerUps[i].timer -= dt;
+          if (s.activePowerUps[i].timer <= 0) {
+            s.activePowerUps.splice(i, 1);
+          }
         }
+        if (onPowerUpChange) onPowerUpChange(s.activePowerUps);
       }
 
       // ── Player shooting ──
       s.playerCooldown -= dt;
       if (keys.shoot && s.playerCooldown <= 0) {
-        const isWideShot = s.activePowerUp?.type === "wideshot";
-        const isRapid = s.activePowerUp?.type === "rapid";
+        const isWideShot = s.activePowerUps.some((p) => p.type === "wideshot");
+        const isRapid = s.activePowerUps.some((p) => p.type === "rapid");
         const baseCooldown = isRapid ? 0.12 : 0.35;
 
         if (isWideShot) {
@@ -440,8 +440,13 @@ export function GameCanvas({
               pu.type === "rapid" ? POWERUP_RAPID_DURATION :
               pu.type === "shield" ? POWERUP_SHIELD_DURATION :
               POWERUP_WIDESHOT_DURATION;
-            s.activePowerUp = { type: pu.type, timer: duration };
-            if (onPowerUpChange) onPowerUpChange(s.activePowerUp);
+            const existing = s.activePowerUps.find((p) => p.type === pu.type);
+            if (existing) {
+              existing.timer = duration;
+            } else {
+              s.activePowerUps.push({ type: pu.type, timer: duration });
+            }
+            if (onPowerUpChange) onPowerUpChange(s.activePowerUps);
           }
           const puColor =
             pu.type === "rapid" ? "#ff8800" :
@@ -528,7 +533,7 @@ export function GameCanvas({
       const py = s.playerY;
       const pw = PLAYER_W_BASE;
       const ph = PLAYER_H_BASE;
-      const hasShield = s.activePowerUp?.type === "shield";
+      const hasShield = s.activePowerUps.some((p) => p.type === "shield");
       for (let bi = s.bullets.length - 1; bi >= 0; bi--) {
         const b = s.bullets[bi];
         if (b.isPlayer) continue;
@@ -654,7 +659,7 @@ export function GameCanvas({
     }
 
     // Draw shield bubble if active
-    if (s.activePowerUp?.type === "shield") {
+    if (s.activePowerUps.some((p) => p.type === "shield")) {
       ctx.strokeStyle = `rgba(0, 240, 255, ${0.4 + Math.sin(s.frame * 0.3) * 0.2})`;
       ctx.lineWidth = 2;
       ctx.beginPath();
