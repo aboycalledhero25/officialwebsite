@@ -52,7 +52,7 @@ export function AboutImageCollage({
             <span className="text-center">
               <Users size={32} className="mx-auto text-muted" />
               <span className="mt-2 block text-sm uppercase tracking-widest text-muted">
-                Add images in data.json
+                Add images in the admin dashboard
               </span>
             </span>
           </div>

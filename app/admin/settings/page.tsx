@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { Save, Settings, ImageIcon, Eye, EyeOff } from "lucide-react";
-import { updateSiteMeta, updateSiteCopy, updatePageVisibility, uploadImage } from "@/lib/actions";
+import { updateSiteMeta, updateSiteCopy, updatePageVisibility, uploadImage, updateBannerImage } from "@/lib/actions";
 import { useRouter } from "next/navigation";
 
 const PAGE_LABELS: Record<string, string> = {
@@ -62,13 +62,7 @@ export default function SettingsAdminPage() {
     formData.append("file", file);
     const result = await uploadImage(formData);
     setBannerImage(result.path);
-    const data = await fetch("/api/admin/data").then((r) => r.json());
-    data.bannerImage = result.path;
-    await fetch("/api/admin/data", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
+    await updateBannerImage(result.path);
     router.refresh();
   }
 

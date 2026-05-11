@@ -4,14 +4,17 @@ import { ShowCard } from "@/components/show-card";
 import { getShows, getSiteMeta, getSiteCopy } from "@/lib/data-server";
 import { EditableSiteCopy } from "@/components/edit-mode/editable-site-copy";
 
-export const metadata: Metadata = {
-  title: `Shows | ${getSiteMeta().title}`,
-  description: getSiteMeta().description,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const siteMeta = await getSiteMeta();
+  return {
+    title: `Shows | ${siteMeta.title}`,
+    description: siteMeta.description,
+  };
+}
 
-export default function ShowsPage() {
-  const shows = getShows();
-  const copy = getSiteCopy().shows;
+export default async function ShowsPage() {
+  const shows = await getShows();
+  const copy = (await getSiteCopy()).shows;
   const upcoming = shows.filter((s) => s.status === "upcoming");
   const past = shows.filter((s) => s.status === "past");
 

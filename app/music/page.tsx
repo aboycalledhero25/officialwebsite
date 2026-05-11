@@ -6,14 +6,17 @@ import { getReleases, getSiteMeta, getSiteCopy } from "@/lib/data-server";
 import { EditableSiteCopy } from "@/components/edit-mode/editable-site-copy";
 import { EditableReleaseImage } from "@/components/edit-mode/editable-release-field";
 
-export const metadata: Metadata = {
-  title: `Music | ${getSiteMeta().title}`,
-  description: getSiteMeta().description,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const siteMeta = await getSiteMeta();
+  return {
+    title: `Music | ${siteMeta.title}`,
+    description: siteMeta.description,
+  };
+}
 
-export default function MusicPage() {
-  const single = getReleases()[0];
-  const copy = getSiteCopy().music;
+export default async function MusicPage() {
+  const single = (await getReleases())[0];
+  const copy = (await getSiteCopy()).music;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8">

@@ -4,14 +4,17 @@ import { MerchCard } from "@/components/merch-card";
 import { getMerch, getSiteMeta, getSiteCopy } from "@/lib/data-server";
 import { EditableSiteCopy } from "@/components/edit-mode/editable-site-copy";
 
-export const metadata: Metadata = {
-  title: `Merch | ${getSiteMeta().title}`,
-  description: getSiteMeta().description,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const siteMeta = await getSiteMeta();
+  return {
+    title: `Merch | ${siteMeta.title}`,
+    description: siteMeta.description,
+  };
+}
 
-export default function MerchPage() {
-  const merch = getMerch();
-  const copy = getSiteCopy().merch;
+export default async function MerchPage() {
+  const merch = await getMerch();
+  const copy = (await getSiteCopy()).merch;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8">

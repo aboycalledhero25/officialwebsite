@@ -5,15 +5,18 @@ import { getBand, getPressFacts, getSiteMeta, getSiteCopy } from "@/lib/data-ser
 import { EditableSiteCopy } from "@/components/edit-mode/editable-site-copy";
 import { Download, Mail, ExternalLink } from "lucide-react";
 
-export const metadata: Metadata = {
-  title: `Press | ${getSiteMeta().title}`,
-  description: getSiteMeta().description,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const siteMeta = await getSiteMeta();
+  return {
+    title: `Press | ${siteMeta.title}`,
+    description: siteMeta.description,
+  };
+}
 
-export default function PressPage() {
-  const band = getBand();
-  const pressFacts = getPressFacts();
-  const copy = getSiteCopy().press;
+export default async function PressPage() {
+  const band = await getBand();
+  const pressFacts = await getPressFacts();
+  const copy = (await getSiteCopy()).press;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8">

@@ -5,13 +5,16 @@ import { EditableSiteCopy } from "@/components/edit-mode/editable-site-copy";
 import { TwitchEmbed } from "@/components/twitch-embed";
 import { TwitchChat } from "@/components/twitch-chat";
 
-export const metadata: Metadata = {
-  title: `Live | ${getSiteMeta().title}`,
-  description: "Watch A Boy Called Hero live on Twitch.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const siteMeta = await getSiteMeta();
+  return {
+    title: `Live | ${siteMeta.title}`,
+    description: "Watch A Boy Called Hero live on Twitch.",
+  };
+}
 
-export default function LivePage() {
-  const copy = getSiteCopy().live;
+export default async function LivePage() {
+  const copy = (await getSiteCopy()).live;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8">

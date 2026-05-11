@@ -1,9 +1,8 @@
 // ╔═══════════════════════════════════════════════════════════════════════════╗
-// ║                    A BOY CALLED HERO — CENTRAL CONFIG                     ║
-// ║  Edit via the admin dashboard at /admin or edit lib/data.json directly.  ║
+// ║                    A BOY CALLED HERO — CENTRAL TYPES                      ║
+// ║  Data is stored in Supabase Storage (config/data.json).                  ║
+// ║  Use lib/data-server.ts for server-side reads.                           ║
 // ╚═══════════════════════════════════════════════════════════════════════════╝
-
-import rawData from "./data.json";
 
 export interface BandMember {
   name: string;
@@ -247,21 +246,3 @@ export interface SiteData {
   pageVisibility: PageVisibility;
   guitarColors: GuitarColors;
 }
-
-const typedData = rawData as SiteData;
-
-export const bannerImage = typedData.bannerImage;
-export const band = typedData.band;
-export const releases = typedData.releases;
-export const shows = typedData.shows;
-export const merch = typedData.merch;
-export const videos = typedData.videos;
-export const pressFacts = typedData.pressFacts;
-export const siteMeta = typedData.siteMeta;
-export const newsItems = typedData.newsItems;
-export const forFansOf = typedData.forFansOf;
-export const instagramHandle = typedData.instagramHandle;
-export const instagramPosts = typedData.instagramPosts;
-
-// Re-export full data for admin API
-export default typedData;

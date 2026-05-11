@@ -5,14 +5,18 @@ import { getBand, getSiteMeta, getSiteCopy } from "@/lib/data-server";
 import { EditableSiteCopy } from "@/components/edit-mode/editable-site-copy";
 import { Mail, Camera, MessageCircle, Video, Music2 } from "lucide-react";
 
-export const metadata: Metadata = {
-  title: `Contact | ${getSiteMeta().title}`,
-  description: getBand().bio.short,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const siteMeta = await getSiteMeta();
+  const band = await getBand();
+  return {
+    title: `Contact | ${siteMeta.title}`,
+    description: band.bio.short,
+  };
+}
 
-export default function ContactPage() {
-  const band = getBand();
-  const copy = getSiteCopy().contact;
+export default async function ContactPage() {
+  const band = await getBand();
+  const copy = (await getSiteCopy()).contact;
 
   const socials = [
     { href: band.social.instagram, icon: Camera, label: copy.socials.instagram },

@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs/promises";
-import path from "path";
+import { createClient } from "@supabase/supabase-js";
 
 const GRAPH_API_VERSION = "v22.0";
 const GRAPH_API_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+  auth: { autoRefreshToken: false, persistSession: false },
+});
 
 interface InstagramMediaItem {
   id: string;
@@ -39,15 +45,34 @@ interface PageAccount {
   access_token?: string;
 }
 
-const dataPath = path.join(process.cwd(), "lib", "data.json");
-
 async function readData(): Promise<any> {
-  const raw = await fs.readFile(dataPath, "utf-8");
-  return JSON.parse(raw);
+  const { data, error } = await supabaseAdmin.storage
+    .from("config")
+    .download("data.json");
+
+  if (error) {
+    throw new Error(`Failed to read data: ${error.message}`);
+  }
+
+  const text = await data.text();
+  return JSON.parse(text);
 }
 
 async function writeData(data: any): Promise<void> {
-  await fs.writeFile(dataPath, JSON.stringify(data, null, 2), "utf-8");
+  const blob = new Blob([JSON.stringify(data, null, 2)], {
+    type: "application/json",
+  });
+
+  const { error } = await supabaseAdmin.storage
+    .from("config")
+    .upload("data.json", blob, {
+      contentType: "application/json",
+      upsert: true,
+    });
+
+  if (error) {
+    throw new Error(`Failed to save data: ${error.message}`);
+  }
 }
 
 async function fetchJson<T>(url: string): Promise<T> {
@@ -245,7 +270,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Save to data.json
+    // Save to Supabase
     data.instagramPosts = posts;
     data.instagramToken = token;
     data.instagramBusinessAccountId = igAccountId;

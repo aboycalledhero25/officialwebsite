@@ -11,8 +11,8 @@ const socialIcons = [
   { key: "spotify", icon: Music2 },
 ] as const;
 
-export function Footer() {
-  const data = getData();
+export async function Footer() {
+  const data = await getData();
   const copy = data.siteCopy.footer;
   const nav = data.siteCopy.nav;
   const vis = data.pageVisibility ?? {};

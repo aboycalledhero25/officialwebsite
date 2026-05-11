@@ -57,7 +57,7 @@ async function getAppAccessToken(): Promise<string> {
 
 export async function GET() {
   try {
-    const siteData = getData();
+    const siteData = await getData();
     const username = siteData.twitchUsername?.trim();
 
     if (!username) {

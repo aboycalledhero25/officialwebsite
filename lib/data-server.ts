@@ -1,7 +1,6 @@
 import "server-only";
 
-import fs from "fs";
-import path from "path";
+import { createClient } from "@supabase/supabase-js";
 import type {
   Band,
   Release,
@@ -16,83 +15,101 @@ import type {
   AboutImage,
 } from "./data";
 
-const dataPath = path.join(process.cwd(), "lib", "data.json");
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-export function getData(): SiteData {
-  const raw = fs.readFileSync(dataPath, "utf-8");
-  return JSON.parse(raw);
+const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+  auth: { autoRefreshToken: false, persistSession: false },
+});
+
+export async function getData(): Promise<SiteData> {
+  const { data, error } = await supabaseAdmin.storage
+    .from("config")
+    .download("data.json");
+
+  if (error) {
+    // Fallback to local file if Supabase not initialized yet
+    const fs = await import("fs");
+    const path = await import("path");
+    const localPath = path.join(process.cwd(), "lib", "data.json");
+    const raw = fs.readFileSync(localPath, "utf-8");
+    return JSON.parse(raw);
+  }
+
+  const text = await data.text();
+  return JSON.parse(text);
 }
 
-export function getBannerImage(): string {
-  return getData().bannerImage;
+export async function getBannerImage(): Promise<string> {
+  return (await getData()).bannerImage;
 }
 
-export function getSiteCopy(): any {
-  return getData().siteCopy;
+export async function getSiteCopy(): Promise<any> {
+  return (await getData()).siteCopy;
 }
 
-export function getBand(): Band {
-  return getData().band;
+export async function getBand(): Promise<Band> {
+  return (await getData()).band;
 }
 
-export function getReleases(): Release[] {
-  return getData().releases;
+export async function getReleases(): Promise<Release[]> {
+  return (await getData()).releases;
 }
 
-export function getShows(): Show[] {
-  return getData().shows;
+export async function getShows(): Promise<Show[]> {
+  return (await getData()).shows;
 }
 
-export function getMerch(): MerchItem[] {
-  return getData().merch;
+export async function getMerch(): Promise<MerchItem[]> {
+  return (await getData()).merch;
 }
 
-export function getVideos(): Video[] {
-  return getData().videos;
+export async function getVideos(): Promise<Video[]> {
+  return (await getData()).videos;
 }
 
-export function getPressFacts(): PressFact[] {
-  return getData().pressFacts;
+export async function getPressFacts(): Promise<PressFact[]> {
+  return (await getData()).pressFacts;
 }
 
-export function getSiteMeta(): SiteMeta {
-  return getData().siteMeta;
+export async function getSiteMeta(): Promise<SiteMeta> {
+  return (await getData()).siteMeta;
 }
 
-export function getNewsItems(): NewsItem[] {
-  return getData().newsItems;
+export async function getNewsItems(): Promise<NewsItem[]> {
+  return (await getData()).newsItems;
 }
 
-export function getForFansOf(): string {
-  return getData().forFansOf;
+export async function getForFansOf(): Promise<string> {
+  return (await getData()).forFansOf;
 }
 
-export function getInstagramHandle(): string {
-  return getData().instagramHandle;
+export async function getInstagramHandle(): Promise<string> {
+  return (await getData()).instagramHandle;
 }
 
-export function getInstagramToken(): string {
-  return getData().instagramToken;
+export async function getInstagramToken(): Promise<string> {
+  return (await getData()).instagramToken;
 }
 
-export function getInstagramLastFetched(): string {
-  return getData().instagramLastFetched;
+export async function getInstagramLastFetched(): Promise<string> {
+  return (await getData()).instagramLastFetched;
 }
 
-export function getInstagramPosts(): InstagramPost[] {
-  return getData().instagramPosts;
+export async function getInstagramPosts(): Promise<InstagramPost[]> {
+  return (await getData()).instagramPosts;
 }
 
-export function getTwitchUsername(): string {
-  return getData().twitchUsername;
+export async function getTwitchUsername(): Promise<string> {
+  return (await getData()).twitchUsername;
 }
 
-export function getAboutImages(): AboutImage[] {
-  return getData().aboutImages ?? [];
+export async function getAboutImages(): Promise<AboutImage[]> {
+  return (await getData()).aboutImages ?? [];
 }
 
-export function getPageVisibility() {
-  return getData().pageVisibility ?? {
+export async function getPageVisibility() {
+  return (await getData()).pageVisibility ?? {
     home: true,
     music: true,
     merch: true,
@@ -105,8 +122,8 @@ export function getPageVisibility() {
   };
 }
 
-export function getGuitarColors() {
-  return getData().guitarColors ?? {
+export async function getGuitarColors() {
+  return (await getData()).guitarColors ?? {
     stratColor: "#00f0ff",
     jaguarColor: "#ff006e",
   };

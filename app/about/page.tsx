@@ -5,15 +5,20 @@ import { getBand, getSiteMeta, getForFansOf, getSiteCopy, getAboutImages } from 
 import { Guitar } from "lucide-react";
 import { EditableSiteCopy } from "@/components/edit-mode/editable-site-copy";
 
-export const metadata: Metadata = {
-  title: `About | ${getSiteMeta().title}`,
-  description: getBand().bio.short,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const siteMeta = await getSiteMeta();
+  const band = await getBand();
+  return {
+    title: `About | ${siteMeta.title}`,
+    description: band.bio.short,
+  };
+}
 
-export default function AboutPage() {
-  const band = getBand();
-  const copy = getSiteCopy().about;
-  const aboutImages = getAboutImages();
+export default async function AboutPage() {
+  const band = await getBand();
+  const copy = (await getSiteCopy()).about;
+  const aboutImages = await getAboutImages();
+  const forFansOf = await getForFansOf();
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
@@ -61,7 +66,7 @@ export default function AboutPage() {
             <h4 className="font-display text-lg tracking-wide text-foreground">
               <EditableSiteCopy path="about.fansHeading" value={copy.fansHeading} />
             </h4>
-            <p className="mt-2 text-sm text-muted">{getForFansOf()}</p>
+            <p className="mt-2 text-sm text-muted">{forFansOf}</p>
           </div>
         </div>
       </div>

@@ -5,13 +5,16 @@ import { EditableSiteCopy } from "@/components/edit-mode/editable-site-copy";
 import { extractYouTubeId } from "@/lib/youtube";
 import { Play } from "lucide-react";
 
-export const metadata: Metadata = {
-  title: `Media | ${getSiteMeta().title}`,
-  description: getSiteMeta().description,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const siteMeta = await getSiteMeta();
+  return {
+    title: `Media | ${siteMeta.title}`,
+    description: siteMeta.description,
+  };
+}
 
-function VideoEmbed({ youtubeId, title }: { youtubeId: string; title: string }) {
-  const copy = getSiteCopy().media;
+async function VideoEmbed({ youtubeId, title }: { youtubeId: string; title: string }) {
+  const copy = (await getSiteCopy()).media;
   const extractedId = extractYouTubeId(youtubeId);
   const isPlaceholder = youtubeId === "PLACEHOLDER" || !extractedId;
 
@@ -38,9 +41,9 @@ function VideoEmbed({ youtubeId, title }: { youtubeId: string; title: string }) 
   );
 }
 
-export default function MediaPage() {
-  const videos = getVideos();
-  const copy = getSiteCopy().media;
+export default async function MediaPage() {
+  const videos = await getVideos();
+  const copy = (await getSiteCopy()).media;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8">

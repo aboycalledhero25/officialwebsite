@@ -1,8 +1,41 @@
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
-import data from "@/lib/data.json";
+import { createClient } from "@supabase/supabase-js";
 
-const pageMap: Record<string, keyof typeof data.pageVisibility> = {
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+  auth: { autoRefreshToken: false, persistSession: false },
+});
+
+let cachedVisibility: Record<string, boolean> | null = null;
+let cachedAt = 0;
+const CACHE_TTL = 30_000; // 30 seconds
+
+async function getPageVisibility(): Promise<Record<string, boolean> | null> {
+  try {
+    if (cachedVisibility && Date.now() - cachedAt < CACHE_TTL) {
+      return cachedVisibility;
+    }
+
+    const { data, error } = await supabaseAdmin.storage
+      .from("config")
+      .download("data.json");
+
+    if (error) return cachedVisibility;
+
+    const text = await data.text();
+    const json = JSON.parse(text);
+    cachedVisibility = json.pageVisibility ?? {};
+    cachedAt = Date.now();
+    return cachedVisibility;
+  } catch {
+    return cachedVisibility;
+  }
+}
+
+const pageMap: Record<string, string> = {
   "/": "home",
   "/music": "music",
   "/merch": "merch",
@@ -14,7 +47,7 @@ const pageMap: Record<string, keyof typeof data.pageVisibility> = {
   "/live": "live",
 };
 
-export default auth((req) => {
+export default auth(async (req) => {
   try {
     const { nextUrl } = req;
     const pathname = nextUrl.pathname;
@@ -45,8 +78,8 @@ export default auth((req) => {
     if (!isLoggedIn && !isAdminRoute && !pathname.startsWith("/api/") && !pathname.startsWith("/_next/")) {
       const pageKey = pageMap[pathname];
       if (pageKey) {
-        const visibility = data.pageVisibility ?? {};
-        if (visibility[pageKey] === false) {
+        const visibility = await getPageVisibility();
+        if (visibility && visibility[pageKey] === false) {
           return NextResponse.rewrite(new URL("/not-found", nextUrl), { status: 404 });
         }
       }

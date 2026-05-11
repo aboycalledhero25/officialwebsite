@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useState, useCallback, useLayoutEffect } from "react";
 import type { GamePlatformSettings, PlayerSprite } from "@/lib/data";
 
 const BASE_W = 240;
@@ -69,7 +69,7 @@ export function GameEditorPreview({
   }, []);
 
   // Compute canvas position and scale within container
-  useEffect(() => {
+  useLayoutEffect(() => {
     const update = () => {
       const container = containerRef.current;
       if (!container) return;
@@ -88,7 +88,7 @@ export function GameEditorPreview({
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
-  }, []);
+  }, [platform]);
 
   // Draw canvas
   const draw = useCallback(() => {
@@ -172,7 +172,8 @@ export function GameEditorPreview({
       const next = { ...settings };
       switch (d.key) {
         case "player":
-          next.player = { ...next.player, x: Math.round(d.origX + dx), y: Math.round(d.origY + dy) };
+          // origX includes the sprite offset, so subtract it to get the raw player position
+          next.player = { ...next.player, x: Math.round(d.origX + dx - playerSprite.offsetX), y: Math.round(d.origY + dy - playerSprite.offsetY) };
           break;
         case "hearts":
           next.hearts = { ...next.hearts, x: Math.round(d.origX + dx), y: Math.round(d.origY + dy) };

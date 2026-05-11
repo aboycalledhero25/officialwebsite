@@ -105,8 +105,8 @@ const sections = [
   },
 ];
 
-export default function AdminDashboardPage() {
-  const data = getData();
+export default async function AdminDashboardPage() {
+  const data = await getData();
   const counts = {
     releases: data.releases.length,
     merch: data.merch.length,
