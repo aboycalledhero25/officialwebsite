@@ -124,20 +124,6 @@ export interface AboutImage {
   span?: "square" | "wide" | "tall" | "large";
 }
 
-export interface SecretGameHotspot {
-  enabled: boolean;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  unit: "%" | "px";
-  visibleToVisitors: boolean;
-  hoverStyle: "hidden" | "subtle" | "outline";
-  tooltip: string;
-  openMode: "modal";
-  zIndex: number;
-}
-
 export interface PlayerSprite {
   offsetX: number;
   offsetY: number;
@@ -145,12 +131,60 @@ export interface PlayerSprite {
   height: number;
 }
 
+export interface GameEnemySettings {
+  speed: number;
+  fireRate: number;
+  projectileSpeed: number;
+  columns: number;
+  rows: number;
+  startY: number;
+  paddingX: number;
+  paddingY: number;
+  dropDistance: number;
+}
+
+export interface GameUIElement {
+  visible: boolean;
+  x: number;
+  y: number;
+}
+
+export interface GameHeartsSettings extends GameUIElement {
+  size: number;
+}
+
+export interface GameArrowKeysSettings extends GameUIElement {
+  size: number;
+}
+
+export interface GameTouchAreaSettings {
+  visible: boolean;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface GameFireButtonSettings extends GameUIElement {
+  size: number;
+}
+
+export interface GamePlatformSettings {
+  player: { x: number; y: number };
+  hearts: GameHeartsSettings;
+  arrowKeys: GameArrowKeysSettings;
+  touchArea: GameTouchAreaSettings;
+  fireButton: GameFireButtonSettings;
+  enemy: GameEnemySettings;
+}
+
 export interface SecretGameSettings {
   enabled: boolean;
-  hotspot: SecretGameHotspot;
   title: string;
   instructions: string;
   playerSprite: PlayerSprite;
+  desktop: GamePlatformSettings;
+  mobile: GamePlatformSettings;
 }
 
 export interface PageVisibility {

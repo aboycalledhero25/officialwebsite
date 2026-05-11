@@ -66,6 +66,14 @@ export function GameCanvas({
   const siteData = useSiteData();
   const spriteConfig = siteData.secretGame?.playerSprite ?? { offsetX: -2, offsetY: -12, width: 14, height: 42 };
 
+  // Load platform-specific game settings once at mount
+  const isMobileAtMount = typeof window !== "undefined" && (window.innerWidth < 768 || "ontouchstart" in window);
+  const platformSettings = siteData.secretGame?.[isMobileAtMount ? "mobile" : "desktop"];
+  const settingsRef = useRef(platformSettings ?? {
+    player: { x: 115, y: 265 },
+    enemy: { speed: 18, fireRate: 0.003, projectileSpeed: 60, columns: 5, rows: 3, startY: 30, paddingX: 6, paddingY: 8, dropDistance: 6 },
+  });
+
   // Load custom guitar sprite
   useEffect(() => {
     const img = new Image();
@@ -128,7 +136,7 @@ export function GameCanvas({
       const sc = dimsRef.current.scale;
       const newPlayAreaW = Math.min(BASE_W, w / sc);
       s.playerX = Math.min(s.playerX, newPlayAreaW - PLAYER_W_BASE);
-      s.playerY = BASE_H - 55;
+      s.playerY = settingsRef.current.player.y;
     };
 
     resize();
@@ -145,19 +153,20 @@ export function GameCanvas({
     const edgeMargin = 4;
     const { w: CW, scale: sc } = dimsRef.current;
     const LOG_W = CW > 0 ? CW / sc : BASE_W;
+    const cfg = settingsRef.current.enemy;
     const maxW = Math.min(BASE_W, LOG_W) - edgeMargin * 2;
-    const colUnit = ENEMY_W_BASE + ENEMY_PAD_X_BASE;
-    const maxCols = Math.max(1, Math.floor((maxW + ENEMY_PAD_X_BASE) / colUnit));
-    const cols = Math.min(maxCols, ENEMY_COLS_BASE + Math.floor((w - 1) / 2));
-    const rows = ENEMY_ROWS_BASE + Math.floor((w - 1) / 3);
-    const totalW = cols * colUnit - ENEMY_PAD_X_BASE;
+    const colUnit = ENEMY_W_BASE + cfg.paddingX;
+    const maxCols = Math.max(1, Math.floor((maxW + cfg.paddingX) / colUnit));
+    const cols = Math.min(maxCols, cfg.columns + Math.floor((w - 1) / 2));
+    const rows = cfg.rows + Math.floor((w - 1) / 3);
+    const totalW = cols * colUnit - cfg.paddingX;
     const startX = Math.max(edgeMargin, (Math.min(BASE_W, LOG_W) - totalW) / 2);
 
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         s.enemies.push({
-          x: startX + c * (ENEMY_W_BASE + ENEMY_PAD_X_BASE),
-          y: ENEMY_START_Y_BASE + r * (ENEMY_H_BASE + ENEMY_PAD_Y_BASE),
+          x: startX + c * (ENEMY_W_BASE + cfg.paddingX),
+          y: cfg.startY + r * (ENEMY_H_BASE + cfg.paddingY),
           variant: ((r + c) % 3) as 0 | 1 | 2,
           alive: true,
           cooldown: Math.random() * 2, // staggered firing times
@@ -165,8 +174,8 @@ export function GameCanvas({
       }
     }
 
-    s.enemySpeed = 18 + (w - 1) * 4;
-    s.enemyFireChance = 0.003 + (w - 1) * 0.002;
+    s.enemySpeed = cfg.speed + (w - 1) * 4;
+    s.enemyFireChance = cfg.fireRate + (w - 1) * 0.002;
     s.wave = w;
     s.spawnAnim = 0;
     s.playAreaW = Math.min(BASE_W, LOG_W);
@@ -174,8 +183,9 @@ export function GameCanvas({
 
   const resetGame = useCallback(() => {
     const s = stateRef.current;
-    s.playerX = BASE_W / 2;
-    s.playerY = BASE_H - 55;
+    const cfg = settingsRef.current;
+    s.playerX = cfg.player.x;
+    s.playerY = cfg.player.y;
     s.playerCooldown = 0;
     s.bullets = [];
     s.particles = [];
@@ -309,11 +319,12 @@ export function GameCanvas({
         }
       }
 
+      const cfg = settingsRef.current.enemy;
       if (hitEdge) {
         // Reverse and drop, but don't move horizontally this frame
         s.enemyDir *= -1;
         s.enemies.forEach((e) => {
-          if (e.alive) e.y += 6;
+          if (e.alive) e.y += cfg.dropDistance;
         });
       } else {
         // Safe to move horizontally
@@ -331,7 +342,7 @@ export function GameCanvas({
           s.bullets.push({
             x: e.x + ENEMY_W_BASE / 2,
             y: e.y + ENEMY_H_BASE,
-            vy: ENEMY_BULLET_SPEED_BASE,
+            vy: settingsRef.current.enemy.projectileSpeed,
             isPlayer: false,
           });
           e.cooldown = 1; // 1 second cooldown

@@ -2,6 +2,7 @@
 
 import { useRef, useCallback, useEffect, useState } from "react";
 import { sharedKeys, sharedTouch } from "./use-keyboard-controls";
+import { useSiteData } from "@/components/data-provider";
 
 const BASE_W = 240;
 
@@ -12,6 +13,11 @@ interface MobileControlsProps {
 export function MobileControls({ onShoot }: MobileControlsProps) {
   const touchAreaRef = useRef<HTMLDivElement>(null);
   const [isTouching, setIsTouching] = useState(false);
+  const siteData = useSiteData();
+  const isMobile = typeof window !== "undefined" && (window.innerWidth < 768 || "ontouchstart" in window);
+  const plat = siteData.secretGame?.[isMobile ? "mobile" : "desktop"];
+  const touchArea = plat?.touchArea ?? { visible: true, x: 0, y: 200, width: 240, height: 120 };
+  const fireBtn = plat?.fireButton ?? { visible: true, x: 200, y: 270, size: 44 };
 
   const updateTargetFromTouch = useCallback((clientX: number) => {
     const area = touchAreaRef.current;
@@ -19,8 +25,7 @@ export function MobileControls({ onShoot }: MobileControlsProps) {
     const rect = area.getBoundingClientRect();
     const x = clientX - rect.left;
     const ratio = Math.max(0, Math.min(1, x / rect.width));
-    // Map to game logic coordinates (center the ship on the finger)
-    sharedTouch.targetX = ratio * BASE_W - 5; // 5 = PLAYER_W_BASE/2
+    sharedTouch.targetX = ratio * BASE_W - 5;
   }, []);
 
   const handleTouchStart = useCallback(
@@ -45,7 +50,6 @@ export function MobileControls({ onShoot }: MobileControlsProps) {
     sharedTouch.targetX = null;
   }, []);
 
-  // Also handle mouse for desktop testing of touch controls
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
       setIsTouching(true);
@@ -67,7 +71,6 @@ export function MobileControls({ onShoot }: MobileControlsProps) {
     sharedTouch.targetX = null;
   }, []);
 
-  // Global mouse up to catch drags that leave the touch area
   useEffect(() => {
     const onUp = () => {
       setIsTouching(false);
@@ -77,60 +80,79 @@ export function MobileControls({ onShoot }: MobileControlsProps) {
     return () => window.removeEventListener("mouseup", onUp);
   }, []);
 
+  const [scale, setScale] = useState(1);
+  useEffect(() => {
+    const update = () => setScale(window.innerHeight / 320);
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
   return (
     <>
-      {/* Invisible touch area at bottom for drag-to-move */}
-      <div
-        ref={touchAreaRef}
-        className="absolute bottom-0 left-0 right-0 h-[35vh] z-20 touch-none select-none"
-        style={{ cursor: isTouching ? "grabbing" : "grab" }}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-      />
+      {/* Touch area for drag-to-move */}
+      {touchArea.visible && (
+        <div
+          ref={touchAreaRef}
+          className="absolute z-20 touch-none select-none"
+          style={{
+            left: touchArea.x * scale,
+            top: touchArea.y * scale,
+            width: touchArea.width * scale,
+            height: touchArea.height * scale,
+            cursor: isTouching ? "grabbing" : "grab",
+          }}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+        />
+      )}
 
-      {/* Fire button — bottom right, floating */}
-      <div className="absolute bottom-6 right-6 z-30 pointer-events-auto">
-        <button
-          className="w-20 h-20 rounded-full bg-[#ff006e]/25 border-2 border-[#ff006e]/50 active:bg-[#ff006e]/50 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,0,110,0.3)] flex items-center justify-center text-3xl select-none touch-none backdrop-blur-sm"
-          onTouchStart={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onShoot(true);
+      {/* Fire button */}
+      {fireBtn.visible && (
+        <div
+          className="absolute z-30 pointer-events-auto"
+          style={{
+            left: fireBtn.x * scale,
+            top: fireBtn.y * scale,
+            width: fireBtn.size * scale,
+            height: fireBtn.size * scale,
           }}
-          onTouchEnd={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onShoot(false);
-          }}
-          onMouseDown={(e) => {
-            e.stopPropagation();
-            onShoot(true);
-          }}
-          onMouseUp={(e) => {
-            e.stopPropagation();
-            onShoot(false);
-          }}
-          onMouseLeave={(e) => {
-            e.stopPropagation();
-            onShoot(false);
-          }}
-          aria-label="Shoot"
         >
-          🔥
-        </button>
-      </div>
-
-      {/* Subtle hint text */}
-      <div className="absolute bottom-2 left-0 right-0 z-20 text-center pointer-events-none">
-        <span className="text-[10px] text-white/30 uppercase tracking-widest">
-          Drag to move · Tap fire to shoot
-        </span>
-      </div>
+          <button
+            className="w-full h-full rounded-full bg-[#ff006e]/25 border-2 border-[#ff006e]/50 active:bg-[#ff006e]/50 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,0,110,0.3)] flex items-center justify-center text-3xl select-none touch-none backdrop-blur-sm"
+            onTouchStart={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onShoot(true);
+            }}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onShoot(false);
+            }}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              onShoot(true);
+            }}
+            onMouseUp={(e) => {
+              e.stopPropagation();
+              onShoot(false);
+            }}
+            onMouseLeave={(e) => {
+              e.stopPropagation();
+              onShoot(false);
+            }}
+            aria-label="Shoot"
+          >
+            🔥
+          </button>
+        </div>
+      )}
     </>
   );
 }
