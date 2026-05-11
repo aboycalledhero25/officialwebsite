@@ -284,7 +284,7 @@ export function drawParticle(
   ctx.fillRect(x - size / 2, y - size / 2, size, size);
 }
 
-/* ── Power-up: 4 variants ── */
+/* ── Power-up: 4 variants with strong pulse + glow ── */
 export function drawPowerUp(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -292,53 +292,88 @@ export function drawPowerUp(
   type: "rapid" | "shield" | "wideshot" | "extralife",
   frame: number
 ) {
-  // Small 8x8 pixel-art icons
-  const pulse = Math.sin(frame * 0.15) * 1;
+  const pulse = Math.sin(frame * 0.2) * 1.5; // stronger vertical bob
+  const glowPulse = 0.6 + Math.sin(frame * 0.15) * 0.4; // 0.2 -> 1.0 alpha pulse
+  const sizePulse = 1 + Math.sin(frame * 0.25) * 0.25; // scale pulse
   const cx = x + 4;
   const cy = y + 4 + pulse;
 
-  // Outer glow
-  const glowColors: Record<string, string> = {
-    rapid: "rgba(255, 165, 0, 0.3)",
-    shield: "rgba(0, 240, 255, 0.3)",
-    wideshot: "rgba(252, 238, 10, 0.3)",
-    extralife: "rgba(255, 0, 110, 0.3)",
+  // Color definitions per type
+  const colors: Record<string, { core: string; glow: string; bright: string }> = {
+    rapid:   { core: "#ffa500", glow: "rgba(255, 165, 0,", bright: "#ffdd44" },
+    shield:  { core: "#00f0ff", glow: "rgba(0, 240, 255,", bright: "#ffffff" },
+    wideshot:{ core: "#fcee0a", glow: "rgba(252, 238, 10,", bright: "#ffffff" },
+    extralife:{ core: "#ff006e", glow: "rgba(255, 0, 110,", bright: "#ff88bb" },
   };
-  ctx.fillStyle = glowColors[type];
-  ctx.fillRect(cx - 5, cy - 5, 10, 10);
+  const c = colors[type];
+
+  // Outer aura (large soft glow)
+  const auraSize = 7 * sizePulse;
+  ctx.fillStyle = `${c.glow} ${0.15 * glowPulse})`;
+  ctx.fillRect(cx - auraSize, cy - auraSize, auraSize * 2, auraSize * 2);
+
+  // Middle glow
+  const midSize = 5 * sizePulse;
+  ctx.fillStyle = `${c.glow} ${0.35 * glowPulse})`;
+  ctx.fillRect(cx - midSize, cy - midSize, midSize * 2, midSize * 2);
+
+  // Inner bright glow
+  const innerSize = 3 * sizePulse;
+  ctx.fillStyle = `${c.glow} ${0.6 * glowPulse})`;
+  ctx.fillRect(cx - innerSize, cy - innerSize, innerSize * 2, innerSize * 2);
 
   // Icon body
   switch (type) {
     case "rapid": {
-      // Lightning bolt (orange)
-      ctx.fillStyle = "#ffa500";
+      // Lightning bolt (orange/yellow)
+      ctx.fillStyle = c.core;
       ctx.fillRect(cx - 1, cy - 3, 2, 2);
       ctx.fillRect(cx - 2, cy - 1, 3, 1);
       ctx.fillRect(cx - 1, cy, 2, 1);
       ctx.fillRect(cx, cy + 1, 2, 2);
+      // Bright highlight
+      ctx.fillStyle = c.bright;
+      if (frame % 6 < 3) {
+        ctx.fillRect(cx - 1, cy - 2, 1, 1);
+        ctx.fillRect(cx, cy + 1, 1, 1);
+      }
       break;
     }
     case "shield": {
       // Shield shape (cyan)
-      ctx.fillStyle = "#00f0ff";
+      ctx.fillStyle = c.core;
       ctx.fillRect(cx - 2, cy - 3, 4, 1);
       ctx.fillRect(cx - 3, cy - 2, 6, 1);
       ctx.fillRect(cx - 3, cy - 1, 6, 3);
       ctx.fillRect(cx - 2, cy + 2, 4, 1);
       ctx.fillRect(cx - 1, cy + 3, 2, 1);
+      // Bright highlight
+      ctx.fillStyle = c.bright;
+      if (frame % 8 < 4) {
+        ctx.fillRect(cx - 1, cy - 2, 2, 1);
+        ctx.fillRect(cx - 2, cy, 1, 1);
+        ctx.fillRect(cx + 1, cy, 1, 1);
+      }
       break;
     }
     case "wideshot": {
       // Triple chevrons (yellow)
-      ctx.fillStyle = "#fcee0a";
+      ctx.fillStyle = c.core;
       ctx.fillRect(cx - 2, cy - 3, 4, 1);
       ctx.fillRect(cx - 3, cy - 1, 6, 1);
       ctx.fillRect(cx - 2, cy + 1, 4, 1);
+      // Bright highlight
+      ctx.fillStyle = c.bright;
+      if (frame % 5 < 2) {
+        ctx.fillRect(cx - 1, cy - 3, 2, 1);
+        ctx.fillRect(cx - 2, cy - 1, 1, 1);
+        ctx.fillRect(cx + 1, cy - 1, 1, 1);
+      }
       break;
     }
     case "extralife": {
       // Heart (pink)
-      ctx.fillStyle = "#ff006e";
+      ctx.fillStyle = c.core;
       ctx.fillRect(cx - 2, cy - 2, 1, 1);
       ctx.fillRect(cx + 1, cy - 2, 1, 1);
       ctx.fillRect(cx - 3, cy - 1, 3, 1);
@@ -346,6 +381,12 @@ export function drawPowerUp(
       ctx.fillRect(cx - 3, cy, 6, 2);
       ctx.fillRect(cx - 2, cy + 2, 4, 1);
       ctx.fillRect(cx - 1, cy + 3, 2, 1);
+      // Bright highlight
+      ctx.fillStyle = c.bright;
+      if (frame % 7 < 3) {
+        ctx.fillRect(cx - 1, cy - 1, 2, 1);
+        ctx.fillRect(cx - 2, cy, 1, 1);
+      }
       break;
     }
   }

@@ -529,8 +529,59 @@ export async function updatePageVisibility(visibility: any) {
 }
 
 // ═══════════════════════════════════════════════════════════
-//  LEADERBOARD (Supabase Postgres)
+//  LEADERBOARD (Supabase Storage — uses config bucket)
 // ═══════════════════════════════════════════════════════════
+
+const LEADERBOARD_PATH = "leaderboard.json";
+
+interface LeaderboardEntry {
+  name: string;
+  score: number;
+  wave: number;
+  created_at: string;
+}
+
+async function readLeaderboard(): Promise<LeaderboardEntry[]> {
+  const { data, error } = await supabaseAdmin.storage
+    .from("config")
+    .download(LEADERBOARD_PATH);
+
+  if (error) {
+    // If file doesn't exist, return empty array
+    if (error.message.includes("Object not found") || error.message.includes("Not Found")) {
+      return [];
+    }
+    console.error("Failed to read leaderboard:", error);
+    throw new Error("Failed to read leaderboard");
+  }
+
+  const text = await data.text();
+  try {
+    const parsed = JSON.parse(text);
+    if (Array.isArray(parsed)) return parsed;
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+async function writeLeaderboard(entries: LeaderboardEntry[]) {
+  const blob = new Blob([JSON.stringify(entries, null, 2)], {
+    type: "application/json",
+  });
+
+  const { error } = await supabaseAdmin.storage
+    .from("config")
+    .upload(LEADERBOARD_PATH, blob, {
+      contentType: "application/json",
+      upsert: true,
+    });
+
+  if (error) {
+    console.error("Failed to write leaderboard:", error);
+    throw new Error("Failed to save leaderboard");
+  }
+}
 
 const LeaderboardEntrySchema = z.object({
   name: z.string().min(1).max(20),
@@ -544,51 +595,34 @@ export async function submitScore(name: string, score: number, wave: number) {
     throw new Error("Invalid score data");
   }
 
-  const { error } = await supabaseAdmin
-    .from("leaderboard")
-    .insert([
-      {
-        name: parsed.data.name,
-        score: parsed.data.score,
-        wave: parsed.data.wave,
-      },
-    ]);
+  const entries = await readLeaderboard();
+  entries.push({
+    name: parsed.data.name,
+    score: parsed.data.score,
+    wave: parsed.data.wave,
+    created_at: new Date().toISOString(),
+  });
 
-  if (error) {
-    console.error("Failed to submit score:", error);
-    throw new Error("Failed to save score");
-  }
+  // Sort by score descending and keep top 100
+  entries.sort((a, b) => b.score - a.score);
+  const trimmed = entries.slice(0, 100);
 
+  await writeLeaderboard(trimmed);
   return { success: true };
 }
 
 export async function getLeaderboard(limit = 10) {
-  const { data, error } = await supabaseAdmin
-    .from("leaderboard")
-    .select("name, score, wave, created_at")
-    .order("score", { ascending: false })
-    .limit(limit);
-
-  if (error) {
-    console.error("Failed to fetch leaderboard:", error);
+  try {
+    const entries = await readLeaderboard();
+    return entries.slice(0, limit);
+  } catch (err) {
+    console.error("Failed to fetch leaderboard:", err);
     return [];
   }
-
-  return data ?? [];
 }
 
 export async function resetLeaderboard() {
   await requireAuth();
-
-  const { error } = await supabaseAdmin
-    .from("leaderboard")
-    .delete()
-    .neq("id", 0); // delete all rows
-
-  if (error) {
-    console.error("Failed to reset leaderboard:", error);
-    throw new Error("Failed to reset leaderboard");
-  }
-
+  await writeLeaderboard([]);
   return { success: true };
 }
