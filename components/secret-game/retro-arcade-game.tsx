@@ -66,8 +66,6 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
     }
   }, [phase]);
 
-  const isTouchDevice = typeof window !== "undefined" && "ontouchstart" in window;
-
   const handleStart = useCallback(() => {
     sharedKeys.shoot = false;
     sharedAim.firing = false;
@@ -191,7 +189,7 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
       />
 
       {/* Mobile controls */}
-      {phase === "playing" && isTouchDevice && <MobileControls />}
+      {phase === "playing" && <MobileControls />}
     </div>
   );
 }

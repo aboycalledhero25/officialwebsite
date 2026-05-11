@@ -13,6 +13,7 @@ interface MobileControlsProps {
 
 export function MobileControls({}: MobileControlsProps) {
   const activeTouches = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const mouseDownRef = useRef(false);
 
   // Convert screen pixel to base game coordinates
   const screenToBase = useCallback((clientX: number, clientY: number) => {
@@ -26,13 +27,13 @@ export function MobileControls({}: MobileControlsProps) {
 
   const updateSharedState = useCallback(() => {
     const touches = Array.from(activeTouches.current.values());
-    if (touches.length === 0) {
+    if (touches.length === 0 && !mouseDownRef.current) {
       sharedTouch.targetX = null;
       sharedTouch.targetY = null;
       sharedAim.x = null;
       sharedAim.y = null;
       sharedAim.firing = false;
-    } else {
+    } else if (touches.length > 0) {
       // First touch = movement target
       sharedTouch.targetX = touches[0].x;
       sharedTouch.targetY = Math.max(0, touches[0].y - MOBILE_Y_OFFSET);
@@ -44,6 +45,7 @@ export function MobileControls({}: MobileControlsProps) {
     }
   }, []);
 
+  // Touch handlers
   const handleTouchStart = useCallback(
     (e: React.TouchEvent) => {
       e.preventDefault();
@@ -81,10 +83,31 @@ export function MobileControls({}: MobileControlsProps) {
     [updateSharedState]
   );
 
+  // Mouse handlers (desktop)
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      const pos = screenToBase(e.clientX, e.clientY);
+      sharedAim.x = pos.x;
+      sharedAim.y = pos.y;
+    },
+    [screenToBase]
+  );
+
+  const handleMouseDown = useCallback(() => {
+    mouseDownRef.current = true;
+    sharedAim.firing = true;
+  }, []);
+
+  const handleMouseUp = useCallback(() => {
+    mouseDownRef.current = false;
+    sharedAim.firing = false;
+  }, []);
+
   // Reset on unmount
   useEffect(() => {
     return () => {
       activeTouches.current.clear();
+      mouseDownRef.current = false;
       sharedTouch.targetX = null;
       sharedTouch.targetY = null;
       sharedAim.x = null;
@@ -99,6 +122,10 @@ export function MobileControls({}: MobileControlsProps) {
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onMouseMove={handleMouseMove}
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
     />
   );
 }

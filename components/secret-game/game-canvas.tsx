@@ -146,30 +146,6 @@ export function GameCanvas({
     playAreaW: BASE_W,
   });
 
-  // Desktop mouse aim tracking
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      sharedAim.x = (e.clientX / w) * BASE_W;
-      sharedAim.y = (e.clientY / h) * BASE_H;
-    };
-    const handleMouseDown = (e: MouseEvent) => {
-      if (e.button === 0) sharedAim.firing = true;
-    };
-    const handleMouseUp = (e: MouseEvent) => {
-      if (e.button === 0) sharedAim.firing = false;
-    };
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mousedown", handleMouseDown);
-    window.addEventListener("mouseup", handleMouseUp);
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mousedown", handleMouseDown);
-      window.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, []);
-
   // Resize canvas to fill viewport
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -380,12 +356,9 @@ export function GameCanvas({
 
         const px = s.playerX + PLAYER_W_BASE / 2;
         const py = s.playerY + PLAYER_H_BASE / 2;
-        let aimX = sharedAim.x;
-        let aimY = sharedAim.y;
-        if (aimX == null || aimY == null) {
-          aimX = px;
-          aimY = py - 10;
-        }
+        // sharedAim is stored in base coords; convert X to logical for comparison with px
+        let aimX = sharedAim.x != null ? sharedAim.x * (logW / BASE_W) : px;
+        let aimY = sharedAim.y != null ? sharedAim.y : py - 10;
         const dx = aimX - px;
         const dy = aimY - py;
         const dist = Math.sqrt(dx * dx + dy * dy);
