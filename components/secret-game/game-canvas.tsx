@@ -139,7 +139,7 @@ export function GameCanvas({
       const xScale = logW / BASE_W;
       s.playAreaW = logW;
       s.playerX = Math.min(s.playerX, logW - PLAYER_W_BASE);
-      s.playerY = settingsRef.current.player.y * (h / BASE_H);
+      s.playerY = settingsRef.current.player.y;
     };
 
     resize();
@@ -193,7 +193,7 @@ export function GameCanvas({
     const logW = CW / sc;
     const xScale = logW / BASE_W;
     s.playerX = cfg.player.x * xScale;
-    s.playerY = cfg.player.y * sc;
+    s.playerY = cfg.player.y;
     s.playerCooldown = 0;
     s.bullets = [];
     s.particles = [];

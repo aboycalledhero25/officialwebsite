@@ -13,12 +13,12 @@ interface GameEditorPreviewProps {
   onChange: (next: GamePlatformSettings) => void;
 }
 
-function drawStarfield(ctx: CanvasRenderingContext2D, w: number, h: number) {
+function drawStarfield(ctx: CanvasRenderingContext2D, logW: number, h: number) {
   ctx.fillStyle = "#0a0a0a";
-  ctx.fillRect(0, 0, w, h);
+  ctx.fillRect(0, 0, logW, h);
   ctx.fillStyle = "rgba(255,255,255,0.4)";
   for (let i = 0; i < 60; i++) {
-    const sx = ((i * 37) % (w + 20)) - 10;
+    const sx = ((i * 37) % (logW + 20)) - 10;
     const sy = ((i * 53) % (h + 20)) - 10;
     ctx.fillRect(sx, sy, 1, 1);
   }
@@ -32,19 +32,9 @@ function drawEnemy(ctx: CanvasRenderingContext2D, x: number, y: number) {
   ctx.fillRect(x + 9, y + 2, 2, 2);
 }
 
-function drawPlayer(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  sprite: PlayerSprite,
-  img: HTMLImageElement | null
-) {
-  if (img && img.complete) {
-    ctx.drawImage(img, x + sprite.offsetX, y + sprite.offsetY, sprite.width, sprite.height);
-  } else {
-    ctx.fillStyle = "#00f0ff";
-    ctx.fillRect(x, y, 10, 20);
-  }
+function drawPlayerFallback(ctx: CanvasRenderingContext2D, x: number, y: number) {
+  ctx.fillStyle = "#00f0ff";
+  ctx.fillRect(x, y, 10, 20);
 }
 
 export function GameEditorPreview({
@@ -56,7 +46,23 @@ export function GameEditorPreview({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
-  const [canvasPos, setCanvasPos] = useState({ left: 0, top: 0, scale: 1 });
+  const [dims, setDims] = useState({ w: 280, h: 560 });
+
+  // Measure container size in pixels
+  useLayoutEffect(() => {
+    const measure = () => {
+      const container = containerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      setDims({ w: rect.width, h: rect.height });
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [platform]);
+
+  const scaleX = dims.w / BASE_W;
+  const scaleY = dims.h / BASE_H;
 
   // Load player sprite
   useEffect(() => {
@@ -68,46 +74,31 @@ export function GameEditorPreview({
     };
   }, []);
 
-  // Compute canvas position and scale within container
-  useLayoutEffect(() => {
-    const update = () => {
-      const container = containerRef.current;
-      if (!container) return;
-      const rect = container.getBoundingClientRect();
-      const scaleX = rect.width / BASE_W;
-      const scaleY = rect.height / BASE_H;
-      const scale = Math.min(scaleX, scaleY);
-      const canvasW = BASE_W * scale;
-      const canvasH = BASE_H * scale;
-      setCanvasPos({
-        left: (rect.width - canvasW) / 2,
-        top: (rect.height - canvasH) / 2,
-        scale,
-      });
-    };
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, [platform]);
-
-  // Draw canvas
+  // Draw canvas — replicates the actual game's rendering exactly
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    canvas.width = BASE_W;
-    canvas.height = BASE_H;
+    const sc = scaleY;
+    const logW = dims.w / sc;
 
-    drawStarfield(ctx, BASE_W, BASE_H);
+    canvas.width = dims.w;
+    canvas.height = dims.h;
+
+    ctx.clearRect(0, 0, dims.w, dims.h);
+    ctx.save();
+    ctx.scale(sc, sc);
+
+    drawStarfield(ctx, logW, BASE_H);
 
     // Draw enemies
     const { enemy } = settings;
     const colUnit = 14 + enemy.paddingX;
     const rowUnit = 10 + enemy.paddingY;
     const totalW = enemy.columns * colUnit - enemy.paddingX;
-    const startX = (BASE_W - totalW) / 2;
+    const startX = Math.max(4, (logW - totalW) / 2);
     for (let r = 0; r < enemy.rows; r++) {
       for (let c = 0; c < enemy.columns; c++) {
         drawEnemy(ctx, startX + c * colUnit, enemy.startY + r * rowUnit);
@@ -115,26 +106,26 @@ export function GameEditorPreview({
     }
 
     // Draw player
-    drawPlayer(ctx, settings.player.x, settings.player.y, playerSprite, imgRef.current);
-  }, [settings, playerSprite]);
+    const playerX = settings.player.x * (logW / BASE_W);
+    const playerY = settings.player.y;
+    if (imgRef.current && imgRef.current.complete) {
+      ctx.drawImage(
+        imgRef.current,
+        playerX + playerSprite.offsetX,
+        playerY + playerSprite.offsetY,
+        playerSprite.width,
+        playerSprite.height
+      );
+    } else {
+      drawPlayerFallback(ctx, playerX, playerY);
+    }
+
+    ctx.restore();
+  }, [settings, playerSprite, dims.w, dims.h]);
 
   useEffect(() => {
     draw();
   }, [draw]);
-
-  // Helper: mouse pixel → logical coords (relative to canvas)
-  const toLogical = useCallback(
-    (clientX: number, clientY: number) => {
-      const canvas = canvasRef.current;
-      if (!canvas) return { x: 0, y: 0 };
-      const rect = canvas.getBoundingClientRect();
-      return {
-        x: (clientX - rect.left) / canvasPos.scale,
-        y: (clientY - rect.top) / canvasPos.scale,
-      };
-    },
-    [canvasPos.scale]
-  );
 
   // Drag state
   const dragRef = useRef<{
@@ -166,14 +157,18 @@ export function GameEditorPreview({
       const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
       const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
       const d = dragRef.current;
-      const dx = (clientX - d.startX) / canvasPos.scale;
-      const dy = (clientY - d.startY) / canvasPos.scale;
+      const dx = (clientX - d.startX) / scaleX;
+      const dy = (clientY - d.startY) / scaleY;
 
       const next = { ...settings };
       switch (d.key) {
         case "player":
-          // origX includes the sprite offset, so subtract it to get the raw player position
-          next.player = { ...next.player, x: Math.round(d.origX + dx - playerSprite.offsetX), y: Math.round(d.origY + dy - playerSprite.offsetY) };
+          // origX/Y include the sprite offset, so subtract it to get the raw player position
+          next.player = {
+            ...next.player,
+            x: Math.round(d.origX + dx - playerSprite.offsetX),
+            y: Math.round(d.origY + dy - playerSprite.offsetY),
+          };
           break;
         case "hearts":
           next.hearts = { ...next.hearts, x: Math.round(d.origX + dx), y: Math.round(d.origY + dy) };
@@ -205,14 +200,14 @@ export function GameEditorPreview({
       window.removeEventListener("touchmove", handleMove);
       window.removeEventListener("touchend", handleUp);
     };
-  }, [canvasPos.scale, settings, onChange]);
+  }, [scaleX, scaleY, settings, onChange, playerSprite.offsetX, playerSprite.offsetY]);
 
   // Overlay renderer for draggable items
   function DraggableOverlay({
     label,
     itemKey,
-    x,
-    y,
+    left,
+    top,
     width,
     height,
     visible,
@@ -220,30 +215,43 @@ export function GameEditorPreview({
   }: {
     label: string;
     itemKey: string;
-    x: number;
-    y: number;
+    left: number;
+    top: number;
     width: number;
     height: number;
     visible: boolean;
     color?: string;
   }) {
     if (!visible) return null;
-    const { left, top, scale } = canvasPos;
     return (
       <div
         className="absolute cursor-grab active:cursor-grabbing select-none"
         style={{
-          left: left + x * scale,
-          top: top + y * scale,
-          width: width * scale,
-          height: height * scale,
+          left,
+          top,
+          width,
+          height,
           border: `2px dashed ${color}`,
           background: `${color}15`,
           borderRadius: 4,
           zIndex: 10,
         }}
-        onMouseDown={(e) => startDrag(itemKey, x, y, e)}
-        onTouchStart={(e) => startDrag(itemKey, x, y, e)}
+        onMouseDown={(e) => {
+          if (itemKey === "player") {
+            startDrag(itemKey, settings.player.x + playerSprite.offsetX, settings.player.y + playerSprite.offsetY, e);
+          } else {
+            const item = settings[itemKey as keyof GamePlatformSettings] as { x: number; y: number };
+            startDrag(itemKey, item.x, item.y, e);
+          }
+        }}
+        onTouchStart={(e) => {
+          if (itemKey === "player") {
+            startDrag(itemKey, settings.player.x + playerSprite.offsetX, settings.player.y + playerSprite.offsetY, e);
+          } else {
+            const item = settings[itemKey as keyof GamePlatformSettings] as { x: number; y: number };
+            startDrag(itemKey, item.x, item.y, e);
+          }
+        }}
       >
         <div
           className="absolute -top-5 left-0 text-[10px] font-mono px-1 rounded"
@@ -251,7 +259,6 @@ export function GameEditorPreview({
         >
           {label}
         </div>
-        {/* Resize handle bottom-right */}
         <div
           className="absolute -bottom-1.5 -right-1.5 w-3 h-3 rounded-full"
           style={{ background: color }}
@@ -265,8 +272,6 @@ export function GameEditorPreview({
     ? "w-[280px] h-[560px]"
     : "w-[480px] h-[360px]";
 
-  const { left, top, scale } = canvasPos;
-
   return (
     <div className="flex flex-col items-center gap-3">
       <div className="text-xs text-neutral-400 font-mono uppercase tracking-wider">
@@ -279,36 +284,30 @@ export function GameEditorPreview({
       >
         <canvas
           ref={canvasRef}
-          className="absolute"
-          style={{
-            left,
-            top,
-            width: BASE_W * scale,
-            height: BASE_H * scale,
-            imageRendering: "pixelated",
-          }}
+          className="absolute top-0 left-0 w-full h-full"
+          style={{ imageRendering: "pixelated" }}
         />
 
-        {/* Player overlay — exactly where the sprite is drawn */}
+        {/* Player overlay — matches canvas-drawn sprite exactly */}
         <DraggableOverlay
           label="Player"
           itemKey="player"
-          x={settings.player.x + playerSprite.offsetX}
-          y={settings.player.y + playerSprite.offsetY}
-          width={playerSprite.width}
-          height={playerSprite.height}
+          left={settings.player.x * scaleX + playerSprite.offsetX * scaleY}
+          top={settings.player.y * scaleY + playerSprite.offsetY * scaleY}
+          width={playerSprite.width * scaleY}
+          height={playerSprite.height * scaleY}
           visible={true}
           color="#00f0ff"
         />
 
-        {/* Hearts overlay */}
+        {/* Hearts overlay — matches HTML HUD positioning */}
         <DraggableOverlay
           label="Hearts"
           itemKey="hearts"
-          x={settings.hearts.x}
-          y={settings.hearts.y}
-          width={settings.hearts.size * 3 + 8}
-          height={settings.hearts.size + 4}
+          left={settings.hearts.x * scaleX}
+          top={settings.hearts.y * scaleY}
+          width={(settings.hearts.size * 3 + 8) * scaleY}
+          height={(settings.hearts.size + 4) * scaleY}
           visible={settings.hearts.visible}
           color="#ff006e"
         />
@@ -317,10 +316,10 @@ export function GameEditorPreview({
         <DraggableOverlay
           label="Arrow Keys"
           itemKey="arrowKeys"
-          x={settings.arrowKeys.x}
-          y={settings.arrowKeys.y}
-          width={settings.arrowKeys.size * 2 + 16}
-          height={settings.arrowKeys.size + 8}
+          left={settings.arrowKeys.x * scaleX}
+          top={settings.arrowKeys.y * scaleY}
+          width={(settings.arrowKeys.size * 2 + 16) * scaleY}
+          height={(settings.arrowKeys.size + 8) * scaleY}
           visible={settings.arrowKeys.visible}
           color="#fcee0a"
         />
@@ -329,10 +328,10 @@ export function GameEditorPreview({
         <DraggableOverlay
           label="Touch Area"
           itemKey="touchArea"
-          x={settings.touchArea.x}
-          y={settings.touchArea.y}
-          width={settings.touchArea.width}
-          height={settings.touchArea.height}
+          left={settings.touchArea.x * scaleX}
+          top={settings.touchArea.y * scaleY}
+          width={settings.touchArea.width * scaleX}
+          height={settings.touchArea.height * scaleY}
           visible={settings.touchArea.visible}
           color="#00f0ff"
         />
@@ -341,10 +340,10 @@ export function GameEditorPreview({
         <DraggableOverlay
           label="Fire"
           itemKey="fireButton"
-          x={settings.fireButton.x}
-          y={settings.fireButton.y}
-          width={settings.fireButton.size}
-          height={settings.fireButton.size}
+          left={settings.fireButton.x * scaleX}
+          top={settings.fireButton.y * scaleY}
+          width={settings.fireButton.size * scaleX}
+          height={settings.fireButton.size * scaleX}
           visible={settings.fireButton.visible}
           color="#ff006e"
         />
