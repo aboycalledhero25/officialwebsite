@@ -69,6 +69,7 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
   const handleStart = useCallback(() => {
     sharedKeys.shoot = false;
     sharedAim.firing = false;
+    sharedAim.aiming = false;
     setScore(0);
     setLives(3);
     setWave(1);
@@ -80,6 +81,7 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
   const handleRestart = useCallback(() => {
     sharedKeys.shoot = false;
     sharedAim.firing = false;
+    sharedAim.aiming = false;
     setScore(0);
     setLives(3);
     setWave(1);

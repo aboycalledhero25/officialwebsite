@@ -36,6 +36,7 @@ export const sharedAim = {
   x: null as number | null,
   y: null as number | null,
   firing: false,
+  aiming: false, // true = directional aim toward x/y; false = straight up
 };
 
 function isTyping() {

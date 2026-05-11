@@ -13,7 +13,8 @@ interface MobileControlsProps {
 
 export function MobileControls({}: MobileControlsProps) {
   const activeTouches = useRef<Map<number, { x: number; y: number }>>(new Map());
-  const mouseDownRef = useRef(false);
+  const leftDownRef = useRef(false);
+  const rightDownRef = useRef(false);
 
   // Convert screen pixel to base game coordinates
   const screenToBase = useCallback((clientX: number, clientY: number) => {
@@ -25,23 +26,31 @@ export function MobileControls({}: MobileControlsProps) {
     };
   }, []);
 
-  const updateSharedState = useCallback(() => {
+  const syncTouchState = useCallback(() => {
     const touches = Array.from(activeTouches.current.values());
-    if (touches.length === 0 && !mouseDownRef.current) {
+    if (touches.length === 0) {
       sharedTouch.targetX = null;
       sharedTouch.targetY = null;
       sharedAim.x = null;
       sharedAim.y = null;
       sharedAim.firing = false;
-    } else if (touches.length > 0) {
+      sharedAim.aiming = false;
+    } else {
       // First touch = movement target
       sharedTouch.targetX = touches[0].x;
       sharedTouch.targetY = Math.max(0, touches[0].y - MOBILE_Y_OFFSET);
-      // Second touch = aim, otherwise first touch = aim
-      const aimTouch = touches.length >= 2 ? touches[1] : touches[0];
-      sharedAim.x = aimTouch.x;
-      sharedAim.y = aimTouch.y;
       sharedAim.firing = true;
+      if (touches.length >= 2) {
+        // Second touch = directional aim
+        sharedAim.aiming = true;
+        sharedAim.x = touches[1].x;
+        sharedAim.y = touches[1].y;
+      } else {
+        // One touch = normal straight-up fire
+        sharedAim.aiming = false;
+        sharedAim.x = null;
+        sharedAim.y = null;
+      }
     }
   }, []);
 
@@ -54,9 +63,9 @@ export function MobileControls({}: MobileControlsProps) {
         const pos = screenToBase(t.clientX, t.clientY);
         activeTouches.current.set(t.identifier, pos);
       }
-      updateSharedState();
+      syncTouchState();
     },
-    [screenToBase, updateSharedState]
+    [screenToBase, syncTouchState]
   );
 
   const handleTouchMove = useCallback(
@@ -67,9 +76,9 @@ export function MobileControls({}: MobileControlsProps) {
         const pos = screenToBase(t.clientX, t.clientY);
         activeTouches.current.set(t.identifier, pos);
       }
-      updateSharedState();
+      syncTouchState();
     },
-    [screenToBase, updateSharedState]
+    [screenToBase, syncTouchState]
   );
 
   const handleTouchEnd = useCallback(
@@ -78,9 +87,9 @@ export function MobileControls({}: MobileControlsProps) {
         const t = e.changedTouches[i];
         activeTouches.current.delete(t.identifier);
       }
-      updateSharedState();
+      syncTouchState();
     },
-    [updateSharedState]
+    [syncTouchState]
   );
 
   // Mouse handlers (desktop)
@@ -93,26 +102,52 @@ export function MobileControls({}: MobileControlsProps) {
     [screenToBase]
   );
 
-  const handleMouseDown = useCallback(() => {
-    mouseDownRef.current = true;
-    sharedAim.firing = true;
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    if (e.button === 0) {
+      leftDownRef.current = true;
+      sharedAim.firing = true;
+      sharedAim.aiming = false;
+    } else if (e.button === 2) {
+      rightDownRef.current = true;
+      sharedAim.firing = true;
+      sharedAim.aiming = true;
+    }
   }, []);
 
-  const handleMouseUp = useCallback(() => {
-    mouseDownRef.current = false;
-    sharedAim.firing = false;
+  const handleMouseUp = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    if (e.button === 0) {
+      leftDownRef.current = false;
+      if (rightDownRef.current) {
+        sharedAim.aiming = true;
+      } else {
+        sharedAim.firing = false;
+        sharedAim.aiming = false;
+      }
+    } else if (e.button === 2) {
+      rightDownRef.current = false;
+      if (leftDownRef.current) {
+        sharedAim.aiming = false;
+      } else {
+        sharedAim.firing = false;
+        sharedAim.aiming = false;
+      }
+    }
   }, []);
 
   // Reset on unmount
   useEffect(() => {
     return () => {
       activeTouches.current.clear();
-      mouseDownRef.current = false;
+      leftDownRef.current = false;
+      rightDownRef.current = false;
       sharedTouch.targetX = null;
       sharedTouch.targetY = null;
       sharedAim.x = null;
       sharedAim.y = null;
       sharedAim.firing = false;
+      sharedAim.aiming = false;
     };
   }, []);
 
@@ -126,6 +161,7 @@ export function MobileControls({}: MobileControlsProps) {
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
+      onContextMenu={(e) => e.preventDefault()}
     />
   );
 }

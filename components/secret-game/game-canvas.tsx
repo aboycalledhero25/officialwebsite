@@ -356,9 +356,14 @@ export function GameCanvas({
 
         const px = s.playerX + PLAYER_W_BASE / 2;
         const py = s.playerY + PLAYER_H_BASE / 2;
-        // sharedAim is stored in base coords; convert X to logical for comparison with px
-        let aimX = sharedAim.x != null ? sharedAim.x * (logW / BASE_W) : px;
-        let aimY = sharedAim.y != null ? sharedAim.y : py - 10;
+        // Default straight-up aim
+        let aimX = px;
+        let aimY = py - 10;
+        // Use directional aim only when aiming mode is active
+        if (sharedAim.aiming && sharedAim.x != null && sharedAim.y != null) {
+          aimX = sharedAim.x * (logW / BASE_W);
+          aimY = sharedAim.y;
+        }
         const dx = aimX - px;
         const dy = aimY - py;
         const dist = Math.sqrt(dx * dx + dy * dy);
