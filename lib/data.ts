@@ -174,6 +174,9 @@ export interface GamePlatformSettings {
   arrowKeys: GameArrowKeysSettings;
   touchArea: GameTouchAreaSettings;
   fireButton: GameFireButtonSettings;
+  score: GameUIElement;
+  wave: GameUIElement;
+  powerUps: GameUIElement;
   enemy: GameEnemySettings;
 }
 

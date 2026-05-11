@@ -182,6 +182,15 @@ export function GameEditorPreview({
         case "fireButton":
           next.fireButton = { ...next.fireButton, x: Math.round(d.origX + dx), y: Math.round(d.origY + dy) };
           break;
+        case "score":
+          next.score = { ...next.score, x: Math.round(d.origX + dx), y: Math.round(d.origY + dy) };
+          break;
+        case "wave":
+          next.wave = { ...next.wave, x: Math.round(d.origX + dx), y: Math.round(d.origY + dy) };
+          break;
+        case "powerUps":
+          next.powerUps = { ...next.powerUps, x: Math.round(d.origX + dx), y: Math.round(d.origY + dy) };
+          break;
       }
       onChange(next);
     };
@@ -346,6 +355,42 @@ export function GameEditorPreview({
           height={settings.fireButton.size * scaleX}
           visible={settings.fireButton.visible}
           color="#ff006e"
+        />
+
+        {/* Score overlay */}
+        <DraggableOverlay
+          label="Score"
+          itemKey="score"
+          left={settings.score.x * scaleX}
+          top={settings.score.y * scaleY}
+          width={70 * scaleY}
+          height={36 * scaleY}
+          visible={settings.score.visible}
+          color="#00f0ff"
+        />
+
+        {/* Wave overlay */}
+        <DraggableOverlay
+          label="Wave"
+          itemKey="wave"
+          left={settings.wave.x * scaleX}
+          top={settings.wave.y * scaleY}
+          width={50 * scaleY}
+          height={36 * scaleY}
+          visible={settings.wave.visible}
+          color="#fcee0a"
+        />
+
+        {/* Power-ups overlay */}
+        <DraggableOverlay
+          label="Power-ups"
+          itemKey="powerUps"
+          left={settings.powerUps.x * scaleX}
+          top={settings.powerUps.y * scaleY}
+          width={110 * scaleY}
+          height={24 * scaleY}
+          visible={settings.powerUps.visible}
+          color="#ff8800"
         />
       </div>
     </div>

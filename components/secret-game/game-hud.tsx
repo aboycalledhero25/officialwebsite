@@ -83,6 +83,9 @@ export function GameHUD({ score, lives, wave, muted, activePowerUps, onPause, on
   const isMobile = typeof window !== "undefined" && (window.innerWidth < 768 || "ontouchstart" in window);
   const plat = siteData.secretGame?.[isMobile ? "mobile" : "desktop"];
   const hearts = plat?.hearts ?? { visible: true, x: 190, y: 8, size: 28 };
+  const scorePos = plat?.score ?? { visible: true, x: 8, y: 8 };
+  const wavePos = plat?.wave ?? { visible: true, x: 120, y: 8 };
+  const powerUpsPos = plat?.powerUps ?? { visible: true, x: 120, y: 28 };
 
   // Scale stored positions (0-240 x, 0-320 y) to actual screen dimensions
   const screenX = (baseX: number) => (baseX / BASE_W) * dims.w;
@@ -98,26 +101,30 @@ export function GameHUD({ score, lives, wave, muted, activePowerUps, onPause, on
 
   return (
     <div className="absolute top-0 left-0 right-0 bottom-0 z-50 pointer-events-none">
-      {/* Score - top left */}
-      <div className="absolute select-none" style={{ left: screenX(8), top: screenY(8) }}>
-        <span className="text-xs text-neutral-400 font-mono leading-none tracking-wider block">SCORE</span>
-        <span
-          className="text-lg text-[#00f0ff] font-mono font-bold leading-tight drop-shadow-[0_0_6px_rgba(0,240,255,0.5)] inline-block transition-transform duration-150"
-          style={{ transform: scoreBump ? "scale(1.2)" : "scale(1)" }}
-        >
-          {score.toString().padStart(6, "0")}
-        </span>
-      </div>
+      {/* Score */}
+      {scorePos.visible && (
+        <div className="absolute select-none" style={{ left: screenX(scorePos.x), top: screenY(scorePos.y) }}>
+          <span className="text-xs text-neutral-400 font-mono leading-none tracking-wider block">SCORE</span>
+          <span
+            className="text-lg text-[#00f0ff] font-mono font-bold leading-tight drop-shadow-[0_0_6px_rgba(0,240,255,0.5)] inline-block transition-transform duration-150"
+            style={{ transform: scoreBump ? "scale(1.2)" : "scale(1)" }}
+          >
+            {score.toString().padStart(6, "0")}
+          </span>
+        </div>
+      )}
 
-      {/* Wave - top center */}
-      <div className="absolute left-1/2 -translate-x-1/2 select-none text-center" style={{ top: screenY(8) }}>
-        <span className="text-xs text-neutral-400 font-mono leading-none tracking-wider block">WAVE</span>
-        <span className="text-lg text-[#fcee0a] font-mono font-bold leading-tight drop-shadow-[0_0_6px_rgba(252,238,10,0.5)]">{wave}</span>
-      </div>
+      {/* Wave */}
+      {wavePos.visible && (
+        <div className="absolute select-none text-center" style={{ left: screenX(wavePos.x), top: screenY(wavePos.y) }}>
+          <span className="text-xs text-neutral-400 font-mono leading-none tracking-wider block">WAVE</span>
+          <span className="text-lg text-[#fcee0a] font-mono font-bold leading-tight drop-shadow-[0_0_6px_rgba(252,238,10,0.5)]">{wave}</span>
+        </div>
+      )}
 
       {/* Active power-up indicators */}
-      {activePowerUps && activePowerUps.length > 0 && (
-        <div className="absolute left-1/2 -translate-x-1/2 select-none text-center flex flex-col gap-1" style={{ top: screenY(28) }}>
+      {powerUpsPos.visible && activePowerUps && activePowerUps.length > 0 && (
+        <div className="absolute select-none text-center flex flex-col gap-1" style={{ left: screenX(powerUpsPos.x), top: screenY(powerUpsPos.y) }}>
           {activePowerUps.map((pu, i) => (
             <div key={`${pu.type}-${i}`} className="flex items-center gap-2 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10">
               <PowerUpLabel type={pu.type} />

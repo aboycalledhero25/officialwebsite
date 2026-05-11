@@ -270,9 +270,11 @@ export function GameCanvas({
       resetGame();
     }
     if (phase === "playing" && stateRef.current.enemies.filter((e) => e.alive).length === 0) {
-      initWave(stateRef.current.wave);
+      const nextWave = stateRef.current.wave + 1;
+      onWaveChange(nextWave);
+      initWave(nextWave);
     }
-  }, [phase, resetGame, initWave]);
+  }, [phase, resetGame, initWave, onWaveChange]);
 
   // Imperative reset when parent signals a restart (e.g. Try Again)
   useEffect(() => {
@@ -567,8 +569,6 @@ export function GameCanvas({
       // ── Wave complete? ──
       if (aliveEnemies.length === 0) {
         play("levelComplete");
-        s.wave++;
-        onWaveChange(s.wave);
         onPhaseChange("levelcomplete");
         return;
       }
