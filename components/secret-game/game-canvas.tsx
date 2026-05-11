@@ -497,6 +497,32 @@ export function GameCanvas({
         }
       }
 
+      // ── Collision: player bullets vs enemy bullets ──
+      const ENEMY_BULLET_HITBOX = 4;
+      for (let bi = s.bullets.length - 1; bi >= 0; bi--) {
+        const pb = s.bullets[bi];
+        if (!pb.isPlayer) continue;
+        for (let ebi = s.bullets.length - 1; ebi >= 0; ebi--) {
+          const eb = s.bullets[ebi];
+          if (eb.isPlayer) continue;
+          if (
+            pb.x >= eb.x - ENEMY_BULLET_HITBOX &&
+            pb.x <= eb.x + ENEMY_BULLET_HITBOX &&
+            pb.y >= eb.y - ENEMY_BULLET_HITBOX &&
+            pb.y <= eb.y + ENEMY_BULLET_HITBOX
+          ) {
+            s.bullets.splice(bi, 1);
+            s.bullets.splice(ebi > bi ? ebi - 1 : ebi, 1);
+            s.score += 5 * s.wave;
+            onScoreChange(s.score);
+            spawnParticles(eb.x, eb.y, "#ffffff", 3);
+            spawnParticles(eb.x, eb.y, "#00f0ff", 2);
+            play("enemyHit");
+            break;
+          }
+        }
+      }
+
       // ── Collision: enemy bullets vs player ──
       const px = s.playerX;
       const py = s.playerY;

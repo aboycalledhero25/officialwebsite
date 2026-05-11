@@ -39,21 +39,25 @@ export function useKeyboardControls() {
         case "a":
         case "A":
           sharedKeys.left = true;
+          e.preventDefault();
           break;
         case "ArrowRight":
         case "d":
         case "D":
           sharedKeys.right = true;
+          e.preventDefault();
           break;
         case "ArrowUp":
         case "w":
         case "W":
           sharedKeys.up = true;
+          e.preventDefault();
           break;
         case "ArrowDown":
         case "s":
         case "S":
           sharedKeys.down = true;
+          e.preventDefault();
           break;
         case " ":
           sharedKeys.shoot = true;
