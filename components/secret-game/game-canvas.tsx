@@ -15,22 +15,15 @@ import {
 
 export type GamePhase = "menu" | "playing" | "paused" | "gameover" | "levelcomplete";
 
-/* ── Base resolution (used for scaling) ── */
+/* ── Base resolution (reference coordinate system) ── */
 const BASE_H = 320;
 const BASE_W = 240;
 
 /* ── Game constants (in base units) ── */
 const PLAYER_SPEED_BASE = 90;
 const BULLET_SPEED_BASE = 180;
-const ENEMY_BULLET_SPEED_BASE = 60;
-const SHOOT_COOLDOWN_BASE = 0.35;
-const ENEMY_COLS_BASE = 5;
-const ENEMY_ROWS_BASE = 3;
 const ENEMY_W_BASE = 14;
 const ENEMY_H_BASE = 10;
-const ENEMY_PAD_X_BASE = 6;
-const ENEMY_PAD_Y_BASE = 8;
-const ENEMY_START_Y_BASE = 30;
 const PLAYER_W_BASE = 10;
 const PLAYER_H_BASE = 20;
 const MAX_LIVES = 3;
@@ -83,6 +76,14 @@ export function GameCanvas({
     };
   }, []);
 
+  // Compute x-scale factor to map stored positions (0-240) to actual logical width
+  const getXScale = useCallback(() => {
+    const { w, h } = dimsRef.current;
+    const sc = h / BASE_H;
+    const logW = w / sc;
+    return logW / BASE_W;
+  }, []);
+
   // Mutable game state
   const stateRef = useRef({
     playerX: BASE_W / 2,
@@ -129,14 +130,16 @@ export function GameCanvas({
       const h = window.innerHeight;
       canvas.width = w;
       canvas.height = h;
-      dimsRef.current = { w, h, scale: h / BASE_H };
+      const sc = h / BASE_H;
+      dimsRef.current = { w, h, scale: sc };
 
       // Keep player in bounds after resize
       const s = stateRef.current;
-      const sc = dimsRef.current.scale;
-      const newPlayAreaW = Math.min(BASE_W, w / sc);
-      s.playerX = Math.min(s.playerX, newPlayAreaW - PLAYER_W_BASE);
-      s.playerY = settingsRef.current.player.y;
+      const logW = w / sc;
+      const xScale = logW / BASE_W;
+      s.playAreaW = logW;
+      s.playerX = Math.min(s.playerX, logW - PLAYER_W_BASE);
+      s.playerY = settingsRef.current.player.y * (h / BASE_H);
     };
 
     resize();
@@ -151,16 +154,17 @@ export function GameCanvas({
     s.enemies = [];
     s.bullets = []; // clear all projectiles on new wave
     const edgeMargin = 4;
-    const { w: CW, scale: sc } = dimsRef.current;
-    const LOG_W = CW > 0 ? CW / sc : BASE_W;
+    const { w: CW, h: CH } = dimsRef.current;
+    const sc = CH / BASE_H;
+    const logW = CW / sc;
     const cfg = settingsRef.current.enemy;
-    const maxW = Math.min(BASE_W, LOG_W) - edgeMargin * 2;
+    const maxW = logW - edgeMargin * 2;
     const colUnit = ENEMY_W_BASE + cfg.paddingX;
     const maxCols = Math.max(1, Math.floor((maxW + cfg.paddingX) / colUnit));
     const cols = Math.min(maxCols, cfg.columns + Math.floor((w - 1) / 2));
     const rows = cfg.rows + Math.floor((w - 1) / 3);
     const totalW = cols * colUnit - cfg.paddingX;
-    const startX = Math.max(edgeMargin, (Math.min(BASE_W, LOG_W) - totalW) / 2);
+    const startX = Math.max(edgeMargin, (logW - totalW) / 2);
 
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
@@ -178,14 +182,18 @@ export function GameCanvas({
     s.enemyFireChance = cfg.fireRate + (w - 1) * 0.002;
     s.wave = w;
     s.spawnAnim = 0;
-    s.playAreaW = Math.min(BASE_W, LOG_W);
+    s.playAreaW = logW;
   }, []);
 
   const resetGame = useCallback(() => {
     const s = stateRef.current;
     const cfg = settingsRef.current;
-    s.playerX = cfg.player.x;
-    s.playerY = cfg.player.y;
+    const { w: CW, h: CH } = dimsRef.current;
+    const sc = CH / BASE_H;
+    const logW = CW / sc;
+    const xScale = logW / BASE_W;
+    s.playerX = cfg.player.x * xScale;
+    s.playerY = cfg.player.y * sc;
     s.playerCooldown = 0;
     s.bullets = [];
     s.particles = [];
@@ -199,6 +207,7 @@ export function GameCanvas({
     onScoreChange(0);
     onLivesChange(MAX_LIVES);
     onWaveChange(1);
+    s.playAreaW = logW;
     initWave(1);
   }, [initWave, onScoreChange, onLivesChange, onWaveChange]);
 
@@ -253,8 +262,8 @@ export function GameCanvas({
       if (!ctx) return;
 
       const { w: CW, h: CH, scale: sc } = dimsRef.current;
-      const LOG_W = CW / sc;
-      const playAreaW = s.playAreaW;
+      const logW = CW / sc;
+      const playAreaW = logW;
 
       // ── Input handling (one-shot keys) ──
       if (keys.pause) {
@@ -281,7 +290,8 @@ export function GameCanvas({
       const pSpeed = PLAYER_SPEED_BASE;
       if (sharedTouch.targetX !== null) {
         // Mobile drag control: smooth lerp toward touch target
-        const target = Math.max(0, Math.min(playAreaW - PLAYER_W_BASE, sharedTouch.targetX));
+        // sharedTouch.targetX is in base coordinates (0-240), scale to logical width
+        const target = Math.max(0, Math.min(playAreaW - PLAYER_W_BASE, sharedTouch.targetX * (logW / BASE_W)));
         const diff = target - s.playerX;
         s.playerX += diff * Math.min(1, pSpeed * 2.5 * dt);
       } else {
@@ -300,7 +310,7 @@ export function GameCanvas({
           vy: -BULLET_SPEED_BASE,
           isPlayer: true,
         });
-        s.playerCooldown = SHOOT_COOLDOWN_BASE;
+        s.playerCooldown = 0.35;
         play("shoot");
       }
 
@@ -342,7 +352,7 @@ export function GameCanvas({
           s.bullets.push({
             x: e.x + ENEMY_W_BASE / 2,
             y: e.y + ENEMY_H_BASE,
-            vy: settingsRef.current.enemy.projectileSpeed,
+            vy: cfg.projectileSpeed,
             isPlayer: false,
           });
           e.cooldown = 1; // 1 second cooldown
@@ -465,8 +475,8 @@ export function GameCanvas({
     CH: number,
     sc: number
   ) {
-    const LOG_W = CW / sc;
-    const LOG_H = BASE_H;
+    const logW = CW / sc;
+    const logH = BASE_H;
 
     // ── CRITICAL: clear the ENTIRE physical canvas BEFORE any transform ──
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -485,15 +495,15 @@ export function GameCanvas({
     // Stars parallax — spread across full logical width
     ctx.fillStyle = "rgba(255,255,255,0.4)";
     for (let i = 0; i < 60; i++) {
-      const sx = ((i * 37 + s.frame * 0.2) % (LOG_W + 20)) - 10;
-      const sy = ((i * 53) % (LOG_H + 20)) - 10;
+      const sx = ((i * 37 + s.frame * 0.2) % (logW + 20)) - 10;
+      const sy = ((i * 53) % (logH + 20)) - 10;
       ctx.fillRect(sx, sy, 1, 1);
     }
 
     // Draw enemies with spawn animation
     for (const e of s.enemies) {
       if (!e.alive) continue;
-      const spawnScale = Math.min(1, s.spawnAnim + (e.y / LOG_H) * 0.5);
+      const spawnScale = Math.min(1, s.spawnAnim + (e.y / logH) * 0.5);
       if (spawnScale < 1) {
         ctx.save();
         ctx.globalAlpha = spawnScale;

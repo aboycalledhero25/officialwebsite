@@ -25,7 +25,6 @@ function drawStarfield(ctx: CanvasRenderingContext2D, w: number, h: number) {
 }
 
 function drawEnemy(ctx: CanvasRenderingContext2D, x: number, y: number) {
-  // Simple fan silhouette placeholder
   ctx.fillStyle = "#ff006e";
   ctx.fillRect(x, y, 14, 10);
   ctx.fillStyle = "#fcee0a";
@@ -57,7 +56,7 @@ export function GameEditorPreview({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
-  const [scale, setScale] = useState(1);
+  const [canvasPos, setCanvasPos] = useState({ left: 0, top: 0, scale: 1 });
 
   // Load player sprite
   useEffect(() => {
@@ -69,19 +68,26 @@ export function GameEditorPreview({
     };
   }, []);
 
-  // Compute scale to fit container
+  // Compute canvas position and scale within container
   useEffect(() => {
-    const updateScale = () => {
+    const update = () => {
       const container = containerRef.current;
       if (!container) return;
       const rect = container.getBoundingClientRect();
       const scaleX = rect.width / BASE_W;
       const scaleY = rect.height / BASE_H;
-      setScale(Math.min(scaleX, scaleY));
+      const scale = Math.min(scaleX, scaleY);
+      const canvasW = BASE_W * scale;
+      const canvasH = BASE_H * scale;
+      setCanvasPos({
+        left: (rect.width - canvasW) / 2,
+        top: (rect.height - canvasH) / 2,
+        scale,
+      });
     };
-    updateScale();
-    window.addEventListener("resize", updateScale);
-    return () => window.removeEventListener("resize", updateScale);
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
   }, []);
 
   // Draw canvas
@@ -116,18 +122,18 @@ export function GameEditorPreview({
     draw();
   }, [draw]);
 
-  // Helper: mouse pixel → logical coords
+  // Helper: mouse pixel → logical coords (relative to canvas)
   const toLogical = useCallback(
     (clientX: number, clientY: number) => {
       const canvas = canvasRef.current;
       if (!canvas) return { x: 0, y: 0 };
       const rect = canvas.getBoundingClientRect();
       return {
-        x: (clientX - rect.left) / scale,
-        y: (clientY - rect.top) / scale,
+        x: (clientX - rect.left) / canvasPos.scale,
+        y: (clientY - rect.top) / canvasPos.scale,
       };
     },
-    [scale]
+    [canvasPos.scale]
   );
 
   // Drag state
@@ -160,8 +166,8 @@ export function GameEditorPreview({
       const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
       const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
       const d = dragRef.current;
-      const dx = (clientX - d.startX) / scale;
-      const dy = (clientY - d.startY) / scale;
+      const dx = (clientX - d.startX) / canvasPos.scale;
+      const dy = (clientY - d.startY) / canvasPos.scale;
 
       const next = { ...settings };
       switch (d.key) {
@@ -198,7 +204,7 @@ export function GameEditorPreview({
       window.removeEventListener("touchmove", handleMove);
       window.removeEventListener("touchend", handleUp);
     };
-  }, [scale, settings, onChange]);
+  }, [canvasPos.scale, settings, onChange]);
 
   // Overlay renderer for draggable items
   function DraggableOverlay({
@@ -221,12 +227,13 @@ export function GameEditorPreview({
     color?: string;
   }) {
     if (!visible) return null;
+    const { left, top, scale } = canvasPos;
     return (
       <div
         className="absolute cursor-grab active:cursor-grabbing select-none"
         style={{
-          left: x * scale,
-          top: y * scale,
+          left: left + x * scale,
+          top: top + y * scale,
           width: width * scale,
           height: height * scale,
           border: `2px dashed ${color}`,
@@ -257,31 +264,36 @@ export function GameEditorPreview({
     ? "w-[280px] h-[560px]"
     : "w-[480px] h-[360px]";
 
+  const { left, top, scale } = canvasPos;
+
   return (
     <div className="flex flex-col items-center gap-3">
       <div className="text-xs text-neutral-400 font-mono uppercase tracking-wider">
-        {platform} Preview ({BASE_W} × {BASE_H} logical)
+        {platform} Preview ({BASE_W} × {BASE_H} ref)
       </div>
       <div
         ref={containerRef}
-        className={`relative ${frameClass} rounded-2xl border-4 border-[#1e1e1e] bg-black overflow-hidden flex items-center justify-center`}
+        className={`relative ${frameClass} rounded-2xl border-4 border-[#1e1e1e] bg-black overflow-hidden`}
         style={{ boxShadow: "0 0 40px rgba(0,0,0,0.5)" }}
       >
         <canvas
           ref={canvasRef}
+          className="absolute"
           style={{
+            left,
+            top,
             width: BASE_W * scale,
             height: BASE_H * scale,
             imageRendering: "pixelated",
           }}
         />
 
-        {/* Player overlay */}
+        {/* Player overlay — exactly where the sprite is drawn */}
         <DraggableOverlay
           label="Player"
           itemKey="player"
-          x={settings.player.x - 2}
-          y={settings.player.y - 12}
+          x={settings.player.x + playerSprite.offsetX}
+          y={settings.player.y + playerSprite.offsetY}
           width={playerSprite.width}
           height={playerSprite.height}
           visible={true}

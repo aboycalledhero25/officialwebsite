@@ -5,6 +5,7 @@ import { sharedKeys, sharedTouch } from "./use-keyboard-controls";
 import { useSiteData } from "@/components/data-provider";
 
 const BASE_W = 240;
+const BASE_H = 320;
 
 interface MobileControlsProps {
   onShoot: (active: boolean) => void;
@@ -14,10 +15,23 @@ export function MobileControls({ onShoot }: MobileControlsProps) {
   const touchAreaRef = useRef<HTMLDivElement>(null);
   const [isTouching, setIsTouching] = useState(false);
   const siteData = useSiteData();
+  const [dims, setDims] = useState({ w: 375, h: 812 });
+
+  useEffect(() => {
+    const update = () => setDims({ w: window.innerWidth, h: window.innerHeight });
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
   const isMobile = typeof window !== "undefined" && (window.innerWidth < 768 || "ontouchstart" in window);
   const plat = siteData.secretGame?.[isMobile ? "mobile" : "desktop"];
   const touchArea = plat?.touchArea ?? { visible: true, x: 0, y: 200, width: 240, height: 120 };
   const fireBtn = plat?.fireButton ?? { visible: true, x: 200, y: 270, size: 44 };
+
+  // Scale stored positions (0-240 x, 0-320 y) to actual screen
+  const sx = (v: number) => (v / BASE_W) * dims.w;
+  const sy = (v: number) => (v / BASE_H) * dims.h;
 
   const updateTargetFromTouch = useCallback((clientX: number) => {
     const area = touchAreaRef.current;
@@ -25,7 +39,8 @@ export function MobileControls({ onShoot }: MobileControlsProps) {
     const rect = area.getBoundingClientRect();
     const x = clientX - rect.left;
     const ratio = Math.max(0, Math.min(1, x / rect.width));
-    sharedTouch.targetX = ratio * BASE_W - 5;
+    // Map to game base coordinates (0-240)
+    sharedTouch.targetX = ratio * BASE_W;
   }, []);
 
   const handleTouchStart = useCallback(
@@ -80,14 +95,6 @@ export function MobileControls({ onShoot }: MobileControlsProps) {
     return () => window.removeEventListener("mouseup", onUp);
   }, []);
 
-  const [scale, setScale] = useState(1);
-  useEffect(() => {
-    const update = () => setScale(window.innerHeight / 320);
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, []);
-
   return (
     <>
       {/* Touch area for drag-to-move */}
@@ -96,10 +103,10 @@ export function MobileControls({ onShoot }: MobileControlsProps) {
           ref={touchAreaRef}
           className="absolute z-20 touch-none select-none"
           style={{
-            left: touchArea.x * scale,
-            top: touchArea.y * scale,
-            width: touchArea.width * scale,
-            height: touchArea.height * scale,
+            left: sx(touchArea.x),
+            top: sy(touchArea.y),
+            width: sx(touchArea.width),
+            height: sy(touchArea.height),
             cursor: isTouching ? "grabbing" : "grab",
           }}
           onTouchStart={handleTouchStart}
@@ -117,10 +124,10 @@ export function MobileControls({ onShoot }: MobileControlsProps) {
         <div
           className="absolute z-30 pointer-events-auto"
           style={{
-            left: fireBtn.x * scale,
-            top: fireBtn.y * scale,
-            width: fireBtn.size * scale,
-            height: fireBtn.size * scale,
+            left: sx(fireBtn.x),
+            top: sy(fireBtn.y),
+            width: sx(fireBtn.size),
+            height: sx(fireBtn.size),
           }}
         >
           <button

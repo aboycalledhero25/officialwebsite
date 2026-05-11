@@ -42,10 +42,10 @@ function Heart({ filled, size }: { filled: boolean; size: number }) {
 export function GameHUD({ score, lives, wave, muted, onPause, onToggleMute }: GameHUDProps) {
   const filledLives = Math.max(0, Math.min(lives, MAX_LIVES));
   const siteData = useSiteData();
-  const [scale, setScale] = useState(1);
+  const [dims, setDims] = useState({ w: 1920, h: 1080 });
 
   useEffect(() => {
-    const update = () => setScale(window.innerHeight / BASE_H);
+    const update = () => setDims({ w: window.innerWidth, h: window.innerHeight });
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
@@ -55,10 +55,15 @@ export function GameHUD({ score, lives, wave, muted, onPause, onToggleMute }: Ga
   const plat = siteData.secretGame?.[isMobile ? "mobile" : "desktop"];
   const hearts = plat?.hearts ?? { visible: true, x: 190, y: 8, size: 28 };
 
+  // Scale stored positions (0-240 x, 0-320 y) to actual screen dimensions
+  const screenX = (baseX: number) => (baseX / BASE_W) * dims.w;
+  const screenY = (baseY: number) => (baseY / BASE_H) * dims.h;
+  const scaleSize = (baseSize: number) => (baseSize / BASE_H) * dims.h;
+
   return (
     <div className="absolute top-0 left-0 right-0 bottom-0 z-50 pointer-events-none">
       {/* Score - top left */}
-      <div className="absolute top-3 left-4 select-none">
+      <div className="absolute select-none" style={{ left: screenX(8), top: screenY(8) }}>
         <span className="text-xs text-neutral-400 font-mono leading-none tracking-wider block">SCORE</span>
         <span className="text-lg text-[#00f0ff] font-mono font-bold leading-tight drop-shadow-[0_0_6px_rgba(0,240,255,0.5)]">
           {score.toString().padStart(6, "0")}
@@ -66,7 +71,7 @@ export function GameHUD({ score, lives, wave, muted, onPause, onToggleMute }: Ga
       </div>
 
       {/* Wave - top center */}
-      <div className="absolute top-3 left-1/2 -translate-x-1/2 select-none text-center">
+      <div className="absolute left-1/2 -translate-x-1/2 select-none text-center" style={{ top: screenY(8) }}>
         <span className="text-xs text-neutral-400 font-mono leading-none tracking-wider block">WAVE</span>
         <span className="text-lg text-[#fcee0a] font-mono font-bold leading-tight drop-shadow-[0_0_6px_rgba(252,238,10,0.5)]">{wave}</span>
       </div>
@@ -76,20 +81,20 @@ export function GameHUD({ score, lives, wave, muted, onPause, onToggleMute }: Ga
         <div
           className="absolute select-none"
           style={{
-            left: hearts.x * scale,
-            top: hearts.y * scale,
+            left: screenX(hearts.x),
+            top: screenY(hearts.y),
           }}
         >
           <div className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-black/70 backdrop-blur-md border border-white/15 shadow-lg">
             {Array.from({ length: MAX_LIVES }).map((_, i) => (
-              <Heart key={i} filled={i < filledLives} size={Math.round(hearts.size * scale)} />
+              <Heart key={i} filled={i < filledLives} size={Math.round(scaleSize(hearts.size))} />
             ))}
           </div>
         </div>
       )}
 
       {/* Controls - top right */}
-      <div className="absolute top-3 right-4 flex items-center gap-2 pointer-events-auto">
+      <div className="absolute flex items-center gap-2 pointer-events-auto" style={{ right: screenX(8), top: screenY(8) }}>
         <button
           onClick={onToggleMute}
           className="w-10 h-10 rounded-xl bg-black/70 border border-white/15 flex items-center justify-center text-sm text-neutral-300 hover:text-white hover:bg-black/90 transition-colors backdrop-blur-md shadow-lg"
