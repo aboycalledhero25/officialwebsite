@@ -1,0 +1,490 @@
+{
+  "bannerImage": "/images/cropped-banner.jpg",
+  "siteCopy": {
+    "nav": {
+      "home": "Home",
+      "music": "Music",
+      "merch": "Merch",
+      "shows": "Shows",
+      "about": "About",
+      "media": "Media",
+      "press": "Press",
+      "contact": "Contact",
+      "live": "Live"
+    },
+    "footer": {
+      "tagline": "Pop punk for the nostalgic, the hopeful, and the loud. Turn it up.",
+      "navHeading": "NAVIGATE",
+      "socialHeading": "FOLLOW",
+      "bookingLabel": "Booking:",
+      "copyrightSuffix": "Built with heart, distortion, and late-night energy."
+    },
+    "home": {
+      "hero": {
+        "announcement": "Debut single \"The Sound of the End\" out now",
+        "ctaListen": "Listen Now",
+        "ctaMerch": "Get the Merch"
+      },
+      "music": {
+        "heading": "LATEST RELEASE",
+        "subtitle": "Our debut single is out everywhere. Turn it up loud.",
+        "artworkLabel": "Single Artwork",
+        "readLyrics": "Read lyrics & meaning"
+      },
+      "shows": {
+        "heading": "UPCOMING SHOWS",
+        "subtitle": "Come hang out. We play loud and we mean it.",
+        "cta": "View All Dates"
+      },
+      "news": {
+        "heading": "NEWS & UPDATES"
+      },
+      "merch": {
+        "heading": "MERCH",
+        "subtitle": "Wear the noise. Limited drops and staples for the faithful.",
+        "cta": "Shop All Merch"
+      },
+      "instagram": {
+        "heading": "@ABOYCALLEDHERO",
+        "followLink": "Follow us",
+        "emptyMessage": "No Instagram posts added yet. Add them in the admin dashboard under Press & Site."
+      },
+      "mailingList": {
+        "heading": "JOIN THE GANG",
+        "description": "Be the first to hear new music, get presale tickets, and grab exclusive merch drops. No spam. Just punk.",
+        "placeholder": "your@email.com",
+        "buttonCompact": "Join",
+        "buttonFull": "Subscribe",
+        "success": "You're in! Check your inbox."
+      }
+    },
+    "about": {
+      "title": "ABOUT",
+      "subtitle": "Two friends. One obsession with the early 2000s. Zero intention of growing up.",
+      "photoLabels": {
+        "bandLandscape": "Band Photo — Landscape",
+        "member1": "Richie",
+        "member2": "Sam"
+      },
+      "bioHeading": "THE STORY SO FAR",
+      "fansHeading": "FOR FANS OF"
+    },
+    "music": {
+      "title": "MUSIC",
+      "subtitle": "Honest songs about friendship, late nights, and the noise that keeps us going.",
+      "artworkLabel": "Single Artwork",
+      "noEmbed": "Add a Spotify or Apple Music link in the admin dashboard to show a player here.",
+      "lyricsHeading": "Lyrics",
+      "meaningHeading": "Song Meaning",
+      "comingSoon": {
+        "heading": "COMING SOON",
+        "description": "More songs are in the works. Sign up to the mailing list to be the first to hear them.",
+        "items": [
+          "Single Two",
+          "EP — Title TBA",
+          "Single Three"
+        ],
+        "yearLabel": "2025 / 2026",
+        "tbaLabel": "TBA"
+      }
+    },
+    "merch": {
+      "title": "MERCH",
+      "subtitle": "Wear the noise. Every purchase goes straight back into the next song, the next show, the next late night.",
+      "sizeCta": {
+        "heading": "CAN'T FIND YOUR SIZE?",
+        "description": "Drop us a message and we'll do our best to sort you out.",
+        "button": "Get in Touch"
+      }
+    },
+    "shows": {
+      "title": "SHOWS",
+      "subtitle": "Come hang out. We play loud and we mean it.",
+      "upcomingHeading": "UPCOMING",
+      "pastHeading": "PAST SHOWS",
+      "empty": {
+        "message": "No upcoming shows announced yet.",
+        "cta": "Join the mailing list to be the first to know when we hit the road."
+      }
+    },
+    "media": {
+      "title": "MEDIA",
+      "subtitle": "Music videos, live sessions, and the chaos in between.",
+      "videoTypes": {
+        "music-video": "music video",
+        "live": "live",
+        "behind-the-scenes": "behind the scenes"
+      },
+      "embedPlaceholder": "YouTube embed placeholder"
+    },
+    "press": {
+      "title": "PRESS / EPK",
+      "subtitle": "Everything you need to book, promote, or write about A Boy Called Hero.",
+      "quickFacts": "QUICK FACTS",
+      "contact": "CONTACT",
+      "downloads": {
+        "heading": "DOWNLOADS",
+        "description": "High-res press photos, stage plot, and tech rider.",
+        "photos": "Press Photos (ZIP)",
+        "stagePlot": "Stage Plot (PDF)",
+        "techRider": "Tech Rider (PDF)"
+      },
+      "photoLabels": {
+        "landscape": "Landscape Press Photo",
+        "portrait": "Portrait Press Photo",
+        "live": "Live Performance Photo"
+      },
+      "elevatorPitch": "ELEVATOR PITCH",
+      "shortBio": "SHORT BIO",
+      "fullBio": "FULL BIO",
+      "listen": "LISTEN",
+      "socials": "SOCIALS"
+    },
+    "contact": {
+      "title": "CONTACT",
+      "subtitle": "Booking, press, or just want to say hey? We read everything.",
+      "form": {
+        "heading": "SEND A MESSAGE",
+        "nameLabel": "Name",
+        "namePlaceholder": "Your name",
+        "emailLabel": "Email",
+        "emailPlaceholder": "your@email.com",
+        "subjectLabel": "Subject",
+        "subjectOptions": {
+          "default": "Select a subject",
+          "booking": "Booking / Live",
+          "press": "Press / Media",
+          "merch": "Merch / Store",
+          "general": "General Inquiry"
+        },
+        "messageLabel": "Message",
+        "messagePlaceholder": "What's on your mind?",
+        "button": "Send Message",
+        "success": "Message sent!"
+      },
+      "email": {
+        "heading": "EMAIL US DIRECTLY",
+        "bookingLabel": "Booking",
+        "pressLabel": "Press",
+        "generalLabel": "General"
+      },
+      "socials": {
+        "heading": "SOCIALS",
+        "instagram": "Instagram",
+        "twitter": "Twitter",
+        "youtube": "YouTube",
+        "spotify": "Spotify"
+      }
+    },
+    "live": {
+      "title": "LIVE",
+      "subtitle": "Watch us play loud, make mistakes, and have fun.",
+      "username": "aboycalledhero",
+      "offlineTitle": "We’re offline right now",
+      "offlineSubtitle": "Follow us on Twitch to get notified when we go live. No schedule — we stream when inspiration (or boredom) strikes.",
+      "followButton": "Follow on Twitch"
+    },
+    "showCard": {
+      "supportingPrefix": "w/ ",
+      "soldOut": "Sold Out / Past",
+      "tickets": "Tickets",
+      "onSaleSoon": "On Sale Soon"
+    },
+    "merchCard": {
+      "buyButton": "Buy Now"
+    },
+    "streamingLinks": {
+      "spotify": "Spotify",
+      "appleMusic": "Apple Music",
+      "youtube": "YouTube",
+      "bandcamp": "Bandcamp"
+    }
+  },
+  "band": {
+    "name": "A Boy Called Hero",
+    "tagline": "Turn it up until your neighbours hate you.",
+    "genre": "Pop Punk",
+    "location": "UK",
+    "formed": "2024",
+    "members": [
+      {
+        "name": "Richie Lee Simon",
+        "role": "Vocals / Guitar"
+      },
+      {
+        "name": "Sam Keeble",
+        "role": "Vocals"
+      }
+    ],
+    "bio": {
+      "elevator": "A Boy Called Hero is a UK pop-punk duo channeling the raw energy and melodic hooks of the early 2000s into anthems for right now.",
+      "short": "Twenty years ago, Richie and Sam met through a mutual friend and clicked almost instantly.\r\n\r\nThey were into the same music, laughed at the same stupid jokes, and seemed to understand each other in that rare, effortless way that only happens a few times in life. Before long, the friendship became creative, and the two started a little music project called Stars of Orion.\r\n\r\nThey began writing straight away.\r\n\r\nLike many young bands, Stars of Orion never quite became what they imagined it might. Life moved on, the project faded, and the songs were packed away onto Richie’s hard drive, where they sat quietly for the next twenty years.\r\n\r\nBut the music never really disappeared.\r\n\r\nTwo decades later, Richie revisited those old ideas and found that something was still there. The songs weren’t the same anymore, and neither were they. The album Richie and Sam are now writing does not simply revive those early tracks, but carries pieces of them forward: melodies, feelings, fragments, and the spirit of two friends making music because they had to.\r\n\r\nOver the years, Richie and Sam have been in and out of each other’s pockets, getting each other through the hard times, the good times, and everything in between. That friendship is the heart of A Boy Called Hero.\r\n\r\nNow, after twenty years of stories, songs, false starts, late nights, and unfinished ideas, they are deep into writing and recording their first album.\r\n\r\nAnd boy, is it going to be a good one.",
+      "medium": "Twenty years ago, Richie and Sam met through a mutual friend and clicked almost instantly.\r\n\r\nThey were into the same music, laughed at the same stupid jokes, and seemed to understand each other in that rare, effortless way that only happens a few times in life. Before long, the friendship became creative, and the two started a little music project called Stars of Orion.\r\n\r\nThey began writing straight away.\r\n\r\nLike many young bands, Stars of Orion never quite became what they imagined it might. Life moved on, the project faded, and the songs were packed away onto Richie’s hard drive, where they sat quietly for the next twenty years.\r\n\r\nBut the music never really disappeared.\r\n\r\nTwo decades later, Richie revisited those old ideas and found that something was still there. The songs weren’t the same anymore, and neither were they. The album Richie and Sam are now writing does not simply revive those early tracks, but carries pieces of them forward: melodies, feelings, fragments, and the spirit of two friends making music because they had to.\r\n\r\nOver the years, Richie and Sam have been in and out of each other’s pockets, getting each other through the hard times, the good times, and everything in between. That friendship is the heart of A Boy Called Hero.\r\n\r\nNow, after twenty years of stories, songs, false starts, late nights, and unfinished ideas, they are deep into writing and recording their first album.\r\n\r\nAnd boy, is it going to be a good one.",
+      "long": "Twenty years ago, Richie and Sam met through a mutual friend and clicked almost instantly.\r\n\r\nThey were into the same music, laughed at the same stupid jokes, and seemed to understand each other in that rare, effortless way that only happens a few times in life. Before long, the friendship became creative, and the two started a little music project called Stars of Orion.\r\n\r\nThey began writing straight away.\r\n\r\nLike many young bands, Stars of Orion never quite became what they imagined it might. Life moved on, the project faded, and the songs were packed away onto Richie’s hard drive, where they sat quietly for the next twenty years.\r\n\r\nBut the music never really disappeared.\r\n\r\nTwo decades later, Richie revisited those old ideas and found that something was still there. The songs weren’t the same anymore, and neither were they. The album Richie and Sam are now writing does not simply revive those early tracks, but carries pieces of them forward: melodies, feelings, fragments, and the spirit of two friends making music because they had to.\r\n\r\nOver the years, Richie and Sam have been in and out of each other’s pockets, getting each other through the hard times, the good times, and everything in between. That friendship is the heart of A Boy Called Hero.\r\n\r\nNow, after twenty years of stories, songs, false starts, late nights, and unfinished ideas, they are deep into writing and recording their first album.\r\n\r\nAnd boy, is it going to be a good one."
+    },
+    "social": {
+      "instagram": "https://instagram.com/a_boy_called_hero",
+      "twitter": "https://twitter.com/aboycalledhero",
+      "facebook": "https://facebook.com/aboycalledhero",
+      "tiktok": "https://tiktok.com/@aboycalledhero",
+      "youtube": "https://youtube.com/@aboycalledhero",
+      "spotify": "https://open.spotify.com/artist/14CVrANLH7iGqPTd1EXIsP",
+      "appleMusic": "https://music.apple.com/uk/artist/a-boy-called-hero/1811907254",
+      "bandcamp": "https://aboycalledhero.bandcamp.com"
+    },
+    "contact": {
+      "booking": "booking@aboycalledhero.com",
+      "press": "press@aboycalledhero.com",
+      "general": "hello@aboycalledhero.com"
+    }
+  },
+  "releases": [
+    {
+      "id": "the-sound-of-the-end",
+      "title": "The Sound of the End",
+      "type": "Single",
+      "releaseDate": "2025-05-06",
+      "artwork": "/images/apple-artwork-1778160136792.jpg",
+      "description": "The debut single. A anthemic blast of driving guitars, crashing drums, and hooks that refuse to leave your head.",
+      "spotifyUrl": "https://open.spotify.com/track/5wj4Smaoz2AXKvl0VvOs6A",
+      "appleMusicUrl": "https://music.apple.com/us/album/the-sound-of-the-end-single/1811907253",
+      "youtubeUrl": "https://youtube.com/watch?v=PLACEHOLDER",
+      "bandcampUrl": "https://aboycalledhero.bandcamp.com/track/PLACEHOLDER",
+      "embedUrl": "<iframe src=\"https://music.apple.com/us/song/the-sound-of-the-end/1811907255\" width=\"100%\" height=\"152\" frameborder=\"0\" allowtransparency=\"true\" allow=\"encrypted-media\"></iframe>",
+      "lyrics": "Verse 1:\n\nInsert a metaphor\nSprinkle on a simile\nAsk what this life is for\nTop it with a melody\nSing about an ex\nHow bad they hurt me\nTie it in a bow\nIn a break up story\n\nChorus:\n\nI can't forget\nThe words she said\nYou hold me down\nAnd I've got to let you go\nI can't forget\nThe words she said\nYou hold me down\nThis is the Sound of the End\n\nVerse 2:\n\nA catchy hook\nA small piano piece\nShe's got me shook\nI need a symphony\nI heard a sound\nA rhythm of a timpani\nI wrote it down\nAnd this is what she said to me\n\nChorus:\n\nI can't forget\nThe words she said\nYou hold me down\nAnd I've got to let you go\nI can't forget\nThe words she said\nYou hold me down\nThis is the Sound of the End",
+      "meaning": "\"The Sound of the End\" is very meta, a song about how to write a breakup song, whilst being a breakup song itself. The Sound of the End is the echo of a final conversation, the memory of painful words, and the act of turning heartbreak into music. It captures that strange place where pain becomes art: when the only way to survive the ending is to sing about it."
+    }
+  ],
+  "shows": [],
+  "merch": [
+    {
+      "id": "prod-logo-tee",
+      "title": "A Boy Called Hero — Logo Tee",
+      "price": 25,
+      "currency": "GBP",
+      "image": "/images/placeholder-merch-tee.jpg",
+      "variants": [
+        "S",
+        "M",
+        "L",
+        "XL",
+        "XXL"
+      ],
+      "description": "Classic black tee with the ABCH logo on the chest. 100% cotton.",
+      "handle": "abch-logo-tee"
+    },
+    {
+      "id": "prod-sote-tee",
+      "title": "The Sound of the End Tee",
+      "price": 28,
+      "currency": "GBP",
+      "image": "/images/placeholder-merch-tee2.jpg",
+      "variants": [
+        "S",
+        "M",
+        "L",
+        "XL",
+        "XXL"
+      ],
+      "description": "Limited edition artwork tee featuring the debut single cover art.",
+      "handle": "the-sound-of-the-end-tee"
+    },
+    {
+      "id": "prod-hoodie",
+      "title": "A Boy Called Hero — Pullover Hoodie",
+      "price": 45,
+      "currency": "GBP",
+      "image": "/images/placeholder-merch-hoodie.jpg",
+      "variants": [
+        "S",
+        "M",
+        "L",
+        "XL",
+        "XXL"
+      ],
+      "description": "Heavyweight hoodie with back print. Perfect for gig nights and late-night drives.",
+      "handle": "abch-pullover-hoodie"
+    },
+    {
+      "id": "prod-stickers",
+      "title": "Sticker Pack",
+      "price": 8,
+      "currency": "GBP",
+      "image": "/images/placeholder-merch-stickers.jpg",
+      "variants": [
+        "One Size"
+      ],
+      "description": "5-pack of die-cut vinyl stickers. Waterproof, weatherproof, punk-proof.",
+      "handle": "abch-sticker-pack"
+    },
+    {
+      "id": "prod-digital",
+      "title": "Digital Download Bundle",
+      "price": 5,
+      "currency": "GBP",
+      "image": "/images/placeholder-merch-digital.jpg",
+      "variants": [
+        "Digital"
+      ],
+      "description": "High-quality WAV + MP3 download of 'The Sound of the End' plus exclusive wallpaper.",
+      "handle": "digital-download-bundle"
+    }
+  ],
+  "videos": [
+    {
+      "id": "vid-001",
+      "title": "The Sound of the End — Official Video",
+      "youtubeId": "https://www.youtube.com/watch?v=SYAx1insnHU",
+      "type": "music-video",
+      "description": "The official music video for our debut single."
+    }
+  ],
+  "pressFacts": [
+    {
+      "label": "Genre",
+      "value": "Pop Punk / Alternative Rock"
+    },
+    {
+      "label": "Hometown",
+      "value": "Cambridge, UK"
+    },
+    {
+      "label": "Members",
+      "value": "Richie Lee Simon, Sam Keeble"
+    },
+    {
+      "label": "Debut Single",
+      "value": "The Sound of the End (2025)"
+    },
+    {
+      "label": "Influences",
+      "value": "Blink-182, New Found Glory, Neck Deep, State Champs"
+    },
+    {
+      "label": "Contact",
+      "value": "booking@aboycalledhero.com"
+    }
+  ],
+  "siteMeta": {
+    "title": "A Boy Called Hero | Official Website",
+    "description": "Official website of A Boy Called Hero. Stream 'The Sound of the End', buy merch, get tickets, and join the mailing list.",
+    "url": "https://aboycalledhero.com",
+    "image": "/images/og-image.jpg",
+    "twitterHandle": "@a_boy_called_hero"
+  },
+  "newsItems": [
+    {
+      "date": "2025-05-06",
+      "title": "The Sound of the End is out now!",
+      "body": "Our debut single is live on all platforms. Thank you to everyone who has been part of this journey so far. Stream it, share it, scream it."
+    }
+  ],
+  "forFansOf": "Blink-182, New Found Glory, Neck Deep, State Champs, The Story So Far, Knuckle Puck, and staying up too late.",
+  "instagramHandle": "a_boy_called_hero",
+  "instagramToken": "EAASocAZCA8uABRbHElw8EdPsZCHwqyHvK93AGVlOZC1ti3fixeSc2q0LqgN3WE4EOYobsSXCDPZCrSRxHbyfjdvjKiZB6fI2zQ0j6zTKVLCmH9Tfmn2433FmPTNZA0hr2kaLctKUfPFp8fvThgilL7nUkLcE4m7TGSKV5ZAoaJoic2i21cDaZADGt4TWA9jvJnuK1xwOukhzZBDvebOzvQ077ujHd9NWHu1ZAQtsIe2f36ded6T80B1YBiJGE1xej0U0sq2ofy666rW6Wp64uewtwwVijdvAZDZD",
+  "instagramBusinessAccountId": "",
+  "facebookPageId": "",
+  "facebookAppId": "",
+  "instagramEmbedCode": "<div data-behold-id=\"cdlXonitpzBjIz3UBqHA\"></div>\n<script>\n  (function() {\n    const d=document,s=d.createElement(\"script\");s.type=\"module\";\n    s.src=\"https://w.behold.so/widget.js\";d.head.append(s);\n  })();\n</script>",
+  "twitchUsername": "aboycalledhero",
+  "aboutImages": [
+    {
+      "src": "/images/1778422654910-sam3.png",
+      "alt": "A Boy Called Hero band photo",
+      "span": "tall"
+    },
+    {
+      "src": "/images/samrichie.png",
+      "alt": "Sam and Richie",
+      "span": "tall"
+    },
+    {
+      "src": "/images/richacoustic.png",
+      "alt": "Richie acoustic",
+      "span": "square"
+    },
+    {
+      "src": "/images/1778423066740-sam.png",
+      "alt": "",
+      "span": "square"
+    },
+    {
+      "src": "/images/1778423081899-sam2.png",
+      "alt": "",
+      "span": "tall"
+    },
+    {
+      "src": "",
+      "alt": "",
+      "span": "square"
+    }
+  ],
+  "instagramLastFetched": "",
+  "instagramPosts": [
+    {
+      "id": "ig-1",
+      "image": "",
+      "url": "https://instagram.com/a_boy_called_hero",
+      "caption": ""
+    },
+    {
+      "id": "ig-2",
+      "image": "",
+      "url": "https://instagram.com/a_boy_called_hero",
+      "caption": ""
+    },
+    {
+      "id": "ig-3",
+      "image": "",
+      "url": "https://instagram.com/a_boy_called_hero",
+      "caption": ""
+    },
+    {
+      "id": "ig-4",
+      "image": "",
+      "url": "https://instagram.com/a_boy_called_hero",
+      "caption": ""
+    },
+    {
+      "id": "ig-5",
+      "image": "",
+      "url": "https://instagram.com/a_boy_called_hero",
+      "caption": ""
+    },
+    {
+      "id": "ig-6",
+      "image": "",
+      "url": "https://instagram.com/a_boy_called_hero",
+      "caption": ""
+    }
+  ],
+  "secretGame": {
+    "enabled": true,
+    "hotspot": {
+      "enabled": true,
+      "x": 16.09,
+      "y": 2.92,
+      "width": 11.49,
+      "height": 8.79,
+      "unit": "%",
+      "visibleToVisitors": false,
+      "hoverStyle": "subtle",
+      "tooltip": "",
+      "openMode": "modal",
+      "zIndex": 40
+    },
+    "title": "HERO INVADERS",
+    "instructions": "Defend the stage from the invasion!"
+  },
+  "pageVisibility": {
+    "home": true,
+    "music": true,
+    "merch": true,
+    "shows": true,
+    "about": true,
+    "media": true,
+    "press": true,
+    "contact": true,
+    "live": true
+  }
+}
