@@ -3,35 +3,48 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { z } from "zod";
-import fs from "fs";
-import path from "path";
+import { createClient } from "@supabase/supabase-js";
 
-const DATA_PATH = path.join(process.cwd(), "lib", "data.json");
-const BACKUP_DIR = path.join(process.cwd(), "lib", "backups");
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-function ensureBackupDir() {
-  if (!fs.existsSync(BACKUP_DIR)) {
-    fs.mkdirSync(BACKUP_DIR, { recursive: true });
+const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+  auth: { autoRefreshToken: false, persistSession: false },
+});
+
+async function readData(): Promise<any> {
+  const { data, error } = await supabaseAdmin.storage
+    .from("config")
+    .download("data.json");
+
+  if (error) {
+    // Fallback to local file if Supabase not initialized yet
+    const fs = await import("fs");
+    const path = await import("path");
+    const localPath = path.join(process.cwd(), "lib", "data.json");
+    const raw = fs.readFileSync(localPath, "utf-8");
+    return JSON.parse(raw);
   }
+
+  const text = await data.text();
+  return JSON.parse(text);
 }
 
-function readData(): any {
-  const raw = fs.readFileSync(DATA_PATH, "utf-8");
-  return JSON.parse(raw);
-}
+async function writeData(data: any) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], {
+    type: "application/json",
+  });
 
-function writeData(data: any) {
-  ensureBackupDir();
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const backupPath = path.join(BACKUP_DIR, `data-${timestamp}.json`);
-  
-  // Backup current file
-  if (fs.existsSync(DATA_PATH)) {
-    fs.copyFileSync(DATA_PATH, backupPath);
+  const { error } = await supabaseAdmin.storage
+    .from("config")
+    .upload("data.json", blob, {
+      contentType: "application/json",
+      upsert: true,
+    });
+
+  if (error) {
+    throw new Error(`Failed to save data: ${error.message}`);
   }
-  
-  // Write new data
-  fs.writeFileSync(DATA_PATH, JSON.stringify(data, null, 2), "utf-8");
 }
 
 async function requireAuth() {
@@ -61,7 +74,7 @@ function revalidateAll() {
 export async function updateBand(formData: FormData) {
   await requireAuth();
   
-  const data = readData();
+  const data = await readData();
   data.band = {
     name: formData.get("name") as string,
     tagline: formData.get("tagline") as string,
@@ -83,7 +96,7 @@ export async function updateBand(formData: FormData) {
     },
   };
   
-  writeData(data);
+  await writeData(data);
   revalidateAll();
   return { success: true };
 }
@@ -95,9 +108,9 @@ export async function updateBand(formData: FormData) {
 export async function updateReleases(releases: any[]) {
   await requireAuth();
   
-  const data = readData();
+  const data = await readData();
   data.releases = releases;
-  writeData(data);
+  await writeData(data);
   revalidateAll();
   return { success: true };
 }
@@ -105,9 +118,9 @@ export async function updateReleases(releases: any[]) {
 export async function addRelease(release: any) {
   await requireAuth();
   
-  const data = readData();
+  const data = await readData();
   data.releases.push(release);
-  writeData(data);
+  await writeData(data);
   revalidateAll();
   return { success: true };
 }
@@ -115,9 +128,9 @@ export async function addRelease(release: any) {
 export async function deleteRelease(id: string) {
   await requireAuth();
   
-  const data = readData();
+  const data = await readData();
   data.releases = data.releases.filter((r: any) => r.id !== id);
-  writeData(data);
+  await writeData(data);
   revalidateAll();
   return { success: true };
 }
@@ -129,9 +142,9 @@ export async function deleteRelease(id: string) {
 export async function updateShows(shows: any[]) {
   await requireAuth();
   
-  const data = readData();
+  const data = await readData();
   data.shows = shows;
-  writeData(data);
+  await writeData(data);
   revalidateAll();
   return { success: true };
 }
@@ -139,9 +152,9 @@ export async function updateShows(shows: any[]) {
 export async function addShow(show: any) {
   await requireAuth();
   
-  const data = readData();
+  const data = await readData();
   data.shows.push(show);
-  writeData(data);
+  await writeData(data);
   revalidateAll();
   return { success: true };
 }
@@ -149,9 +162,9 @@ export async function addShow(show: any) {
 export async function deleteShow(id: string) {
   await requireAuth();
   
-  const data = readData();
+  const data = await readData();
   data.shows = data.shows.filter((s: any) => s.id !== id);
-  writeData(data);
+  await writeData(data);
   revalidateAll();
   return { success: true };
 }
@@ -163,9 +176,9 @@ export async function deleteShow(id: string) {
 export async function updateMerch(merch: any[]) {
   await requireAuth();
   
-  const data = readData();
+  const data = await readData();
   data.merch = merch;
-  writeData(data);
+  await writeData(data);
   revalidateAll();
   return { success: true };
 }
@@ -173,9 +186,9 @@ export async function updateMerch(merch: any[]) {
 export async function addMerchItem(item: any) {
   await requireAuth();
   
-  const data = readData();
+  const data = await readData();
   data.merch.push(item);
-  writeData(data);
+  await writeData(data);
   revalidateAll();
   return { success: true };
 }
@@ -183,9 +196,9 @@ export async function addMerchItem(item: any) {
 export async function deleteMerchItem(id: string) {
   await requireAuth();
   
-  const data = readData();
+  const data = await readData();
   data.merch = data.merch.filter((m: any) => m.id !== id);
-  writeData(data);
+  await writeData(data);
   revalidateAll();
   return { success: true };
 }
@@ -197,9 +210,9 @@ export async function deleteMerchItem(id: string) {
 export async function updateVideos(videos: any[]) {
   await requireAuth();
   
-  const data = readData();
+  const data = await readData();
   data.videos = videos;
-  writeData(data);
+  await writeData(data);
   revalidateAll();
   return { success: true };
 }
@@ -207,9 +220,9 @@ export async function updateVideos(videos: any[]) {
 export async function addVideo(video: any) {
   await requireAuth();
   
-  const data = readData();
+  const data = await readData();
   data.videos.push(video);
-  writeData(data);
+  await writeData(data);
   revalidateAll();
   return { success: true };
 }
@@ -217,9 +230,9 @@ export async function addVideo(video: any) {
 export async function deleteVideo(id: string) {
   await requireAuth();
   
-  const data = readData();
+  const data = await readData();
   data.videos = data.videos.filter((v: any) => v.id !== id);
-  writeData(data);
+  await writeData(data);
   revalidateAll();
   return { success: true };
 }
@@ -231,9 +244,9 @@ export async function deleteVideo(id: string) {
 export async function updatePressFacts(facts: any[]) {
   await requireAuth();
   
-  const data = readData();
+  const data = await readData();
   data.pressFacts = facts;
-  writeData(data);
+  await writeData(data);
   revalidateAll();
   return { success: true };
 }
@@ -245,9 +258,9 @@ export async function updatePressFacts(facts: any[]) {
 export async function updateNewsItems(items: any[]) {
   await requireAuth();
   
-  const data = readData();
+  const data = await readData();
   data.newsItems = items;
-  writeData(data);
+  await writeData(data);
   revalidateAll();
   return { success: true };
 }
@@ -255,9 +268,9 @@ export async function updateNewsItems(items: any[]) {
 export async function addNewsItem(item: any) {
   await requireAuth();
   
-  const data = readData();
+  const data = await readData();
   data.newsItems.push(item);
-  writeData(data);
+  await writeData(data);
   revalidateAll();
   return { success: true };
 }
@@ -265,9 +278,9 @@ export async function addNewsItem(item: any) {
 export async function deleteNewsItem(id: string) {
   await requireAuth();
   
-  const data = readData();
+  const data = await readData();
   data.newsItems = data.newsItems.filter((n: any) => n.id !== id);
-  writeData(data);
+  await writeData(data);
   revalidateAll();
   return { success: true };
 }
@@ -279,9 +292,9 @@ export async function deleteNewsItem(id: string) {
 export async function updateAboutImages(images: any[]) {
   await requireAuth();
   
-  const data = readData();
+  const data = await readData();
   data.aboutImages = images;
-  writeData(data);
+  await writeData(data);
   revalidateAll();
   return { success: true };
 }
@@ -293,9 +306,9 @@ export async function updateAboutImages(images: any[]) {
 export async function updateSiteMeta(meta: any) {
   await requireAuth();
   
-  const data = readData();
+  const data = await readData();
   data.siteMeta = meta;
-  writeData(data);
+  await writeData(data);
   revalidateAll();
   return { success: true };
 }
@@ -307,9 +320,9 @@ export async function updateSiteMeta(meta: any) {
 export async function updateSiteCopy(siteCopy: any) {
   await requireAuth();
   
-  const data = readData();
+  const data = await readData();
   data.siteCopy = siteCopy;
-  writeData(data);
+  await writeData(data);
   revalidateAll();
   return { success: true };
 }
@@ -317,7 +330,7 @@ export async function updateSiteCopy(siteCopy: any) {
 export async function updateSiteCopyPath(path: string, value: any) {
   await requireAuth();
   
-  const data = readData();
+  const data = await readData();
   const keys = path.split(".");
   let target = data.siteCopy;
   
@@ -327,7 +340,7 @@ export async function updateSiteCopyPath(path: string, value: any) {
   }
   
   target[keys[keys.length - 1]] = value;
-  writeData(data);
+  await writeData(data);
   revalidateAll();
   return { success: true };
 }
@@ -339,9 +352,9 @@ export async function updateSiteCopyPath(path: string, value: any) {
 export async function updateBannerImage(imagePath: string) {
   await requireAuth();
   
-  const data = readData();
+  const data = await readData();
   data.bannerImage = imagePath;
-  writeData(data);
+  await writeData(data);
   revalidateAll();
   return { success: true };
 }
@@ -353,9 +366,9 @@ export async function updateBannerImage(imagePath: string) {
 export async function updateSocialConfig(config: any) {
   await requireAuth();
   
-  const data = readData();
+  const data = await readData();
   Object.assign(data, config);
-  writeData(data);
+  await writeData(data);
   revalidateAll();
   return { success: true };
 }
@@ -366,75 +379,84 @@ export async function updateSocialConfig(config: any) {
 
 export async function uploadImage(formData: FormData) {
   await requireAuth();
-  
+
   const file = formData.get("file") as File;
   if (!file) throw new Error("No file provided");
-  
+
   const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml"];
   if (!allowedTypes.includes(file.type)) {
     throw new Error("Invalid file type. Allowed: JPG, PNG, WebP, GIF, SVG");
   }
-  
+
   const maxSize = 10 * 1024 * 1024; // 10MB
   if (file.size > maxSize) {
     throw new Error("File too large. Max 10MB.");
   }
-  
+
   const safeName = file.name
     .toLowerCase()
     .replace(/\s+/g, "-")
     .replace(/[^a-z0-9.-]/g, "")
     .replace(/-+/g, "-");
-  
+
   const uniqueName = `${Date.now()}-${safeName}`;
-  const uploadDir = path.join(process.cwd(), "public", "images");
-  const filePath = path.join(uploadDir, uniqueName);
-  
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
+
+  const { error } = await supabaseAdmin.storage
+    .from("website-images")
+    .upload(uniqueName, file, {
+      contentType: file.type,
+      upsert: false,
+    });
+
+  if (error) {
+    throw new Error(`Upload failed: ${error.message}`);
   }
-  
-  const buffer = Buffer.from(await file.arrayBuffer());
-  fs.writeFileSync(filePath, buffer);
-  
-  return { path: `/images/${uniqueName}` };
+
+  const { data: publicUrl } = supabaseAdmin.storage
+    .from("website-images")
+    .getPublicUrl(uniqueName);
+
+  return { path: publicUrl.publicUrl };
 }
 
 export async function deleteImage(filename: string) {
   await requireAuth();
-  
-  // Prevent directory traversal
-  const safeName = path.basename(filename);
-  const filePath = path.join(process.cwd(), "public", "images", safeName);
-  
-  // Ensure it's within the images directory
-  const resolvedPath = path.resolve(filePath);
-  const imagesDir = path.resolve(path.join(process.cwd(), "public", "images"));
-  if (!resolvedPath.startsWith(imagesDir)) {
-    throw new Error("Invalid file path");
+
+  // Extract just the filename from a full URL or path
+  const safeName = filename.split("/").pop() || filename;
+
+  const { error } = await supabaseAdmin.storage
+    .from("website-images")
+    .remove([safeName]);
+
+  if (error) {
+    throw new Error(`Delete failed: ${error.message}`);
   }
-  
-  if (fs.existsSync(filePath)) {
-    fs.unlinkSync(filePath);
-  }
-  
+
   return { success: true };
 }
 
 export async function listImages() {
   await requireAuth();
-  
-  const imagesDir = path.join(process.cwd(), "public", "images");
-  if (!fs.existsSync(imagesDir)) return [];
-  
-  const files = fs.readdirSync(imagesDir);
-  return files
-    .filter((f) => /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(f))
-    .map((f) => ({
-      name: f,
-      path: `/images/${f}`,
-      size: fs.statSync(path.join(imagesDir, f)).size,
-    }));
+
+  const { data, error } = await supabaseAdmin.storage
+    .from("website-images")
+    .list();
+
+  if (error || !data) return [];
+
+  return data
+    .filter((f) => /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(f.name))
+    .map((f) => {
+      const { data: url } = supabaseAdmin.storage
+        .from("website-images")
+        .getPublicUrl(f.name);
+      return {
+        name: f.name,
+        path: url.publicUrl,
+        size: f.metadata?.size ?? 0,
+      };
+    });
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -444,7 +466,7 @@ export async function listImages() {
 export async function updateBandField(field: string, value: string) {
   await requireAuth();
 
-  const data = readData();
+  const data = await readData();
   const keys = field.split(".");
   let target: any = data.band;
 
@@ -453,7 +475,7 @@ export async function updateBandField(field: string, value: string) {
   }
 
   target[keys[keys.length - 1]] = value;
-  writeData(data);
+  await writeData(data);
   revalidateAll();
   return { success: true };
 }
@@ -461,11 +483,11 @@ export async function updateBandField(field: string, value: string) {
 export async function updateReleaseField(id: string, field: string, value: string) {
   await requireAuth();
 
-  const data = readData();
+  const data = await readData();
   data.releases = data.releases.map((r: any) =>
     r.id === id ? { ...r, [field]: value } : r
   );
-  writeData(data);
+  await writeData(data);
   revalidateAll();
   return { success: true };
 }
@@ -473,11 +495,11 @@ export async function updateReleaseField(id: string, field: string, value: strin
 export async function updateAboutImageField(index: number, field: string, value: string) {
   await requireAuth();
 
-  const data = readData();
+  const data = await readData();
   if (data.aboutImages[index]) {
     data.aboutImages[index] = { ...data.aboutImages[index], [field]: value };
   }
-  writeData(data);
+  await writeData(data);
   revalidateAll();
   return { success: true };
 }
@@ -489,9 +511,9 @@ export async function updateAboutImageField(index: number, field: string, value:
 export async function updateSecretGameSettings(settings: any) {
   await requireAuth();
 
-  const data = readData();
+  const data = await readData();
   data.secretGame = settings;
-  writeData(data);
+  await writeData(data);
   revalidateAll();
   return { success: true };
 }
@@ -499,9 +521,9 @@ export async function updateSecretGameSettings(settings: any) {
 export async function updatePageVisibility(visibility: any) {
   await requireAuth();
 
-  const data = readData();
+  const data = await readData();
   data.pageVisibility = visibility;
-  writeData(data);
+  await writeData(data);
   revalidateAll();
   return { success: true };
 }
