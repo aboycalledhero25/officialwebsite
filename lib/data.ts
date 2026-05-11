@@ -138,11 +138,19 @@ export interface SecretGameHotspot {
   zIndex: number;
 }
 
+export interface PlayerSprite {
+  offsetX: number;
+  offsetY: number;
+  width: number;
+  height: number;
+}
+
 export interface SecretGameSettings {
   enabled: boolean;
   hotspot: SecretGameHotspot;
   title: string;
   instructions: string;
+  playerSprite: PlayerSprite;
 }
 
 export interface PageVisibility {
@@ -174,6 +182,11 @@ export interface SiteCopy {
   streamingLinks: Record<string, string>;
 }
 
+export interface GuitarColors {
+  stratColor: string;
+  jaguarColor: string;
+}
+
 export interface SiteData {
   bannerImage: string;
   siteCopy: SiteCopy;
@@ -198,6 +211,7 @@ export interface SiteData {
   aboutImages: AboutImage[];
   secretGame: SecretGameSettings;
   pageVisibility: PageVisibility;
+  guitarColors: GuitarColors;
 }
 
 const typedData = rawData as SiteData;

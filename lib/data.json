@@ -474,7 +474,17 @@
       "zIndex": 40
     },
     "title": "HERO INVADERS",
-    "instructions": "Defend the stage from the invasion!"
+    "instructions": "Defend the stage from the invasion!",
+    "playerSprite": {
+      "offsetX": -2,
+      "offsetY": -12,
+      "width": 14,
+      "height": 42
+    }
+  },
+  "guitarColors": {
+    "stratColor": "#00f0ff",
+    "jaguarColor": "#ff006e"
   },
   "pageVisibility": {
     "home": true,

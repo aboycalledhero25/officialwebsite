@@ -215,7 +215,7 @@ function Slider({
 /* ─────────────────────────────────────────────
    Main component
    ───────────────────────────────────────────── */
-export function GuitarBackground({ showFloatingGuitars = true, isAdmin }: { showFloatingGuitars?: boolean; isAdmin?: boolean }) {
+export function GuitarBackground({ showFloatingGuitars = true, isAdmin, defaultColors }: { showFloatingGuitars?: boolean; isAdmin?: boolean; defaultColors?: { stratColor: string; jaguarColor: string } }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const savedRef = useRef<TuningParams>(DEFAULTS);
   const draftRef = useRef<TuningParams>(DEFAULTS);
@@ -282,7 +282,9 @@ export function GuitarBackground({ showFloatingGuitars = true, isAdmin }: { show
       powerPreference: "high-performance",
     });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const isMobile = window.innerWidth < 768;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2));
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     renderer.setClearColor(0x000000, 0);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.1;
@@ -310,10 +312,10 @@ export function GuitarBackground({ showFloatingGuitars = true, isAdmin }: { show
     dir.position.set(3, 5, 4);
     scene.add(dir);
 
-    // ── Stars ──
-    const star1 = createStarfield(4000, 100);
-    const star2 = createStarfield(2000, 60);
-    const star3 = createStarfield(400, 30);
+    // ── Stars (fewer on mobile) ──
+    const star1 = createStarfield(isMobile ? 1500 : 4000, 100);
+    const star2 = createStarfield(isMobile ? 800 : 2000, 60);
+    const star3 = createStarfield(isMobile ? 150 : 400, 30);
     scene.add(star1, star2, star3);
 
     // ── Guitar state ──
@@ -389,8 +391,9 @@ export function GuitarBackground({ showFloatingGuitars = true, isAdmin }: { show
       loadGLBModels().then(([stratTemplate, jaguarTemplate]) => {
         if (!isActive) return;
 
+        const isMobile = window.innerWidth < 768;
         const BOUNDS = { x: 22, y: 14, z: { min: -10, max: 6 } };
-        const GUITAR_COUNT = 10;
+        const GUITAR_COUNT = isMobile ? 4 : 10;
 
         for (let i = 0; i < GUITAR_COUNT; i++) {
           const isStrat = i < 5;

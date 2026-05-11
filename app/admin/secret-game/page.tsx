@@ -226,6 +226,43 @@ export default function SecretGameAdminPage() {
         </div>
       </Section>
 
+      {/* Player Sprite */}
+      <Section title="Player Sprite">
+        <p className="text-sm text-neutral-500">
+          Adjust the position and size of the player guitar sprite.
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <NumberField
+            label="Offset X"
+            value={settings.playerSprite?.offsetX ?? -2}
+            onChange={(v) => updateField("playerSprite.offsetX", v)}
+            step={1}
+          />
+          <NumberField
+            label="Offset Y"
+            value={settings.playerSprite?.offsetY ?? -12}
+            onChange={(v) => updateField("playerSprite.offsetY", v)}
+            step={1}
+          />
+          <NumberField
+            label="Width"
+            value={settings.playerSprite?.width ?? 14}
+            onChange={(v) => updateField("playerSprite.width", v)}
+            min={1}
+            max={100}
+            step={1}
+          />
+          <NumberField
+            label="Height"
+            value={settings.playerSprite?.height ?? 42}
+            onChange={(v) => updateField("playerSprite.height", v)}
+            min={1}
+            max={100}
+            step={1}
+          />
+        </div>
+      </Section>
+
       {/* Game copy */}
       <Section title="Game Copy">
         <div className="space-y-4">

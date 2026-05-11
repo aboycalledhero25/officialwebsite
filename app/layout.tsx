@@ -5,7 +5,7 @@ import { Navigation } from "@/components/navigation";
 import { Footer } from "@/components/footer";
 import { DataProvider } from "@/components/data-provider";
 import { TwitchProvider } from "@/components/twitch-status";
-import { getData } from "@/lib/data-server";
+import { getData, getGuitarColors } from "@/lib/data-server";
 import { auth } from "@/lib/auth";
 import { AdminWrapper } from "@/components/edit-mode/admin-wrapper";
 import { GuitarBackground } from "@/components/guitar-background";
@@ -105,6 +105,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const data = getData();
+  const guitarColors = getGuitarColors();
   const session = await auth();
   const isAdmin = session?.user?.role === "admin";
 
@@ -118,7 +119,7 @@ export default async function RootLayout({
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <BackgroundConfigProvider>
-          <GuitarBackground isAdmin={isAdmin} />
+          <GuitarBackground isAdmin={isAdmin} defaultColors={guitarColors} />
         </BackgroundConfigProvider>
         <div className="relative z-10 flex flex-col flex-1">
           <DataProvider initialData={data}>

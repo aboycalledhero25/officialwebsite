@@ -4,6 +4,7 @@ import { useRef, useEffect, useCallback } from "react";
 import { useGameLoop } from "./use-game-loop";
 import { useKeyboardControls, sharedKeys } from "./use-keyboard-controls";
 import { useAudioSfx } from "./use-audio-sfx";
+import { useSiteData } from "@/components/data-provider";
 import {
   drawPlayer,
   drawEnemy,
@@ -69,6 +70,8 @@ export function GameCanvas({
   const playerImageRef = useRef<HTMLImageElement | null>(null);
   useKeyboardControls();
   const { play, setMuted, isMuted } = useAudioSfx();
+  const siteData = useSiteData();
+  const spriteConfig = siteData.secretGame?.playerSprite ?? { offsetX: -2, offsetY: -12, width: 14, height: 42 };
 
   // Load custom guitar sprite
   useEffect(() => {
@@ -535,9 +538,13 @@ export function GameCanvas({
     // Draw player (custom sprite if loaded, else fallback)
     const playerImg = playerImageRef.current;
     if (playerImg && playerImg.complete) {
-      const pw = 14;
-      const ph = 42;
-      ctx.drawImage(playerImg, s.playerX - 2, s.playerY - 12, pw, ph);
+      ctx.drawImage(
+        playerImg,
+        s.playerX + spriteConfig.offsetX,
+        s.playerY + spriteConfig.offsetY,
+        spriteConfig.width,
+        spriteConfig.height
+      );
     } else {
       drawPlayer(ctx, s.playerX, s.playerY, s.frame);
     }

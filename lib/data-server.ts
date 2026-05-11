@@ -104,3 +104,10 @@ export function getPageVisibility() {
     live: true,
   };
 }
+
+export function getGuitarColors() {
+  return getData().guitarColors ?? {
+    stratColor: "#00f0ff",
+    jaguarColor: "#ff006e",
+  };
+}

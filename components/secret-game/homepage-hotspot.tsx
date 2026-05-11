@@ -27,7 +27,7 @@ export function HomepageSecretHotspot() {
   return (
     <button
       onClick={goToGame}
-      className="absolute cursor-pointer"
+      className="absolute cursor-pointer min-w-[44px] min-h-[44px]"
       style={{
         left: `${hs.x}${hs.unit}`,
         top: `${hs.y}${hs.unit}`,

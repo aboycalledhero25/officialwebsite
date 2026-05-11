@@ -14,16 +14,13 @@ export default function Home() {
 
   return (
     <>
-      <HomeHero />
+      <HomeHero hotspot={game?.enabled ? <HomepageSecretHotspot /> : null} />
       <HomeMusic />
       <HomeNews />
       <HomeShows />
       <HomeMerchPreview />
       <HomeInstagram />
       <HomeMailingList />
-
-      {/* Hidden game hotspot */}
-      {game?.enabled && <HomepageSecretHotspot />}
     </>
   );
 }

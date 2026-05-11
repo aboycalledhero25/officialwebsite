@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { ArrowRight, Play } from "lucide-react";
@@ -72,7 +72,7 @@ function getTintStyle(settings: BannerSettings): React.CSSProperties {
   }
 }
 
-export function HomeHero() {
+export function HomeHero({ hotspot }: { hotspot?: ReactNode }) {
   const data = useSiteData();
   const copy = data.siteCopy.home.hero;
   const hasBanner = data.bannerImage && !data.bannerImage.includes("placeholder");
@@ -129,6 +129,7 @@ export function HomeHero() {
       )}
 
       <div className="relative mx-auto flex max-w-7xl flex-col items-center px-4 py-20 text-center sm:px-6 sm:py-28 lg:px-8 lg:py-36">
+        {hotspot}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
