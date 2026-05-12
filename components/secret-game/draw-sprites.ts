@@ -626,6 +626,7 @@ function drawFanBody(
       ctx.fillRect(x + 20 + legR, by + 27, 1, 1);
     }
   }
+  ctx.restore();
 }
 
 export function drawEnemy(
@@ -677,7 +678,12 @@ export function drawPlayerBullet(ctx: CanvasRenderingContext2D, x: number, y: nu
 /* ── Underwear projectiles (Y-fronts, bras, thongs) ── */
 export type UnderwearType = "yfront" | "bra" | "thong";
 
-export function drawEnemyBullet(ctx: CanvasRenderingContext2D, x: number, y: number, type: UnderwearType) {
+export function drawEnemyBullet(ctx: CanvasRenderingContext2D, x: number, y: number, type: UnderwearType, size = 16) {
+  ctx.save();
+  const scale = size / 16;
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+  ctx.translate(-x, -y);
   switch (type) {
     case "yfront": {
       /* ═══ HIGH-RES Y-FRONTS (16×14) ═══ */

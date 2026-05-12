@@ -21,6 +21,7 @@ const DEFAULT_PLATFORM: GamePlatformSettings = {
     speed: 18,
     fireRate: 0.003,
     projectileSpeed: 60,
+    projectileSize: 10,
     columns: 5,
     rows: 3,
     startY: 30,
@@ -59,6 +60,7 @@ export default function SecretGameAdminPage() {
           instructions: sg.instructions ?? "Defend the stage from the invasion!",
           playerSprite: sg.playerSprite ?? { offsetX: -2, offsetY: -12, width: 14, height: 42 },
           powerUpSpawnChance: sg.powerUpSpawnChance ?? 0.12,
+          bossProjectileDropRate: sg.bossProjectileDropRate ?? 0.15,
           powerUpSize: sg.powerUpSize ?? 8,
           powerUpDurations: sg.powerUpDurations ?? { rapid: 5, wideShot: 4, invincible: 4 },
           boss: sg.boss ?? {
@@ -270,6 +272,7 @@ export default function SecretGameAdminPage() {
               <NumberField label="Speed" value={plat.enemy.speed} onChange={(v) => updateField(`${platform}.enemy.speed`, v)} min={0} max={200} step={1} />
               <NumberField label="Fire Rate" value={plat.enemy.fireRate} onChange={(v) => updateField(`${platform}.enemy.fireRate`, v)} min={0} max={1} step={0.001} />
               <NumberField label="Projectile Speed" value={plat.enemy.projectileSpeed} onChange={(v) => updateField(`${platform}.enemy.projectileSpeed`, v)} min={0} max={300} step={1} />
+              <NumberField label="Projectile Size" value={plat.enemy.projectileSize} onChange={(v) => updateField(`${platform}.enemy.projectileSize`, v)} min={4} max={32} step={1} />
               <NumberField label="Columns" value={plat.enemy.columns} onChange={(v) => updateField(`${platform}.enemy.columns`, v)} min={1} max={12} step={1} />
               <NumberField label="Rows" value={plat.enemy.rows} onChange={(v) => updateField(`${platform}.enemy.rows`, v)} min={1} max={8} step={1} />
               <NumberField label="Start Y" value={plat.enemy.startY} onChange={(v) => updateField(`${platform}.enemy.startY`, v)} min={3} max={300} step={1} />
@@ -391,6 +394,14 @@ export default function SecretGameAdminPage() {
                 label="Spawn Chance (0–1)"
                 value={settings.powerUpSpawnChance}
                 onChange={(v) => updateField("powerUpSpawnChance", v)}
+                min={0}
+                max={1}
+                step={0.01}
+              />
+              <NumberField
+                label="Boss Projectile Drop Rate (0–1)"
+                value={settings.bossProjectileDropRate}
+                onChange={(v) => updateField("bossProjectileDropRate", v)}
                 min={0}
                 max={1}
                 step={0.01}

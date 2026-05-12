@@ -18,7 +18,7 @@ import {
   type UnderwearType,
 } from "./draw-sprites";
 
-export type GamePhase = "menu" | "playing" | "paused" | "gameover" | "levelcomplete";
+export type GamePhase = "menu" | "playing" | "paused" | "gameover" | "levelcomplete" | "bossreward";
 
 /* ── Base resolution (reference coordinate system) ── */
 const BASE_H = 320;
@@ -60,6 +60,9 @@ interface GameCanvasProps {
   score: number;
   lives: number;
   wave: number;
+  permProjectileBonus?: number;
+  permFireRateBonus?: number;
+  regenLevel?: number;
 }
 
 export function GameCanvas({
@@ -73,6 +76,9 @@ export function GameCanvas({
   score,
   lives,
   wave,
+  permProjectileBonus = 0,
+  permFireRateBonus = 0,
+  regenLevel = 0,
 }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const dimsRef = useRef({ w: BASE_W, h: BASE_H, scale: 1 });
@@ -154,6 +160,10 @@ export function GameCanvas({
       dir: number;
       bossNumber: number;
     } | null,
+    permProjectileBonus: 0,
+    permFireRateBonus: 0,
+    regenLevel: 0,
+    regenAccum: 0,
   });
 
   // Resize canvas to fill viewport
@@ -282,6 +292,10 @@ export function GameCanvas({
     s.score = 0;
     s.lives = MAX_LIVES;
     s.wave = 1;
+    s.permProjectileBonus = 0;
+    s.permFireRateBonus = 0;
+    s.regenLevel = 0;
+    s.regenAccum = 0;
     onScoreChange(0);
     onLivesChange(MAX_LIVES);
     onWaveChange(1);
@@ -313,6 +327,9 @@ export function GameCanvas({
   useEffect(() => { stateRef.current.score = score; }, [score]);
   useEffect(() => { stateRef.current.lives = lives; }, [lives]);
   useEffect(() => { stateRef.current.wave = wave; }, [wave]);
+  useEffect(() => { stateRef.current.permProjectileBonus = permProjectileBonus; }, [permProjectileBonus]);
+  useEffect(() => { stateRef.current.permFireRateBonus = permFireRateBonus; }, [permFireRateBonus]);
+  useEffect(() => { stateRef.current.regenLevel = regenLevel; }, [regenLevel]);
 
   // Handle phase transitions
   useEffect(() => {
@@ -392,6 +409,19 @@ export function GameCanvas({
       s.playerX = Math.max(0, Math.min(playAreaW - PLAYER_W_BASE, s.playerX));
       s.playerY = Math.max(0, Math.min(BASE_H - PLAYER_H_BASE, s.playerY));
 
+      // ── Health regeneration ──
+      if (s.lives < MAX_LIVES && s.regenLevel > 0) {
+        s.regenAccum += dt;
+        const interval = 60 / s.regenLevel;
+        if (s.regenAccum >= interval) {
+          s.regenAccum -= interval;
+          s.lives = Math.min(MAX_LIVES, s.lives + 1);
+          onLivesChange(s.lives);
+          spawnParticles(s.playerX + PLAYER_W_BASE / 2, s.playerY, "#ff006e", 8);
+          spawnParticles(s.playerX + PLAYER_W_BASE / 2, s.playerY, "#00ff00", 5);
+        }
+      }
+
       // ── Active power-up timers ──
       if (s.activePowerUps.length > 0) {
         for (let i = s.activePowerUps.length - 1; i >= 0; i--) {
@@ -412,7 +442,9 @@ export function GameCanvas({
         const wideShot = s.activePowerUps.find((p) => p.type === "wideshot");
         const rapid = s.activePowerUps.find((p) => p.type === "rapid");
         const rapidStacks = rapid?.stacks ?? 0;
-        const baseCooldown = rapidStacks > 0 ? Math.max(0.06, 0.12 - 0.02 * (rapidStacks - 1)) : 0.35;
+        const baseCooldown = rapidStacks > 0
+          ? Math.max(0.06, 0.12 - 0.02 * (rapidStacks - 1))
+          : Math.max(0.08, 0.35 - 0.04 * s.permFireRateBonus);
 
         const px = s.playerX + PLAYER_W_BASE / 2;
         const py = s.playerY + PLAYER_H_BASE / 2;
@@ -436,12 +468,14 @@ export function GameCanvas({
           vy = (dy / dist) * speed;
         }
 
-        if (wideShot) {
+        const permProj = s.permProjectileBonus;
+        const totalBullets = wideShot ? (2 + wideShot.stacks + permProj) : (1 + permProj);
+
+        if (totalBullets > 1) {
           const baseAngle = Math.atan2(vy, vx);
-          const spread = 0.26; // ~15°
-          const bulletCount = 2 + wideShot.stacks; // 3, 4, 5...
-          for (let i = 0; i < bulletCount; i++) {
-            const angle = baseAngle - spread + (spread * 2 * i) / (bulletCount - 1);
+          const spread = wideShot ? 0.26 : 0.1;
+          for (let i = 0; i < totalBullets; i++) {
+            const angle = baseAngle - spread + (spread * 2 * i) / (totalBullets - 1);
             s.bullets.push({
               x: px,
               y: py,
@@ -706,7 +740,7 @@ export function GameCanvas({
 
             // Only BOSS projectiles drop power-ups when destroyed
             if (eb.isBoss) {
-              const spawnChance = siteData.secretGame?.powerUpSpawnChance ?? 0.12;
+              const spawnChance = siteData.secretGame?.bossProjectileDropRate ?? 0.15;
               if (Math.random() < spawnChance) {
                 const types: PowerUpType[] = ["rapid", "shield", "wideshot", "extralife", "invincible"];
                 const type = types[Math.floor(Math.random() * types.length)];
@@ -751,7 +785,7 @@ export function GameCanvas({
               spawnParticles(s.boss.x + bw / 2, s.boss.y + bh / 2, "#00f0ff", 10);
               play("levelComplete");
               s.boss = null;
-              onPhaseChange("levelcomplete");
+              onPhaseChange("bossreward");
               return;
             }
           }
@@ -768,7 +802,7 @@ export function GameCanvas({
       for (let bi = s.bullets.length - 1; bi >= 0; bi--) {
         const b = s.bullets[bi];
         if (b.isPlayer) continue;
-        const hitbox = b.isBoss ? (bossCfg?.projectileSize ?? 10) / 2 : 0;
+        const hitbox = b.isBoss ? (bossCfg?.projectileSize ?? 10) / 2 : (enemyCfg.projectileSize ?? 10) / 2;
         if (
           b.x >= px - hitbox &&
           b.x <= px + pw + hitbox &&
@@ -1003,7 +1037,8 @@ export function GameCanvas({
         const pSize = siteData.secretGame?.boss?.projectileSize ?? 10;
         drawBossProjectile(ctx, b.x, b.y, s.frame, pSize);
       } else {
-        drawEnemyBullet(ctx, b.x, b.y, (b.underwearType ?? "yfront") as UnderwearType);
+        const enemyProjSize = settingsRef.current.enemy?.projectileSize ?? 10;
+        drawEnemyBullet(ctx, b.x, b.y, (b.underwearType ?? "yfront") as UnderwearType, enemyProjSize);
       }
     }
 
@@ -1018,7 +1053,7 @@ export function GameCanvas({
     ctx.restore();
   }
 
-  useGameLoop(update, phase === "playing" || phase === "menu" || phase === "paused");
+  useGameLoop(update, phase === "playing" || phase === "menu" || phase === "paused" || phase === "bossreward");
 
   return (
     <canvas

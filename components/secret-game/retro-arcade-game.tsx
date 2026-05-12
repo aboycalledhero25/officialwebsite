@@ -32,6 +32,7 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
   const [muted, setMuted] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const [activePowerUps, setActivePowerUps] = useState<{ type: "rapid" | "shield" | "wideshot" | "extralife" | "invincible"; timer: number; stacks: number }[]>([]);
+  const [permUpgrades, setPermUpgrades] = useState({ permProjectileBonus: 0, permFireRateBonus: 0, regenLevel: 0 });
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(true);
   const { setMuted: setAudioMuted } = useAudioSfx();
@@ -74,6 +75,7 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
     setLives(3);
     setWave(1);
     setActivePowerUps([]);
+    setPermUpgrades({ permProjectileBonus: 0, permFireRateBonus: 0, regenLevel: 0 });
     setResetKey((k) => k + 1);
     setPhase("playing");
   }, []);
@@ -86,6 +88,7 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
     setLives(3);
     setWave(1);
     setActivePowerUps([]);
+    setPermUpgrades({ permProjectileBonus: 0, permFireRateBonus: 0, regenLevel: 0 });
     setResetKey((k) => k + 1);
     setPhase("playing");
   }, []);
@@ -159,6 +162,9 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
         score={score}
         lives={lives}
         wave={wave}
+        permProjectileBonus={permUpgrades.permProjectileBonus}
+        permFireRateBonus={permUpgrades.permFireRateBonus}
+        regenLevel={permUpgrades.regenLevel}
       />
 
       {/* HUD overlays the canvas */}
@@ -189,6 +195,54 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
         onRestart={handleRestart}
         onClose={onClose}
       />
+
+      {/* Boss reward selection overlay */}
+      {phase === "bossreward" && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="text-center max-w-xs w-full px-4">
+            <h2 className="text-2xl font-bold text-yellow-400 mb-2" style={{ fontFamily: "'Press Start 2P', monospace" }}>
+              BOSS DEFEATED!
+            </h2>
+            <p className="text-white/80 text-sm mb-6">Choose your permanent upgrade:</p>
+            <div className="space-y-3">
+              <button
+                onClick={() => {
+                  setPermUpgrades((u) => ({ ...u, permProjectileBonus: u.permProjectileBonus + 1 }));
+                  setPhase("playing");
+                }}
+                className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-500 text-white rounded border-2 border-blue-400 transition-colors"
+              >
+                <div className="font-bold">+1 Projectile</div>
+                <div className="text-xs text-blue-200">Fire an extra bullet</div>
+              </button>
+              <button
+                onClick={() => {
+                  setPermUpgrades((u) => ({ ...u, permFireRateBonus: u.permFireRateBonus + 1 }));
+                  setPhase("playing");
+                }}
+                className="w-full py-3 px-4 bg-orange-600 hover:bg-orange-500 text-white rounded border-2 border-orange-400 transition-colors"
+              >
+                <div className="font-bold">+1 Fire Rate</div>
+                <div className="text-xs text-orange-200">Shoot faster permanently</div>
+              </button>
+              <button
+                onClick={() => {
+                  setPermUpgrades((u) => ({ ...u, regenLevel: u.regenLevel + 1 }));
+                  setPhase("playing");
+                }}
+                className="w-full py-3 px-4 bg-green-600 hover:bg-green-500 text-white rounded border-2 border-green-400 transition-colors"
+              >
+                <div className="font-bold">Health Regen</div>
+                <div className="text-xs text-green-200">
+                  {permUpgrades.regenLevel > 0
+                    ? `${permUpgrades.regenLevel + 1} hearts/min`
+                    : "1 heart per minute"}
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Mobile controls */}
       {phase === "playing" && <MobileControls />}

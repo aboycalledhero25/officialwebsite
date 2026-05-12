@@ -134,6 +134,7 @@ export interface GameEnemySettings {
   speed: number;
   fireRate: number;
   projectileSpeed: number;
+  projectileSize: number;
   columns: number;
   rows: number;
   startY: number;
@@ -214,6 +215,7 @@ export interface SecretGameSettings {
   instructions: string;
   playerSprite: PlayerSprite;
   powerUpSpawnChance: number;
+  bossProjectileDropRate: number;
   powerUpSize: number;
   powerUpDurations: {
     rapid: number;
