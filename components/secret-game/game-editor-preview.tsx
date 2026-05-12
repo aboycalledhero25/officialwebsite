@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useState, useCallback, useLayoutEffect } from "react";
 import type { GamePlatformSettings, PlayerSprite, BossSettings } from "@/lib/data";
+import { drawEnemy, ENEMY_W_BASE, ENEMY_H_BASE } from "./draw-sprites";
 
 const BASE_W = 240;
 const BASE_H = 320;
@@ -26,63 +27,6 @@ function drawStarfield(ctx: CanvasRenderingContext2D, logW: number, h: number) {
     const sy = ((i * 53) % (h + 20)) - 10;
     ctx.fillRect(sx, sy, 1, 1);
   }
-}
-
-function drawEnemy(ctx: CanvasRenderingContext2D, x: number, y: number, variant: 0 | 1 | 2, frame: number) {
-  const shirtColor = variant === 0 ? "#ff006e" : variant === 1 ? "#00f0ff" : "#fcee0a";
-  const skinTone = variant === 0 ? "#ffccaa" : variant === 1 ? "#eabb9e" : "#ddb090";
-  const hairColor = variant === 0 ? "#3a2818" : variant === 1 ? "#d4a017" : "#8b0000";
-  const jump = Math.abs(Math.sin(frame * 0.12 + variant * 3)) * 1.5;
-  const armWave = Math.sin(frame * 0.25 + variant * 2);
-  const headBop = Math.sin(frame * 0.18 + variant * 4) * 0.5;
-
-  // Hair
-  ctx.fillStyle = hairColor;
-  ctx.fillRect(x + 2, y + headBop + 0, 6, 2);
-  ctx.fillRect(x + 1, y + headBop + 1, 2, 2);
-  ctx.fillRect(x + 7, y + headBop + 1, 2, 2);
-
-  // Face
-  ctx.fillStyle = skinTone;
-  ctx.fillRect(x + 3, y + headBop + 2, 4, 2);
-
-  // Eyes
-  if (frame % 40 < 38) {
-    ctx.fillStyle = "#000000";
-    ctx.fillRect(x + 3, y + headBop + 3, 1, 1);
-    ctx.fillRect(x + 6, y + headBop + 3, 1, 1);
-  }
-
-  // Open mouth
-  if (frame % 20 < 10) {
-    ctx.fillStyle = "#660000";
-    ctx.fillRect(x + 4, y + headBop + 4, 2, 1);
-  }
-
-  // Shirt with white stripe
-  ctx.fillStyle = shirtColor;
-  ctx.fillRect(x + 2, y + 4 + jump, 6, 3);
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(x + 2, y + 5 + jump, 6, 1);
-
-  // Arms waving
-  ctx.fillStyle = skinTone;
-  const leftArmY = armWave > 0 ? y + 2 + jump : y + 4 + jump;
-  const rightArmY = armWave > 0 ? y + 4 + jump : y + 2 + jump;
-  ctx.fillRect(x + 0, leftArmY, 2, 3);
-  ctx.fillRect(x + 8, rightArmY, 2, 3);
-
-  // Legs dancing
-  ctx.fillStyle = "#1a1a2e";
-  const leftLegOffset = Math.sin(frame * 0.2 + variant) * 0.5;
-  const rightLegOffset = Math.sin(frame * 0.2 + variant + Math.PI) * 0.5;
-  ctx.fillRect(x + 3 + leftLegOffset, y + 7 + jump, 2, 2);
-  ctx.fillRect(x + 6 + rightLegOffset, y + 7 + jump, 2, 2);
-
-  // Shoes
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(x + 2 + leftLegOffset, y + 9 + jump, 3, 1);
-  ctx.fillRect(x + 5 + rightLegOffset, y + 9 + jump, 3, 1);
 }
 
 function drawPlayerFallback(ctx: CanvasRenderingContext2D, x: number, y: number) {
@@ -150,8 +94,8 @@ export function GameEditorPreview({
 
     // Draw enemies
     const { enemy } = settings;
-    const colUnit = 14 + enemy.paddingX;
-    const rowUnit = 10 + enemy.paddingY;
+    const colUnit = ENEMY_W_BASE + enemy.paddingX;
+    const rowUnit = ENEMY_H_BASE + enemy.paddingY;
     const totalW = enemy.columns * colUnit - enemy.paddingX;
     const startX = Math.max(4, (logW - totalW) / 2) + (enemy.offsetX ?? 0);
     // Cap rows so enemies never drop below 55% of screen height (matches game logic)

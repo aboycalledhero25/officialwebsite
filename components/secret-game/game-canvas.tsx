@@ -16,6 +16,8 @@ import {
   drawBossProjectile,
   draw8BitHealthBar,
   type UnderwearType,
+  ENEMY_W_BASE,
+  ENEMY_H_BASE,
 } from "./draw-sprites";
 
 export type GamePhase = "menu" | "playing" | "paused" | "gameover" | "levelcomplete";
@@ -27,8 +29,7 @@ const BASE_W = 240;
 /* ── Game constants (in base units) ── */
 const PLAYER_SPEED_BASE = 90;
 const BULLET_SPEED_BASE = 180;
-const ENEMY_W_BASE = 14;
-const ENEMY_H_BASE = 10;
+// ENEMY_W_BASE and ENEMY_H_BASE imported from draw-sprites.ts
 const PLAYER_W_BASE = 10;
 const PLAYER_H_BASE = 20;
 const MAX_LIVES = 3;
@@ -317,7 +318,11 @@ export function GameCanvas({
     if (phase === "playing" && stateRef.current.lives <= 0) {
       resetGame();
     }
-    if (phase === "playing" && stateRef.current.enemies.filter((e) => e.alive).length === 0) {
+    if (
+      phase === "playing" &&
+      stateRef.current.enemies.filter((e) => e.alive).length === 0 &&
+      !stateRef.current.boss
+    ) {
       const nextWave = stateRef.current.wave + 1;
       onWaveChange(nextWave);
       initWave(nextWave);
@@ -673,7 +678,7 @@ export function GameCanvas({
       }
 
       // ── Collision: player bullets vs enemy bullets ──
-      const ENEMY_BULLET_HITBOX = 4;
+      const ENEMY_BULLET_HITBOX = 6;
       for (let bi = s.bullets.length - 1; bi >= 0; bi--) {
         const pb = s.bullets[bi];
         if (!pb.isPlayer) continue;
@@ -958,12 +963,13 @@ export function GameCanvas({
     if (s.boss) {
       const bossCfg = siteData.secretGame?.boss;
       drawBoss(ctx, s.boss.x, s.boss.y, s.frame, s.boss.hitFlash);
-      // Boss health bar (8-bit)
-      const barW = bossCfg?.width ?? 40;
-      const barH = 6;
-      const barX = s.boss.x + barW / 2 - 30;
-      const barY = s.boss.y - 10;
-      draw8BitHealthBar(ctx, barX, barY, 60, barH, s.boss.health, s.boss.maxHealth, "BOSS");
+      // Boss health bar — use editor settings for accurate positioning
+      const bhb = settingsRef.current.bossHealthBar;
+      if (bhb?.visible) {
+        const barH = bhb.size ?? 6;
+        const barW = barH * 10;
+        draw8BitHealthBar(ctx, bhb.x, bhb.y, barW, barH, s.boss.health, s.boss.maxHealth, "BOSS");
+      }
     }
 
     // Draw bullets

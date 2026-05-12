@@ -67,7 +67,11 @@ export function drawPlayer(ctx: CanvasRenderingContext2D, x: number, y: number, 
   ctx.fillRect(x + 8, y + 15, 1, 1);
 }
 
-/* ── Enemies: animated fans of A Boy Called Hero ── */
+/* ── Enemy dimensions (exported for game engine + editor) ── */
+export const ENEMY_W_BASE = 20;
+export const ENEMY_H_BASE = 18;
+
+/* ── Enemies: Pop Punk Fans (skater, punk girl, mohawk) ── */
 function drawFanBody(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -75,69 +79,226 @@ function drawFanBody(
   variant: 0 | 1 | 2,
   frame: number
 ) {
-  // Fan colour palettes per variant
-  const shirtColor = variant === 0 ? "#ff006e" : variant === 1 ? "#00f0ff" : "#fcee0a";
-  const skinTone = variant === 0 ? "#ffccaa" : variant === 1 ? "#eabb9e" : "#ddb090";
-  const hairColor = variant === 0 ? "#3a2818" : variant === 1 ? "#d4a017" : "#8b0000";
-
-  // Animation cycles
   const jump = Math.abs(Math.sin(frame * 0.12 + variant * 3)) * 1.5;
   const armWave = Math.sin(frame * 0.25 + variant * 2);
   const headBop = Math.sin(frame * 0.18 + variant * 4) * 0.5;
-
-  // Hair (bops with head)
-  ctx.fillStyle = hairColor;
-  ctx.fillRect(x + 2, y + headBop + 0, 6, 2);
-  ctx.fillRect(x + 1, y + headBop + 1, 2, 2);
-  ctx.fillRect(x + 7, y + headBop + 1, 2, 2);
-
-  // Face (bops with head)
-  ctx.fillStyle = skinTone;
-  ctx.fillRect(x + 3, y + headBop + 2, 4, 2);
-
-  // Eyes (blink occasionally)
-  if (frame % 40 < 38) {
-    ctx.fillStyle = "#000000";
-    ctx.fillRect(x + 3, y + headBop + 3, 1, 1);
-    ctx.fillRect(x + 6, y + headBop + 3, 1, 1);
-  }
-
-  // Open mouth (singing along!)
-  if (frame % 20 < 10) {
-    ctx.fillStyle = "#660000";
-    ctx.fillRect(x + 4, y + headBop + 4, 2, 1);
-  }
-
-  // Shirt with "ABCH" hint (a small stripe)
-  ctx.fillStyle = shirtColor;
-  ctx.fillRect(x + 2, y + 4 + jump, 6, 3);
-  // White stripe across shirt
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(x + 2, y + 5 + jump, 6, 1);
-
-  // Arms waving in excitement
-  ctx.fillStyle = skinTone;
-  const leftArmY = armWave > 0 ? y + 2 + jump : y + 4 + jump;
-  const rightArmY = armWave > 0 ? y + 4 + jump : y + 2 + jump;
-  ctx.fillRect(x + 0, leftArmY, 2, 3);
-  ctx.fillRect(x + 8, rightArmY, 2, 3);
-
-  // Hands
-  ctx.fillStyle = skinTone;
-  ctx.fillRect(x - 1, leftArmY + (armWave > 0 ? 0 : 2), 1, 1);
-  ctx.fillRect(x + 10, rightArmY + (armWave > 0 ? 2 : 0), 1, 1);
-
-  // Legs (dancing)
-  ctx.fillStyle = "#1a1a2e";
   const leftLegOffset = Math.sin(frame * 0.2 + variant) * 0.5;
   const rightLegOffset = Math.sin(frame * 0.2 + variant + Math.PI) * 0.5;
-  ctx.fillRect(x + 3 + leftLegOffset, y + 7 + jump, 2, 2);
-  ctx.fillRect(x + 6 + rightLegOffset, y + 7 + jump, 2, 2);
 
-  // Shoes
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(x + 2 + leftLegOffset, y + 9 + jump, 3, 1);
-  ctx.fillRect(x + 5 + rightLegOffset, y + 9 + jump, 3, 1);
+  if (variant === 0) {
+    /* ═══ SKATER BOY ═══ */
+    const cap = "#1a1a2e";
+    const skin = "#ffccaa";
+    const shirt = "#f0f0f0";
+    const logo = "#ff006e";
+    const shorts = "#3a5a8a";
+    const shoe = "#ffffff";
+    const shoeAccent = "#ff2222";
+
+    // Backwards cap
+    ctx.fillStyle = cap;
+    ctx.fillRect(x + 5, y + headBop + 0, 10, 3);
+    ctx.fillRect(x + 3, y + headBop + 2, 4, 2);
+    ctx.fillRect(x + 15, y + headBop + 2, 2, 1);
+
+    // Face
+    ctx.fillStyle = skin;
+    ctx.fillRect(x + 6, y + headBop + 3, 8, 4);
+    if (frame % 40 < 38) {
+      ctx.fillStyle = "#000";
+      ctx.fillRect(x + 7, y + headBop + 4, 2, 1);
+      ctx.fillRect(x + 11, y + headBop + 4, 2, 1);
+    }
+    ctx.fillStyle = "#884444";
+    ctx.fillRect(x + 9, y + headBop + 6, 2, 1);
+
+    // Neck
+    ctx.fillStyle = skin;
+    ctx.fillRect(x + 8, y + headBop + 7, 4, 1);
+
+    // Baggy tee
+    ctx.fillStyle = shirt;
+    ctx.fillRect(x + 3, y + 8 + jump, 14, 5);
+    ctx.fillStyle = logo;
+    ctx.fillRect(x + 5, y + 10 + jump, 10, 1);
+
+    // Arms
+    const leftArmY = armWave > 0 ? y + 8 + jump : y + 11 + jump;
+    const rightArmY = armWave > 0 ? y + 11 + jump : y + 8 + jump;
+    ctx.fillStyle = skin;
+    ctx.fillRect(x + 0, leftArmY, 3, 4);
+    ctx.fillRect(x + 17, rightArmY, 3, 4);
+    ctx.fillRect(x - 1, leftArmY + 2, 2, 2);
+    ctx.fillRect(x + 19, rightArmY + 2, 2, 2);
+
+    // Baggy shorts
+    ctx.fillStyle = shorts;
+    ctx.fillRect(x + 4, y + 13 + jump, 12, 2);
+    ctx.fillRect(x + 3, y + 14 + jump, 5, 3);
+    ctx.fillRect(x + 12, y + 14 + jump, 5, 3);
+
+    // Legs
+    ctx.fillStyle = skin;
+    ctx.fillRect(x + 4 + leftLegOffset, y + 16 + jump, 3, 2);
+    ctx.fillRect(x + 13 + rightLegOffset, y + 16 + jump, 3, 2);
+
+    // Skate shoes (chunky)
+    ctx.fillStyle = shoe;
+    ctx.fillRect(x + 3 + leftLegOffset, y + 17 + jump, 5, 1);
+    ctx.fillRect(x + 12 + rightLegOffset, y + 17 + jump, 5, 1);
+    ctx.fillStyle = shoeAccent;
+    ctx.fillRect(x + 4 + leftLegOffset, y + 17 + jump, 2, 1);
+    ctx.fillRect(x + 13 + rightLegOffset, y + 17 + jump, 2, 1);
+  } else if (variant === 1) {
+    /* ═══ PUNK GIRL ═══ */
+    const hair = "#ff69b4";
+    const skin = "#ffccaa";
+    const choker = "#111111";
+    const top = "#111111";
+    const pants = "#1a1a2e";
+    const boot = "#111111";
+    const bootSo = "#444444";
+
+    // Pink hair (bob + bangs)
+    ctx.fillStyle = hair;
+    ctx.fillRect(x + 4, y + headBop + 0, 12, 3);
+    ctx.fillRect(x + 3, y + headBop + 1, 2, 3);
+    ctx.fillRect(x + 15, y + headBop + 1, 2, 3);
+    ctx.fillRect(x + 5, y + headBop + 3, 10, 1);
+
+    // Face
+    ctx.fillStyle = skin;
+    ctx.fillRect(x + 6, y + headBop + 3, 8, 4);
+    if (frame % 40 < 38) {
+      ctx.fillStyle = "#000";
+      ctx.fillRect(x + 7, y + headBop + 4, 2, 1);
+      ctx.fillRect(x + 11, y + headBop + 4, 2, 1);
+      // Eyeliner
+      ctx.fillRect(x + 7, y + headBop + 5, 2, 1);
+      ctx.fillRect(x + 11, y + headBop + 5, 2, 1);
+    }
+    ctx.fillStyle = "#cc4444";
+    ctx.fillRect(x + 9, y + headBop + 6, 2, 1);
+
+    // Choker
+    ctx.fillStyle = choker;
+    ctx.fillRect(x + 8, y + headBop + 7, 4, 1);
+
+    // Crop top
+    ctx.fillStyle = top;
+    ctx.fillRect(x + 5, y + 8 + jump, 10, 3);
+    // Fishnet sleeves
+    ctx.fillStyle = "#222222";
+    ctx.fillRect(x + 2, y + 9 + jump, 3, 3);
+    ctx.fillRect(x + 15, y + 9 + jump, 3, 3);
+
+    // Arms
+    const leftArmY = armWave > 0 ? y + 9 + jump : y + 11 + jump;
+    const rightArmY = armWave > 0 ? y + 11 + jump : y + 9 + jump;
+    ctx.fillStyle = skin;
+    ctx.fillRect(x + 0, leftArmY, 2, 4);
+    ctx.fillRect(x + 18, rightArmY, 2, 4);
+    ctx.fillRect(x - 1, leftArmY + 2, 2, 2);
+    ctx.fillRect(x + 19, rightArmY + 2, 2, 2);
+
+    // Ripped jeans
+    ctx.fillStyle = pants;
+    ctx.fillRect(x + 5, y + 11 + jump, 10, 2);
+    ctx.fillRect(x + 4, y + 13 + jump, 5, 3);
+    ctx.fillRect(x + 11, y + 13 + jump, 5, 3);
+    // Rips (skin showing through)
+    ctx.fillStyle = skin;
+    ctx.fillRect(x + 6, y + 14 + jump, 1, 1);
+    ctx.fillRect(x + 13, y + 15 + jump, 1, 1);
+
+    // Legs
+    ctx.fillStyle = skin;
+    ctx.fillRect(x + 5 + leftLegOffset, y + 15 + jump, 3, 2);
+    ctx.fillRect(x + 12 + rightLegOffset, y + 15 + jump, 3, 2);
+
+    // Platform boots
+    ctx.fillStyle = boot;
+    ctx.fillRect(x + 4 + leftLegOffset, y + 16 + jump, 5, 2);
+    ctx.fillRect(x + 11 + rightLegOffset, y + 16 + jump, 5, 2);
+    ctx.fillStyle = bootSo;
+    ctx.fillRect(x + 4 + leftLegOffset, y + 17 + jump, 5, 1);
+    ctx.fillRect(x + 11 + rightLegOffset, y + 17 + jump, 5, 1);
+  } else {
+    /* ═══ MOHAWK DUDE ═══ */
+    const mohawk = "#39ff14";
+    const skin = "#eabb9e";
+    const jacket = "#1a1a1a";
+    const shirt = "#eeeeee";
+    const jeans = "#2a2a3a";
+    const boot = "#111111";
+
+    // Tall mohawk
+    ctx.fillStyle = mohawk;
+    ctx.fillRect(x + 8, y + headBop - 2, 4, 4);
+    ctx.fillRect(x + 9, y + headBop - 3, 2, 1);
+    // Sides shaved
+    ctx.fillStyle = "#5a4a3a";
+    ctx.fillRect(x + 6, y + headBop + 1, 2, 2);
+    ctx.fillRect(x + 12, y + headBop + 1, 2, 2);
+
+    // Face
+    ctx.fillStyle = skin;
+    ctx.fillRect(x + 6, y + headBop + 3, 8, 4);
+    if (frame % 40 < 38) {
+      ctx.fillStyle = "#000";
+      ctx.fillRect(x + 7, y + headBop + 4, 2, 1);
+      ctx.fillRect(x + 11, y + headBop + 4, 2, 1);
+    }
+    // Stubble
+    ctx.fillStyle = "#bba088";
+    ctx.fillRect(x + 7, y + headBop + 6, 6, 1);
+    // Earring
+    ctx.fillStyle = "#ffd700";
+    ctx.fillRect(x + 14, y + headBop + 5, 1, 1);
+
+    // Neck
+    ctx.fillStyle = skin;
+    ctx.fillRect(x + 8, y + headBop + 7, 4, 1);
+
+    // Leather jacket (open)
+    ctx.fillStyle = jacket;
+    ctx.fillRect(x + 3, y + 8 + jump, 3, 5);
+    ctx.fillRect(x + 14, y + 8 + jump, 3, 5);
+    ctx.fillRect(x + 3, y + 8 + jump, 14, 2); // shoulders
+    // White tee underneath
+    ctx.fillStyle = shirt;
+    ctx.fillRect(x + 7, y + 9 + jump, 6, 4);
+    // Jacket collar
+    ctx.fillStyle = jacket;
+    ctx.fillRect(x + 6, y + 8 + jump, 2, 2);
+    ctx.fillRect(x + 12, y + 8 + jump, 2, 2);
+
+    // Arms
+    const leftArmY = armWave > 0 ? y + 9 + jump : y + 12 + jump;
+    const rightArmY = armWave > 0 ? y + 12 + jump : y + 9 + jump;
+    ctx.fillStyle = jacket;
+    ctx.fillRect(x + 0, leftArmY, 3, 5);
+    ctx.fillRect(x + 17, rightArmY, 3, 5);
+    // Hands
+    ctx.fillStyle = skin;
+    ctx.fillRect(x - 1, leftArmY + 3, 2, 2);
+    ctx.fillRect(x + 19, rightArmY + 3, 2, 2);
+
+    // Skinny jeans
+    ctx.fillStyle = jeans;
+    ctx.fillRect(x + 6, y + 13 + jump, 8, 2);
+    ctx.fillRect(x + 6, y + 15 + jump, 3, 3);
+    ctx.fillRect(x + 11, y + 15 + jump, 3, 3);
+    // Rips
+    ctx.fillStyle = skin;
+    ctx.fillRect(x + 7, y + 16 + jump, 1, 1);
+    ctx.fillRect(x + 12, y + 15 + jump, 1, 1);
+
+    // Combat boots
+    ctx.fillStyle = boot;
+    ctx.fillRect(x + 5 + leftLegOffset, y + 16 + jump, 5, 2);
+    ctx.fillRect(x + 10 + rightLegOffset, y + 16 + jump, 5, 2);
+  }
 }
 
 export function drawEnemy(
@@ -185,45 +346,60 @@ export type UnderwearType = "yfront" | "bra" | "thong";
 export function drawEnemyBullet(ctx: CanvasRenderingContext2D, x: number, y: number, type: UnderwearType) {
   switch (type) {
     case "yfront": {
-      // White Y-fronts
+      // White Y-fronts — larger, more detailed
       ctx.fillStyle = "#ffffff";
       // Waistband
-      ctx.fillRect(x - 3, y - 2, 6, 1);
-      // Left leg
-      ctx.fillRect(x - 3, y - 1, 2, 3);
-      // Right leg
-      ctx.fillRect(x + 1, y - 1, 2, 3);
+      ctx.fillRect(x - 5, y - 3, 10, 2);
+      // Left leg opening
+      ctx.fillRect(x - 5, y - 1, 3, 5);
+      // Right leg opening
+      ctx.fillRect(x + 2, y - 1, 3, 5);
       // Centre pouch
-      ctx.fillRect(x - 1, y - 1, 2, 2);
-      // Y-stripe
-      ctx.fillStyle = "#cccccc";
-      ctx.fillRect(x, y, 1, 2);
+      ctx.fillRect(x - 2, y - 1, 4, 4);
+      // Y-stripe (grey)
+      ctx.fillStyle = "#bbbbbb";
+      ctx.fillRect(x - 1, y + 1, 2, 3);
+      ctx.fillRect(x, y + 1, 1, 3);
+      // Elastic trim
+      ctx.fillStyle = "#dddddd";
+      ctx.fillRect(x - 5, y - 3, 10, 1);
       break;
     }
     case "bra": {
-      // Pink bra
+      // Pink bra — larger with proper cups & straps
       ctx.fillStyle = "#ff69b4";
       // Left cup
-      ctx.fillRect(x - 3, y - 1, 3, 2);
+      ctx.fillRect(x - 5, y - 1, 5, 3);
+      ctx.fillRect(x - 4, y + 2, 3, 1);
       // Right cup
-      ctx.fillRect(x, y - 1, 3, 2);
-      // Centre
-      ctx.fillRect(x - 1, y, 2, 1);
+      ctx.fillRect(x, y - 1, 5, 3);
+      ctx.fillRect(x + 1, y + 2, 3, 1);
+      // Centre clasp
+      ctx.fillRect(x - 1, y + 1, 2, 2);
+      // Underband
+      ctx.fillRect(x - 5, y + 2, 10, 1);
       // Straps
       ctx.fillStyle = "#ff69b4";
-      ctx.fillRect(x - 2, y - 3, 1, 2);
-      ctx.fillRect(x + 1, y - 3, 1, 2);
+      ctx.fillRect(x - 3, y - 5, 2, 4);
+      ctx.fillRect(x + 1, y - 5, 2, 4);
+      // Strap adjusters
+      ctx.fillStyle = "#ff88cc";
+      ctx.fillRect(x - 3, y - 4, 2, 1);
+      ctx.fillRect(x + 1, y - 4, 2, 1);
       break;
     }
     case "thong": {
-      // Bright green thong
+      // Bright green thong — larger with defined waistband
       ctx.fillStyle = "#39ff14";
       // Waistband
-      ctx.fillRect(x - 2, y - 2, 4, 1);
+      ctx.fillRect(x - 4, y - 3, 8, 2);
       // Centre pouch
-      ctx.fillRect(x - 1, y - 1, 2, 2);
+      ctx.fillRect(x - 2, y - 1, 4, 3);
       // Back string
-      ctx.fillRect(x, y + 1, 1, 2);
+      ctx.fillRect(x - 1, y + 2, 2, 4);
+      // Waistband highlight
+      ctx.fillStyle = "#66ff44";
+      ctx.fillRect(x - 4, y - 3, 8, 1);
       break;
     }
   }
