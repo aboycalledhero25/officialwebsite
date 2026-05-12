@@ -16,8 +16,6 @@ import {
   drawBossProjectile,
   draw8BitHealthBar,
   type UnderwearType,
-  ENEMY_W_BASE,
-  ENEMY_H_BASE,
 } from "./draw-sprites";
 
 export type GamePhase = "menu" | "playing" | "paused" | "gameover" | "levelcomplete";
@@ -29,7 +27,7 @@ const BASE_W = 240;
 /* ── Game constants (in base units) ── */
 const PLAYER_SPEED_BASE = 90;
 const BULLET_SPEED_BASE = 180;
-// ENEMY_W_BASE and ENEMY_H_BASE imported from draw-sprites.ts
+// Enemy width/height now read from platform settings (configurable in editor)
 const PLAYER_W_BASE = 10;
 const PLAYER_H_BASE = 20;
 const MAX_LIVES = 3;
@@ -228,8 +226,8 @@ export function GameCanvas({
       };
     } else {
       const maxW = logW - edgeMargin * 2;
-      const colUnit = ENEMY_W_BASE + cfg.paddingX;
-      const rowUnit = ENEMY_H_BASE + cfg.paddingY;
+      const colUnit = cfg.width + cfg.paddingX;
+      const rowUnit = cfg.height + cfg.paddingY;
       const maxCols = Math.max(1, Math.floor((maxW + cfg.paddingX) / colUnit));
       const cols = Math.min(maxCols, cfg.columns + Math.floor((w - 1) / 2));
       // Cap rows so enemies never drop below 55% of screen height (above player area)
@@ -243,8 +241,8 @@ export function GameCanvas({
         for (let c = 0; c < cols; c++) {
           const underwearTypes: ("yfront" | "bra" | "thong")[] = ["yfront", "bra", "thong"];
           s.enemies.push({
-            x: startX + c * (ENEMY_W_BASE + cfg.paddingX),
-            y: startY + r * (ENEMY_H_BASE + cfg.paddingY),
+            x: startX + c * (cfg.width + cfg.paddingX),
+            y: startY + r * (cfg.height + cfg.paddingY),
             variant: ((r + c) % 3) as 0 | 1 | 2,
             alive: true,
             cooldown: Math.random() * 2, // staggered firing times
@@ -351,6 +349,9 @@ export function GameCanvas({
       const { w: CW, h: CH, scale: sc } = dimsRef.current;
       const logW = CW / sc;
       const playAreaW = logW;
+      const enemyCfg = settingsRef.current.enemy;
+      const ew = enemyCfg.width;
+      const eh = enemyCfg.height;
 
       // ── Input handling (one-shot keys) ──
       if (keys.pause) {
@@ -471,7 +472,7 @@ export function GameCanvas({
       for (const e of s.enemies) {
         if (!e.alive) continue;
         const nextX = e.x + s.enemyDir * moveAmount;
-        if (nextX <= edgeMargin || nextX + ENEMY_W_BASE >= playAreaW - edgeMargin) {
+        if (nextX <= edgeMargin || nextX + ew >= playAreaW - edgeMargin) {
           hitEdge = true;
           break;
         }
@@ -486,7 +487,7 @@ export function GameCanvas({
           if (!e.alive) continue;
           e.x += s.enemyDir * moveAmount;
           // Hard clamp to keep enemies on screen at all times
-          e.x = Math.max(edgeMargin, Math.min(playAreaW - edgeMargin - ENEMY_W_BASE, e.x));
+          e.x = Math.max(edgeMargin, Math.min(playAreaW - edgeMargin - ew, e.x));
         }
       }
 
@@ -497,8 +498,8 @@ export function GameCanvas({
         e.cooldown -= dt;
         if (e.cooldown <= 0 && Math.random() < s.enemyFireChance) {
           s.bullets.push({
-            x: e.x + ENEMY_W_BASE / 2,
-            y: e.y + ENEMY_H_BASE,
+            x: e.x + ew / 2,
+            y: e.y + eh,
             vx: 0,
             vy: cfg.projectileSpeed,
             isPlayer: false,
@@ -652,16 +653,16 @@ export function GameCanvas({
           if (!e.alive) continue;
           if (
             b.x >= e.x - 1 &&
-            b.x <= e.x + ENEMY_W_BASE + 1 &&
+            b.x <= e.x + ew + 1 &&
             b.y >= e.y - 1 &&
-            b.y <= e.y + ENEMY_H_BASE + 1
+            b.y <= e.y + eh + 1
           ) {
             e.alive = false;
             s.bullets.splice(bi, 1);
             s.score += 10 * s.wave;
             onScoreChange(s.score);
-            spawnParticles(e.x + ENEMY_W_BASE / 2, e.y + ENEMY_H_BASE / 2, "#ff006e", 8);
-            spawnParticles(e.x + ENEMY_W_BASE / 2, e.y + ENEMY_H_BASE / 2, "#fcee0a", 4);
+            spawnParticles(e.x + ew / 2, e.y + eh / 2, "#ff006e", 8);
+            spawnParticles(e.x + ew / 2, e.y + eh / 2, "#fcee0a", 4);
             play("enemyHit");
 
             // Chance to spawn power-up
@@ -671,8 +672,8 @@ export function GameCanvas({
               const type = types[Math.floor(Math.random() * types.length)];
               const pSize = siteData.secretGame?.powerUpSize ?? 8;
               s.powerups.push({
-                x: e.x + ENEMY_W_BASE / 2 - pSize / 2,
-                y: e.y + ENEMY_H_BASE / 2,
+                x: e.x + ew / 2 - pSize / 2,
+                y: e.y + eh / 2,
                 type,
               });
             }
@@ -870,6 +871,7 @@ export function GameCanvas({
   ) {
     const logW = CW / sc;
     const logH = BASE_H;
+    const enemyCfg = settingsRef.current.enemy;
 
     // ── CRITICAL: clear the ENTIRE physical canvas BEFORE any transform ──
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -906,10 +908,10 @@ export function GameCanvas({
       if (spawnScale < 1) {
         ctx.save();
         ctx.globalAlpha = spawnScale;
-        drawEnemy(ctx, e.x, e.y, e.variant, s.frame, e.cooldown > 0.75);
+        drawEnemy(ctx, e.x, e.y, e.variant, s.frame, e.cooldown > 0.75, enemyCfg.width, enemyCfg.height);
         ctx.restore();
       } else {
-        drawEnemy(ctx, e.x, e.y, e.variant, s.frame, e.cooldown > 0.75);
+        drawEnemy(ctx, e.x, e.y, e.variant, s.frame, e.cooldown > 0.75, enemyCfg.width, enemyCfg.height);
       }
     }
 

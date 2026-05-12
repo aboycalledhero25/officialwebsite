@@ -67,9 +67,9 @@ export function drawPlayer(ctx: CanvasRenderingContext2D, x: number, y: number, 
   ctx.fillRect(x + 8, y + 15, 1, 1);
 }
 
-/* ── Enemy dimensions (exported for game engine + editor) ── */
-export const ENEMY_W_BASE = 32;
-export const ENEMY_H_BASE = 28;
+/* ── Enemy reference dimensions (pixel art is drawn at this size) ── */
+const ENEMY_REF_W = 32;
+const ENEMY_REF_H = 28;
 
 /* ── Enemies: Punk Rockers with Walk / Throw animations ── */
 function drawFanBody(
@@ -634,9 +634,15 @@ export function drawEnemy(
   y: number,
   variant: 0 | 1 | 2,
   frame: number,
-  throwing = false
+  throwing = false,
+  w = ENEMY_REF_W,
+  h = ENEMY_REF_H
 ) {
-  drawFanBody(ctx, x, y, variant, frame, throwing);
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(w / ENEMY_REF_W, h / ENEMY_REF_H);
+  drawFanBody(ctx, 0, 0, variant, frame, throwing);
+  ctx.restore();
 }
 
 /* ── Player bullet: 8-bit electricity burst ── */

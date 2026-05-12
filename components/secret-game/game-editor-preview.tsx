@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState, useCallback, useLayoutEffect } from "react";
 import type { GamePlatformSettings, PlayerSprite, BossSettings } from "@/lib/data";
-import { drawEnemy, drawBoss, ENEMY_W_BASE, ENEMY_H_BASE } from "./draw-sprites";
+import { drawEnemy, drawBoss } from "./draw-sprites";
 
 const BASE_W = 240;
 const BASE_H = 320;
@@ -94,8 +94,8 @@ export function GameEditorPreview({
 
     // Draw enemies
     const { enemy } = settings;
-    const colUnit = ENEMY_W_BASE + enemy.paddingX;
-    const rowUnit = ENEMY_H_BASE + enemy.paddingY;
+    const colUnit = enemy.width + enemy.paddingX;
+    const rowUnit = enemy.height + enemy.paddingY;
     const totalW = enemy.columns * colUnit - enemy.paddingX;
     const startX = Math.max(4, (logW - totalW) / 2) + (enemy.offsetX ?? 0);
     // Cap rows so enemies never drop below 55% of screen height (matches game logic)
@@ -103,7 +103,7 @@ export function GameEditorPreview({
     const rows = Math.min(maxRows, enemy.rows);
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < enemy.columns; c++) {
-        drawEnemy(ctx, startX + c * colUnit, enemy.startY + r * rowUnit, ((r + c) % 3) as 0 | 1 | 2, 0, false);
+        drawEnemy(ctx, startX + c * colUnit, enemy.startY + r * rowUnit, ((r + c) % 3) as 0 | 1 | 2, 0, false, enemy.width, enemy.height);
       }
     }
 

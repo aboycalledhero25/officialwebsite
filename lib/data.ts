@@ -141,6 +141,8 @@ export interface GameEnemySettings {
   paddingX: number;
   paddingY: number;
   dropDistance: number;
+  width: number;
+  height: number;
 }
 
 export interface GameUIElement {

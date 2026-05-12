@@ -28,6 +28,8 @@ const DEFAULT_PLATFORM: GamePlatformSettings = {
     paddingX: 6,
     paddingY: 8,
     dropDistance: 6,
+    width: 32,
+    height: 28,
   },
   bossHealthBar: { visible: true, x: 90, y: 4, size: 6 },
   boss: { x: 100, y: 20 },
@@ -274,7 +276,8 @@ export default function SecretGameAdminPage() {
               <NumberField label="Offset X" value={plat.enemy.offsetX} onChange={(v) => updateField(`${platform}.enemy.offsetX`, v)} min={-120} max={120} step={1} />
               <NumberField label="Padding X" value={plat.enemy.paddingX} onChange={(v) => updateField(`${platform}.enemy.paddingX`, v)} min={0} max={50} step={1} />
               <NumberField label="Padding Y" value={plat.enemy.paddingY} onChange={(v) => updateField(`${platform}.enemy.paddingY`, v)} min={0} max={50} step={1} />
-
+              <NumberField label="Width" value={plat.enemy.width} onChange={(v) => updateField(`${platform}.enemy.width`, v)} min={8} max={64} step={1} />
+              <NumberField label="Height" value={plat.enemy.height} onChange={(v) => updateField(`${platform}.enemy.height`, v)} min={8} max={64} step={1} />
             </div>
           </Section>
 
