@@ -560,10 +560,13 @@ async function readLeaderboard(): Promise<LeaderboardEntry[]> {
   try {
     const parsed = JSON.parse(text);
     if (Array.isArray(parsed)) {
-      // Ensure every entry has an id
+      // Normalize entries: ensure id, numeric score, trimmed name
       return parsed.map((entry: any, index: number) => ({
         id: entry.id || `${Date.now()}-${index}`,
-        ...entry,
+        name: String(entry.name ?? "").trim(),
+        score: Number(entry.score) || 0,
+        wave: Number(entry.wave) || 1,
+        created_at: entry.created_at || new Date().toISOString(),
       }));
     }
     return [];
@@ -603,35 +606,37 @@ export async function submitScore(name: string, score: number, wave: number) {
   }
 
   const entries = await readLeaderboard();
-  const existingIdx = entries.findIndex((e) => e.name.toLowerCase() === parsed.data.name.toLowerCase());
+  const normalizedName = parsed.data.name.toLowerCase().trim();
 
-  if (existingIdx >= 0) {
-    // Player already has a score — only replace if new score is higher
-    if (parsed.data.score > entries[existingIdx].score) {
-      entries[existingIdx] = {
-        ...entries[existingIdx],
-        score: parsed.data.score,
-        wave: parsed.data.wave,
-        created_at: new Date().toISOString(),
-      };
-    }
-    // If not higher, keep existing score (do nothing)
-  } else {
-    // New player
-    entries.push({
+  // Find all existing entries for this player and determine the best score
+  const sameNameEntries = entries.filter((e) => e.name.toLowerCase() === normalizedName);
+  const bestExisting = sameNameEntries.length > 0
+    ? sameNameEntries.reduce((best, e) => (e.score > best.score ? e : best))
+    : null;
+
+  // Remove ALL entries with this name (deduplicate)
+  const filtered = entries.filter((e) => e.name.toLowerCase() !== normalizedName);
+
+  if (!bestExisting || parsed.data.score > bestExisting.score) {
+    // New score is the best — add it
+    filtered.push({
       id: crypto.randomUUID(),
-      name: parsed.data.name,
+      name: parsed.data.name.trim(),
       score: parsed.data.score,
       wave: parsed.data.wave,
       created_at: new Date().toISOString(),
     });
+  } else {
+    // Keep the existing best score
+    filtered.push(bestExisting);
   }
 
   // Sort by score descending and keep top 100
-  entries.sort((a, b) => b.score - a.score);
-  const trimmed = entries.slice(0, 100);
+  filtered.sort((a, b) => b.score - a.score);
+  const trimmed = filtered.slice(0, 100);
 
   await writeLeaderboard(trimmed);
+  revalidatePath("/");
   return { success: true };
 }
 
@@ -641,6 +646,7 @@ export async function deleteScore(id: string) {
   const entries = await readLeaderboard();
   const filtered = entries.filter((e) => e.id !== id);
   await writeLeaderboard(filtered);
+  revalidatePath("/");
   return { success: true };
 }
 
@@ -667,6 +673,7 @@ export async function updateScore(id: string, name: string, score: number, wave:
 
   entries.sort((a, b) => b.score - a.score);
   await writeLeaderboard(entries);
+  revalidatePath("/");
   return { success: true };
 }
 
@@ -683,5 +690,6 @@ export async function getLeaderboard(limit = 10) {
 export async function resetLeaderboard() {
   await requireAuth();
   await writeLeaderboard([]);
+  revalidatePath("/");
   return { success: true };
 }
