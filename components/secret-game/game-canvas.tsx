@@ -1160,7 +1160,6 @@ export function GameCanvas({
       const dropRates = siteData.secretGame?.powerUpDropRates;
       const dropRateEntries: { type: PowerUpType; weight: number }[] = [
         { type: "rapid",      weight: dropRates?.rapid      ?? 1 },
-        { type: "shield",     weight: dropRates?.shield     ?? 1 },
         { type: "wideshot",   weight: dropRates?.wideshot   ?? 1 },
         { type: "extralife",  weight: dropRates?.extralife  ?? 1 },
         { type: "invincible", weight: dropRates?.invincible ?? 1 },
@@ -1274,7 +1273,7 @@ export function GameCanvas({
             if (eb.isBoss) {
               const spawnChance = siteData.secretGame?.bossProjectileDropRate ?? 0.15;
               if (Math.random() < spawnChance) {
-                const types: PowerUpType[] = ["rapid", "shield", "wideshot", "extralife", "invincible"];
+                const types: PowerUpType[] = ["rapid", "wideshot", "extralife", "invincible"];
                 const type = types[Math.floor(Math.random() * types.length)];
                 const pSize = siteData.secretGame?.powerUpSize ?? 8;
                 s.powerups.push({
@@ -1547,11 +1546,17 @@ export function GameCanvas({
         ctx.globalAlpha = spawnScale;
       }
 
+      // spriteScale scales the visual only — grid cell / collision stays the same
+      const ss = enemyCfg.spriteScale ?? 1;
+      const sprW = enemyCfg.width  * ss;
+      const sprH = enemyCfg.height * ss;
+      const sprX = e.x - (sprW - enemyCfg.width)  / 2;
+      const sprY = e.y - (sprH - enemyCfg.height) / 2;
       drawEnemySprite(
-        ctx, e.x, e.y, e.variant, e.animState, e.animAccum,
-        enemyCfg.width, enemyCfg.height,
+        ctx, sprX, sprY, e.variant, e.animState, e.animAccum,
+        sprW, sprH,
         // Procedural fallback while sprites are loading
-        () => drawEnemy(ctx, e.x, e.y, e.variant, s.frame, e.cooldown > 0.75, enemyCfg.width, enemyCfg.height),
+        () => drawEnemy(ctx, sprX, sprY, e.variant, s.frame, e.cooldown > 0.75, sprW, sprH),
       );
       ctx.restore();
     }

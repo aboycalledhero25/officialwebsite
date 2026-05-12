@@ -498,7 +498,6 @@ export default function SecretGameAdminPage() {
             <p className="text-xs text-neutral-500 mb-3">Relative spawn weights — they&apos;re normalised automatically, so only the ratios matter. Set to 0 to disable a type.</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               <NumberField label="Rapid Fire" value={settings.powerUpDropRates?.rapid ?? 1} onChange={(v) => updateField("powerUpDropRates.rapid", v)} min={0} max={100} step={1} />
-              <NumberField label="Shield" value={settings.powerUpDropRates?.shield ?? 1} onChange={(v) => updateField("powerUpDropRates.shield", v)} min={0} max={100} step={1} />
               <NumberField label="Wide Shot" value={settings.powerUpDropRates?.wideshot ?? 1} onChange={(v) => updateField("powerUpDropRates.wideshot", v)} min={0} max={100} step={1} />
               <NumberField label="Extra Life" value={settings.powerUpDropRates?.extralife ?? 1} onChange={(v) => updateField("powerUpDropRates.extralife", v)} min={0} max={100} step={1} />
               <NumberField label="Invincible" value={settings.powerUpDropRates?.invincible ?? 1} onChange={(v) => updateField("powerUpDropRates.invincible", v)} min={0} max={100} step={1} />

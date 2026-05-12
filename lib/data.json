@@ -476,7 +476,7 @@
       "wideShot": 6,
       "invincible": 6
     },
-    "enemyBaseHp": 10,
+    "enemyBaseHp": 5,
     "enemyHpPerWave": 1,
     "impacts": {
       "playerBullet": {
@@ -490,10 +490,10 @@
     },
     "powerUpDropRates": {
       "rapid": 1,
-      "shield": 0,
       "wideshot": 1,
       "extralife": 1,
-      "invincible": 1
+      "invincible": 1,
+      "shield": 0
     },
     "waveRewardEnabled": true,
     "enemyChoiceDropChance": 0.2,
@@ -508,18 +508,18 @@
     },
     "permShield": {
       "offsetX": -1,
-      "offsetY": 12,
-      "radius": 20
+      "offsetY": 2,
+      "radius": 40
     },
     "roguelikeConfig": {
       "startingHearts": 3,
-      "baseReloadTime": 0.35,
+      "baseReloadTime": 0.2,
       "baseMovementSpeed": 90,
       "baseBulletDamage": 20,
       "baseEnemyDropChance": 0.12,
       "reload": {
-        "maxShots": 10,
-        "reloadDuration": 3
+        "maxShots": 20,
+        "reloadDuration": 2
       },
       "fastReload": {
         "reductionPerStack": 0.1,
@@ -664,18 +664,19 @@
       },
       "enemy": {
         "speed": 15,
-        "fireRate": 0.003,
-        "projectileSpeed": 60,
+        "fireRate": 0.001,
+        "projectileSpeed": 30,
         "projectileSize": 25,
         "columns": 5,
         "rows": 3,
         "startY": 30,
         "offsetX": 0,
-        "paddingX": 0,
-        "paddingY": 0,
+        "paddingX": -20,
+        "paddingY": -10,
         "dropDistance": 6,
-        "width": 40,
-        "height": 40
+        "width": 60,
+        "height": 60,
+        "spriteScale": 1
       },
       "bossHealthBar": {
         "visible": true,
@@ -743,18 +744,19 @@
       },
       "enemy": {
         "speed": 18,
-        "fireRate": 0.003,
-        "projectileSpeed": 60,
-        "projectileSize": 25,
+        "fireRate": 0.001,
+        "projectileSpeed": 30,
+        "projectileSize": 40,
         "columns": 5,
         "rows": 3,
         "startY": 30,
         "offsetX": 0,
-        "paddingX": 0,
-        "paddingY": 0,
+        "paddingX": -20,
+        "paddingY": -10,
         "dropDistance": 6,
-        "width": 40,
-        "height": 40
+        "width": 60,
+        "height": 60,
+        "spriteScale": 1
       },
       "bossHealthBar": {
         "visible": true,

@@ -150,8 +150,16 @@ export interface GameEnemySettings {
   paddingX: number;
   paddingY: number;
   dropDistance: number;
+  /** Grid cell size — controls spacing, collision, and shooting origin */
   width: number;
   height: number;
+  /**
+   * Visual-only scale multiplier for the enemy sprite.
+   * Does NOT affect the grid cell size or collision box.
+   * 1 = sprite fills the cell, 2 = sprite is twice as large, etc.
+   * Default: 1
+   */
+  spriteScale?: number;
 }
 
 export interface GameUIElement {
@@ -230,7 +238,6 @@ export interface GameImpactSettings {
  *  They are normalised automatically — you do NOT need them to sum to 1. */
 export interface GamePowerUpDropRates {
   rapid: number;
-  shield: number;
   wideshot: number;
   extralife: number;
   invincible: number;
