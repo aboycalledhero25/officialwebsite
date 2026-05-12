@@ -182,9 +182,12 @@ export function GameCanvas({
     const cfg = settingsRef.current.enemy;
     const maxW = logW - edgeMargin * 2;
     const colUnit = ENEMY_W_BASE + cfg.paddingX;
+    const rowUnit = ENEMY_H_BASE + cfg.paddingY;
     const maxCols = Math.max(1, Math.floor((maxW + cfg.paddingX) / colUnit));
     const cols = Math.min(maxCols, cfg.columns + Math.floor((w - 1) / 2));
-    const rows = cfg.rows + Math.floor((w - 1) / 3);
+    // Cap rows so enemies never drop below 55% of screen height (above player area)
+    const maxRows = Math.floor((BASE_H * 0.55 - cfg.startY) / rowUnit) + 1;
+    const rows = Math.min(maxRows, cfg.rows + Math.floor((w - 1) / 3));
     const totalW = cols * colUnit - cfg.paddingX;
     const startX = Math.max(edgeMargin, (logW - totalW) / 2);
     const startY = Math.max(3, cfg.startY); // ensure enemy hair is visible
@@ -201,8 +204,9 @@ export function GameCanvas({
       }
     }
 
-    s.enemySpeed = cfg.speed;
-    s.enemyFireChance = cfg.fireRate;
+    // Scale difficulty with wave (capped for infinite playability)
+    s.enemySpeed = Math.min(cfg.speed + (w - 1) * 1.2, 60);
+    s.enemyFireChance = Math.min(cfg.fireRate * (1 + (w - 1) * 0.025), 0.012);
     s.wave = w;
     s.spawnAnim = 0;
     s.playAreaW = logW;
@@ -426,6 +430,8 @@ export function GameCanvas({
         for (const e of s.enemies) {
           if (!e.alive) continue;
           e.x += s.enemyDir * moveAmount;
+          // Hard clamp to keep enemies on screen at all times
+          e.x = Math.max(edgeMargin, Math.min(playAreaW - edgeMargin - ENEMY_W_BASE, e.x));
         }
       }
 

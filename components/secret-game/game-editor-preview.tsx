@@ -122,6 +122,19 @@ export function GameEditorPreview({
       drawPlayerFallback(ctx, playerX, playerY);
     }
 
+    // Draw shield bubble on canvas (exactly as in-game)
+    const shield = settings.shield;
+    const scx = playerX + playerSprite.offsetX + playerSprite.width / 2 + (shield?.offsetX ?? 0);
+    const scy = playerY + playerSprite.offsetY + playerSprite.height / 2 + (shield?.offsetY ?? 0);
+    const radius = shield?.radius ?? 16;
+    ctx.strokeStyle = `rgba(0, 240, 255, 0.5)`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(scx, scy, radius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = `rgba(0, 240, 255, 0.08)`;
+    ctx.fill();
+
     ctx.restore();
   }, [settings, playerSprite, dims.w, dims.h]);
 
@@ -194,12 +207,11 @@ export function GameEditorPreview({
           next.powerUps = { ...next.powerUps, x: Math.round(d.origX + dx), y: Math.round(d.origY + dy) };
           break;
         case "shield": {
-          const pcx = settings.player.x + playerSprite.offsetX + playerSprite.width / 2;
-          const pcy = settings.player.y + playerSprite.offsetY + playerSprite.height / 2;
+          // Shield offset is visually scaled by scaleY, so drag delta must use scaleY
           next.shield = {
             ...next.shield,
-            offsetX: Math.round(d.origX + dx - pcx),
-            offsetY: Math.round(d.origY + dy - pcy),
+            offsetX: Math.round(d.origX + dx * (scaleX / scaleY)),
+            offsetY: Math.round(d.origY + dy * (scaleX / scaleY)),
           };
           break;
         }
@@ -261,7 +273,7 @@ export function GameEditorPreview({
           if (itemKey === "player") {
             startDrag(itemKey, settings.player.x + playerSprite.offsetX, settings.player.y + playerSprite.offsetY, e);
           } else if (itemKey === "shield") {
-            startDrag(itemKey, settings.player.x + playerSprite.offsetX + playerSprite.width / 2 + (settings.shield?.offsetX ?? 0), settings.player.y + playerSprite.offsetY + playerSprite.height / 2 + (settings.shield?.offsetY ?? 0), e);
+            startDrag(itemKey, settings.shield.offsetX, settings.shield.offsetY, e);
           } else {
             const item = settings[itemKey as keyof GamePlatformSettings] as { x: number; y: number };
             startDrag(itemKey, item.x, item.y, e);
@@ -271,7 +283,7 @@ export function GameEditorPreview({
           if (itemKey === "player") {
             startDrag(itemKey, settings.player.x + playerSprite.offsetX, settings.player.y + playerSprite.offsetY, e);
           } else if (itemKey === "shield") {
-            startDrag(itemKey, settings.player.x + playerSprite.offsetX + playerSprite.width / 2 + (settings.shield?.offsetX ?? 0), settings.player.y + playerSprite.offsetY + playerSprite.height / 2 + (settings.shield?.offsetY ?? 0), e);
+            startDrag(itemKey, settings.shield.offsetX, settings.shield.offsetY, e);
           } else {
             const item = settings[itemKey as keyof GamePlatformSettings] as { x: number; y: number };
             startDrag(itemKey, item.x, item.y, e);
@@ -288,6 +300,52 @@ export function GameEditorPreview({
           className="absolute -bottom-1.5 -right-1.5 w-3 h-3 rounded-full"
           style={{ background: color }}
         />
+      </div>
+    );
+  }
+
+  // Shield overlay — renders an actual circle matching the in-game shield
+  function ShieldOverlay({
+    settings,
+    playerSprite,
+    scaleX,
+    scaleY,
+    onDragStart,
+  }: {
+    settings: GamePlatformSettings;
+    playerSprite: PlayerSprite;
+    scaleX: number;
+    scaleY: number;
+    onDragStart: (key: string, origX: number, origY: number, e: React.MouseEvent | React.TouchEvent) => void;
+  }) {
+    const radius = settings.shield?.radius ?? 16;
+    const left = settings.player.x * scaleX + (playerSprite.offsetX + playerSprite.width / 2 + (settings.shield?.offsetX ?? 0) - radius) * scaleY;
+    const top = settings.player.y * scaleY + (playerSprite.offsetY + playerSprite.height / 2 + (settings.shield?.offsetY ?? 0) - radius) * scaleY;
+    const size = radius * 2 * scaleY;
+
+    return (
+      <div
+        className="absolute cursor-grab active:cursor-grabbing select-none"
+        style={{
+          left,
+          top,
+          width: size,
+          height: size,
+          borderRadius: "50%",
+          border: "2px dashed rgba(0, 240, 255, 0.7)",
+          background: "rgba(0, 240, 255, 0.08)",
+          boxShadow: "0 0 12px rgba(0, 240, 255, 0.3)",
+          zIndex: 10,
+        }}
+        onMouseDown={(e) => onDragStart("shield", settings.shield.offsetX, settings.shield.offsetY, e)}
+        onTouchStart={(e) => onDragStart("shield", settings.shield.offsetX, settings.shield.offsetY, e)}
+      >
+        <div
+          className="absolute -top-5 left-1/2 -translate-x-1/2 text-[10px] font-mono px-1 rounded"
+          style={{ background: "#00f0ff", color: "#000", whiteSpace: "nowrap" }}
+        >
+          Shield
+        </div>
       </div>
     );
   }
@@ -409,16 +467,13 @@ export function GameEditorPreview({
           color="#ff8800"
         />
 
-        {/* Shield overlay */}
-        <DraggableOverlay
-          label="Shield"
-          itemKey="shield"
-          left={(settings.player.x + playerSprite.offsetX + playerSprite.width / 2 + (settings.shield?.offsetX ?? 0) - (settings.shield?.radius ?? 16)) * scaleY}
-          top={(settings.player.y + playerSprite.offsetY + playerSprite.height / 2 + (settings.shield?.offsetY ?? 0) - (settings.shield?.radius ?? 16)) * scaleY}
-          width={((settings.shield?.radius ?? 16) * 2) * scaleY}
-          height={((settings.shield?.radius ?? 16) * 2) * scaleY}
-          visible={true}
-          color="#00f0ff"
+        {/* Shield overlay — circular, matches the actual rendered shield exactly */}
+        <ShieldOverlay
+          settings={settings}
+          playerSprite={playerSprite}
+          scaleX={scaleX}
+          scaleY={scaleY}
+          onDragStart={startDrag}
         />
       </div>
     </div>
