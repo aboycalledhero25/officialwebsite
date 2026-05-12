@@ -5,8 +5,6 @@ import { useEffect, useState } from "react";
 
 const BASE_H = 320;
 const BASE_W = 240;
-const MAX_LIVES = 3;
-const ABSOLUTE_MAX_LIVES = MAX_LIVES + 2; // extralife can push to 5
 
 interface ActivePowerUp {
   type: "rapid" | "shield" | "wideshot" | "extralife" | "invincible";
@@ -22,39 +20,47 @@ interface GameHUDProps {
   activePowerUps?: ActivePowerUp[];
   onPause: () => void;
   onToggleMute: () => void;
+  /** Roguelike: total slice count (currentSlices / maxSlices) */
+  currentSlices?: number;
+  maxSlices?: number;
+  slicesPerHeart?: number;
+  /** Roguelike: total hearts (may grow with ExtraLife) */
+  maxHearts?: number;
 }
 
-/* ── 8-bit pixel heart ── */
-function PixelHeart({ filled, size }: { filled: boolean; size: number }) {
+/**
+ * 8-bit pixel heart that supports partial fills for the slicing system.
+ * `fillFraction` is 0..1 where 1 = fully filled, 0 = empty.
+ */
+function PixelHeart({ fillFraction, size }: { fillFraction: number; size: number }) {
+  const filled = fillFraction >= 1;
+  const empty = fillFraction <= 0;
+  // Clip the fill so a partial heart shows left portion filled
+  const clipPct = Math.max(0, Math.min(1, fillFraction)) * 100;
+  const heartRects = (
+    <>
+      <rect x="1" y="0" width="1" height="1" />
+      <rect x="5" y="0" width="1" height="1" />
+      <rect x="0" y="1" width="7" height="3" />
+      <rect x="1" y="4" width="5" height="1" />
+      <rect x="2" y="5" width="3" height="1" />
+      <rect x="3" y="6" width="1" height="1" />
+    </>
+  );
   return (
-    <div
-      style={{
-        width: size,
-        height: size,
-        imageRendering: "pixelated",
-      }}
-    >
-      <svg width={size} height={size} viewBox="0 0 7 7" shapeRendering="crispEdges">
-        {filled ? (
-          <>
-            <rect x="1" y="0" width="1" height="1" fill="#ff006e" />
-            <rect x="5" y="0" width="1" height="1" fill="#ff006e" />
-            <rect x="0" y="1" width="7" height="3" fill="#ff006e" />
-            <rect x="1" y="4" width="5" height="1" fill="#ff006e" />
-            <rect x="2" y="5" width="3" height="1" fill="#ff006e" />
-            <rect x="3" y="6" width="1" height="1" fill="#ff006e" />
-          </>
-        ) : (
-          <>
-            <rect x="1" y="0" width="1" height="1" fill="#ff006e" opacity="0.3" />
-            <rect x="5" y="0" width="1" height="1" fill="#ff006e" opacity="0.3" />
-            <rect x="0" y="1" width="7" height="3" fill="#ff006e" opacity="0.15" />
-            <rect x="1" y="4" width="5" height="1" fill="#ff006e" opacity="0.15" />
-            <rect x="2" y="5" width="3" height="1" fill="#ff006e" opacity="0.15" />
-            <rect x="3" y="6" width="1" height="1" fill="#ff006e" opacity="0.15" />
-          </>
-        )}
+    <div style={{ width: size, height: size, imageRendering: "pixelated", position: "relative" }}>
+      <svg width={size} height={size} viewBox="0 0 7 7" shapeRendering="crispEdges" style={{ position: "absolute" }}>
+        {/* Empty outline layer */}
+        <g fill="#ff006e" opacity="0.2">{heartRects}</g>
       </svg>
+      {!empty && (
+        <svg
+          width={size} height={size} viewBox="0 0 7 7" shapeRendering="crispEdges"
+          style={{ position: "absolute", clipPath: filled ? undefined : `inset(0 ${100 - clipPct}% 0 0)` }}
+        >
+          <g fill="#ff006e">{heartRects}</g>
+        </svg>
+      )}
     </div>
   );
 }
@@ -79,7 +85,7 @@ function PowerUpLabel({ type, size, stacks }: { type: ActivePowerUp["type"]; siz
   );
 }
 
-export function GameHUD({ score, lives, wave, muted, activePowerUps, onPause, onToggleMute }: GameHUDProps) {
+export function GameHUD({ score, lives, wave, muted, activePowerUps, onPause, onToggleMute, currentSlices, maxSlices, slicesPerHeart, maxHearts }: GameHUDProps) {
   const siteData = useSiteData();
   const [dims, setDims] = useState({ w: 1920, h: 1080 });
   const [scoreBump, setScoreBump] = useState(false);
@@ -215,19 +221,26 @@ export function GameHUD({ score, lives, wave, muted, activePowerUps, onPause, on
         </div>
       )}
 
-      {/* Hearts - 8-bit pixel hearts */}
+      {/* Hearts — supports roguelike heart slicing and dynamic count */}
       {hearts.visible && (
         <div
           className="absolute select-none"
-          style={{
-            left: screenX(hearts.x),
-            top: screenY(hearts.y),
-          }}
+          style={{ left: screenX(hearts.x), top: screenY(hearts.y) }}
         >
           <div className="flex items-center gap-1 p-1" style={{ background: "rgba(0,0,0,0.6)" }}>
-            {Array.from({ length: ABSOLUTE_MAX_LIVES }).map((_, i) => (
-              <PixelHeart key={i} filled={i < lives} size={Math.round(scaleSize(hearts.size) * 0.7)} />
-            ))}
+            {(() => {
+              const totalHearts = maxHearts ?? lives;
+              const sph = slicesPerHeart ?? 1;
+              const curSlices = currentSlices ?? lives * sph;
+              const heartSizePx = Math.round(scaleSize(hearts.size) * 0.7);
+              return Array.from({ length: totalHearts }).map((_, i) => {
+                // Slices belonging to this heart: e.g. heart 0 uses slices [0..sph-1]
+                const heartBaseSlice = i * sph;
+                const slicesInThisHeart = Math.max(0, Math.min(sph, curSlices - heartBaseSlice));
+                const fillFraction = slicesInThisHeart / sph;
+                return <PixelHeart key={i} fillFraction={fillFraction} size={heartSizePx} />;
+              });
+            })()}
           </div>
         </div>
       )}

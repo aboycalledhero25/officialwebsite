@@ -114,6 +114,34 @@ export function useAudioSfx() {
     }
   }, []);
 
+  /** Decoded AudioBuffer cache keyed by URL — loaded on first play. */
+  const bufferCacheRef = useRef<Record<string, AudioBuffer>>({});
+
+  /**
+   * Play an audio file (e.g. an MP3 in /public/audio/) through the Web Audio
+   * master gain so it respects the mute state and plays simultaneously with
+   * the background music.
+   */
+  const playFile = useCallback(async (url: string) => {
+    if (mutedRef.current) return;
+    const { ctx, master } = ensureCtx();
+    try {
+      let buffer = bufferCacheRef.current[url];
+      if (!buffer) {
+        const res = await fetch(url);
+        const arrayBuf = await res.arrayBuffer();
+        buffer = await ctx.decodeAudioData(arrayBuf);
+        bufferCacheRef.current[url] = buffer;
+      }
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(master);
+      source.start();
+    } catch {
+      // Audio unavailable — silently ignore
+    }
+  }, []);
+
   const setMuted = useCallback((muted: boolean) => {
     mutedRef.current = muted;
     if (masterGainRef.current) {
@@ -123,5 +151,5 @@ export function useAudioSfx() {
 
   const isMuted = () => mutedRef.current;
 
-  return { play, setMuted, isMuted };
+  return { play, playFile, setMuted, isMuted };
 }

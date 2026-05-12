@@ -130,6 +130,14 @@ export interface PlayerSprite {
   height: number;
 }
 
+/** Configurable player collision hitbox (offset relative to playerX/Y). */
+export interface PlayerHitbox {
+  offsetX: number; // x offset from playerX (e.g. -2 to shift left)
+  offsetY: number; // y offset from playerY
+  width: number;   // hitbox width  in base game units
+  height: number;  // hitbox height in base game units
+}
+
 export interface GameEnemySettings {
   speed: number;
   fireRate: number;
@@ -209,6 +217,25 @@ export interface BossSettings {
   scoreReward: number;
 }
 
+/** Configurable sizes for GIF impact effects (in game coordinate units, 240×320 space) */
+export interface GameImpactSettings {
+  /** Size of the bullet GIF when the player's bullet lands on an enemy / boss */
+  playerBullet: { w: number; h: number };
+  /** Size of the bullet GIF when an enemy bullet hits the player */
+  enemyBullet: { w: number; h: number };
+}
+
+/** Per-type drop-rate weights for standard temp power-ups.
+ *  Each value is the relative spawn probability for that type.
+ *  They are normalised automatically — you do NOT need them to sum to 1. */
+export interface GamePowerUpDropRates {
+  rapid: number;
+  shield: number;
+  wideshot: number;
+  extralife: number;
+  invincible: number;
+}
+
 export interface SecretGameSettings {
   enabled: boolean;
   title: string;
@@ -221,6 +248,64 @@ export interface SecretGameSettings {
     rapid: number;
     wideShot: number;
     invincible: number;
+  };
+  /** Base enemy HP at wave 1 (default 1 = one-hit kill) */
+  enemyBaseHp: number;
+  /** Extra HP added to enemies for each wave beyond wave 1 (default 0) */
+  enemyHpPerWave: number;
+  /** Configurable GIF sizes for hit/death impacts */
+  impacts: GameImpactSettings;
+  /** Per-type relative spawn rates for standard temp power-ups */
+  powerUpDropRates: GamePowerUpDropRates;
+  /** Show the permanent power-up selection screen after every wave (not just boss waves) */
+  waveRewardEnabled: boolean;
+  /** Chance (0–1) that a killed enemy drops a golden "Choose a Power-Up" pickup */
+  enemyChoiceDropChance: number;
+  /**
+   * IDs of permanent power-ups to exclude from the selection pool.
+   * Any power-up whose `id` appears here will never be offered to the player.
+   * Useful for testing individual power-ups in isolation.
+   * e.g. ["bomb", "virus"]
+   */
+  disabledPowerUps?: string[];
+  /**
+   * Player collision hitbox. Offset is relative to the player's game position (playerX/Y).
+   * Defaults to { offsetX: 0, offsetY: 0, width: 10, height: 20 }.
+   */
+  playerHitbox?: PlayerHitbox;
+  /**
+   * Permanent shield bubble appearance. The offset is relative to the player sprite centre.
+   * Defaults to { offsetX: 0, offsetY: 0, radius: 20 }.
+   */
+  permShield?: GameShieldSettings;
+  /**
+   * Optional overrides for roguelike power-up balance values.
+   * Any field provided here takes precedence over the hardcoded ROGUELIKE_CONFIG defaults.
+   * Omit a field to keep the default value.
+   */
+  roguelikeConfig?: {
+    startingHearts?: number;
+    baseReloadTime?: number;
+    baseMovementSpeed?: number;
+    baseBulletDamage?: number;
+    baseEnemyDropChance?: number;
+    reload?: { maxShots?: number; reloadDuration?: number };
+    fastReload?: { reductionPerStack?: number; minReloadTime?: number };
+    rapidFire?: { ratePerStack?: number; minCooldown?: number };
+    machineGun?: { baseBurst?: number; burstPerStack?: number; burstSpread?: number; burstDelay?: number };
+    frenzy?: { cooldown?: number; damage?: number; baseProjectiles?: number; projectilesPerStack?: number };
+    bomb?: { cooldown?: number; damage?: number; bombsPerStack?: number; crossRadius?: number };
+    lightning?: { cooldown?: number; damage?: number; baseStrikes?: number; strikesPerStack?: number };
+    connect?: { damage?: number; damagePerStack?: number };
+    seeker?: { homingStrengthBase?: number; homingPerStack?: number; seekerRange?: number };
+    virus?: { baseInfectionChance?: number; chancePerStack?: number; baseDamagePerTick?: number; damagePerStack?: number; duration?: number; maxVirusStacks?: number };
+    nuke?: { cooldown?: number; bossHPReduction?: number; nukesPerStack?: number };
+    speed?: { speedPerStack?: number };
+    strength?: { damagePerStack?: number };
+    projectile?: { projectilesPerStack?: number };
+    luck?: { dropChancePerStack?: number };
+    extraLife?: { heartsPerStack?: number };
+    shield?: { duration?: number; cooldown?: number };
   };
   boss: BossSettings;
   desktop: GamePlatformSettings;

@@ -50,6 +50,13 @@ export function DataProvider({
       document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [refresh]);
 
+  // Poll every 5 seconds so that editor / admin-dashboard changes propagate
+  // to the live game without requiring a manual page refresh.
+  useEffect(() => {
+    const id = setInterval(refresh, 5000);
+    return () => clearInterval(id);
+  }, [refresh]);
+
   return <DataContext.Provider value={data}>{children}</DataContext.Provider>;
 }
 

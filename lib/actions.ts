@@ -31,9 +31,8 @@ async function readData(): Promise<any> {
 }
 
 async function writeData(data: any) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], {
-    type: "application/json",
-  });
+  const serialized = JSON.stringify(data, null, 2);
+  const blob = new Blob([serialized], { type: "application/json" });
 
   const { error } = await supabaseAdmin.storage
     .from("config")
@@ -44,6 +43,17 @@ async function writeData(data: any) {
 
   if (error) {
     throw new Error(`Failed to save data: ${error.message}`);
+  }
+
+  // Mirror write to local data.json so the Electron editor sees changes instantly
+  try {
+    const fs = await import("fs");
+    const path = await import("path");
+    const localPath = path.join(process.cwd(), "lib", "data.json");
+    fs.writeFileSync(localPath, serialized, "utf-8");
+  } catch (e) {
+    // Non-fatal — local mirror is a convenience only
+    console.warn("[actions] Could not write local data.json:", e);
   }
 }
 

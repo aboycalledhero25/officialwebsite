@@ -1,14 +1,19 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { GameCanvas, GamePhase } from "./game-canvas";
 import { GameHUD } from "./game-hud";
 import { GameOverlay } from "./game-overlay";
 import { MobileControls } from "./mobile-controls";
+import { PowerUpSelection } from "./power-up-selection";
 import { sharedKeys, sharedAim } from "./use-keyboard-controls";
 import { useAudioSfx } from "./use-audio-sfx";
 import { useGameMusic } from "./use-game-music";
 import { getLeaderboard } from "@/lib/actions";
+import { type PermPowerUpState, computePlayerStats } from "./player-stats";
+import { pickRandomChoices } from "./power-up-registry";
+import { ROGUELIKE_CONFIG } from "./power-up-config";
+import { useSiteData } from "@/components/data-provider";
 
 interface LeaderboardEntry {
   name: string;
@@ -24,18 +29,35 @@ interface RetroArcadeGameProps {
 }
 
 export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGameProps) {
+  const siteData = useSiteData();
+  const disabledPowerUps = siteData.secretGame?.disabledPowerUps ?? [];
+  // Live overrides from data.json — merged on top of ROGUELIKE_CONFIG defaults
+  const roguelikeOverride = siteData.secretGame?.roguelikeConfig;
+  const startingHearts = roguelikeOverride?.startingHearts ?? ROGUELIKE_CONFIG.startingHearts;
+
   const [phase, setPhase] = useState<GamePhase>("menu");
   const [score, setScore] = useState(0);
-  const [lives, setLives] = useState(3);
+  const [lives, setLives] = useState(startingHearts);
   const [wave, setWave] = useState(1);
   const [highScore, setHighScore] = useState(0);
   const [muted, setMuted] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const [activePowerUps, setActivePowerUps] = useState<{ type: "rapid" | "shield" | "wideshot" | "extralife" | "invincible"; timer: number; stacks: number }[]>([]);
-  const [permUpgrades, setPermUpgrades] = useState({ permProjectileBonus: 0, permFireRateBonus: 0, regenLevel: 0 });
+
+  // ── Roguelike permanent power-up state ──────────────────────────────
+  const [chosenPowerUps, setChosenPowerUps] = useState<PermPowerUpState>({});
+  const [currentChoices, setCurrentChoices] = useState<string[]>([]);
+  // Health detail for sliced-heart HUD
+  const [healthDetail, setHealthDetail] = useState({ current: startingHearts, max: startingHearts, slicesPerHeart: 1 });
+  // Trigger for the HealthRefill power-up (canvas watches this)
+  const [healthRefillTrigger, setHealthRefillTrigger] = useState(0);
+
+  // Compute all player stats from chosen power-ups (memoised), merging in data.json overrides
+  const playerStats = useMemo(() => computePlayerStats(chosenPowerUps, roguelikeOverride), [chosenPowerUps, roguelikeOverride]);
+
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(true);
-  const { setMuted: setAudioMuted } = useAudioSfx();
+  const { playFile, setMuted: setAudioMuted } = useAudioSfx();
   const { setMuted: setMusicMuted } = useGameMusic("/audio/8-bit.mp3");
 
   // Load high score + leaderboard on mount
@@ -67,29 +89,61 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
     }
   }, [phase]);
 
+  /** Reset all roguelike state for a fresh run */
+  const resetRoguelikeState = useCallback(() => {
+    setChosenPowerUps({});
+    setCurrentChoices([]);
+    setHealthDetail({ current: startingHearts, max: startingHearts, slicesPerHeart: 1 });
+  }, [startingHearts]);
+
   const handleStart = useCallback(() => {
     sharedKeys.shoot = false;
     sharedAim.firing = false;
     sharedAim.aiming = false;
     setScore(0);
-    setLives(3);
+    setLives(startingHearts);
     setWave(1);
     setActivePowerUps([]);
-    setPermUpgrades({ permProjectileBonus: 0, permFireRateBonus: 0, regenLevel: 0 });
+    resetRoguelikeState();
     setResetKey((k) => k + 1);
     setPhase("playing");
-  }, []);
+  }, [resetRoguelikeState, startingHearts]);
 
   const handleRestart = useCallback(() => {
     sharedKeys.shoot = false;
     sharedAim.firing = false;
     sharedAim.aiming = false;
     setScore(0);
-    setLives(3);
+    setLives(startingHearts);
     setWave(1);
     setActivePowerUps([]);
-    setPermUpgrades({ permProjectileBonus: 0, permFireRateBonus: 0, regenLevel: 0 });
+    resetRoguelikeState();
     setResetKey((k) => k + 1);
+    setPhase("playing");
+  }, [resetRoguelikeState, startingHearts]);
+
+  // Generate 3 choices and play the fanfare whenever a reward screen is entered
+  useEffect(() => {
+    if (phase === "bossreward" || phase === "wavereward") {
+      setCurrentChoices(pickRandomChoices(chosenPowerUps, 3, disabledPowerUps));
+      playFile("/audio/powerup.mp3");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
+  /** Called when the player picks a power-up from the selection screen */
+  const handlePowerUpSelect = useCallback((id: string) => {
+    if (!id) {
+      setPhase("playing");
+      return;
+    }
+    if (id === "healthRefill") {
+      // Immediate refill — signal canvas via trigger, do NOT track in chosenPowerUps
+      setHealthRefillTrigger((t) => t + 1);
+      setPhase("playing");
+      return;
+    }
+    setChosenPowerUps((prev) => ({ ...prev, [id]: (prev[id] ?? 0) + 1 }));
     setPhase("playing");
   }, []);
 
@@ -136,6 +190,15 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
     }
   }, [phase]);
 
+  /** Stable callback for health-detail updates — must NOT be an inline arrow function
+   *  or it will re-create resetGame every render, causing an infinite update loop. */
+  const handleHealthDetailChange = useCallback(
+    (current: number, max: number, slicesPerHeart: number) => {
+      setHealthDetail({ current, max, slicesPerHeart });
+    },
+    [],
+  );
+
   const handleToggleMute = useCallback(() => {
     const next = !muted;
     setMuted(next);
@@ -159,12 +222,12 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
         onLivesChange={setLives}
         onWaveChange={setWave}
         onPowerUpChange={setActivePowerUps}
+        onHealthDetailChange={handleHealthDetailChange}
         score={score}
         lives={lives}
         wave={wave}
-        permProjectileBonus={permUpgrades.permProjectileBonus}
-        permFireRateBonus={permUpgrades.permFireRateBonus}
-        regenLevel={permUpgrades.regenLevel}
+        playerStats={playerStats}
+        healthRefillTrigger={healthRefillTrigger}
       />
 
       {/* HUD overlays the canvas */}
@@ -175,6 +238,10 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
           wave={wave}
           muted={muted}
           activePowerUps={activePowerUps}
+          currentSlices={healthDetail.current}
+          maxSlices={healthDetail.max}
+          slicesPerHeart={healthDetail.slicesPerHeart}
+          maxHearts={playerStats.maxHearts}
           onPause={() => phase === "playing" && setPhase("paused")}
           onToggleMute={handleToggleMute}
         />
@@ -196,52 +263,14 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
         onClose={onClose}
       />
 
-      {/* Boss reward selection overlay */}
-      {phase === "bossreward" && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-          <div className="text-center max-w-xs w-full px-4">
-            <h2 className="text-2xl font-bold text-yellow-400 mb-2" style={{ fontFamily: "'Press Start 2P', monospace" }}>
-              BOSS DEFEATED!
-            </h2>
-            <p className="text-white/80 text-sm mb-6">Choose your permanent upgrade:</p>
-            <div className="space-y-3">
-              <button
-                onClick={() => {
-                  setPermUpgrades((u) => ({ ...u, permProjectileBonus: u.permProjectileBonus + 1 }));
-                  setPhase("playing");
-                }}
-                className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-500 text-white rounded border-2 border-blue-400 transition-colors"
-              >
-                <div className="font-bold">+1 Projectile</div>
-                <div className="text-xs text-blue-200">Fire an extra bullet</div>
-              </button>
-              <button
-                onClick={() => {
-                  setPermUpgrades((u) => ({ ...u, permFireRateBonus: u.permFireRateBonus + 1 }));
-                  setPhase("playing");
-                }}
-                className="w-full py-3 px-4 bg-orange-600 hover:bg-orange-500 text-white rounded border-2 border-orange-400 transition-colors"
-              >
-                <div className="font-bold">+1 Fire Rate</div>
-                <div className="text-xs text-orange-200">Shoot faster permanently</div>
-              </button>
-              <button
-                onClick={() => {
-                  setPermUpgrades((u) => ({ ...u, regenLevel: u.regenLevel + 1 }));
-                  setPhase("playing");
-                }}
-                className="w-full py-3 px-4 bg-green-600 hover:bg-green-500 text-white rounded border-2 border-green-400 transition-colors"
-              >
-                <div className="font-bold">Health Regen</div>
-                <div className="text-xs text-green-200">
-                  {permUpgrades.regenLevel > 0
-                    ? `${permUpgrades.regenLevel + 1} hearts/min`
-                    : "1 heart per minute"}
-                </div>
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Roguelike power-up selection — after boss kill, wave clear, or choice pickup */}
+      {(phase === "bossreward" || phase === "wavereward") && (
+        <PowerUpSelection
+          choices={currentChoices}
+          chosen={chosenPowerUps}
+          onSelect={handlePowerUpSelect}
+          title={phase === "wavereward" ? "WAVE COMPLETE!" : "BOSS DEFEATED!"}
+        />
       )}
 
       {/* Mobile controls */}

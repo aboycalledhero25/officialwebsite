@@ -674,104 +674,72 @@ export function drawPlayerBullet(ctx: CanvasRenderingContext2D, x: number, y: nu
   ctx.restore();
 }
 
-/* ── Underwear projectiles (Y-fronts, bras, thongs) ── */
-export type UnderwearType = "yfront" | "bra" | "thong";
+/* ── Enemy projectiles — 4×4 sprite sheet ── */
 
-export function drawEnemyBullet(ctx: CanvasRenderingContext2D, x: number, y: number, type: UnderwearType, size = 16) {
-  ctx.save();
-  const scale = size / 16;
-  ctx.translate(x, y);
-  ctx.scale(scale, scale);
-  ctx.translate(-x, -y);
-  switch (type) {
-    case "yfront": {
-      /* ═══ HIGH-RES Y-FRONTS (16×14) ═══ */
-      // Grey elastic waistband
-      ctx.fillStyle = "#bbbbbb";
-      ctx.fillRect(x - 8, y - 6, 16, 3);
-      ctx.fillStyle = "#999999";
-      ctx.fillRect(x - 8, y - 6, 16, 1);   // top rib
-      ctx.fillRect(x - 8, y - 4, 16, 1);   // bottom rib
-      // White body
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(x - 7, y - 3, 14, 4);   // upper body
-      ctx.fillRect(x - 6, y + 1, 5, 4);    // left leg
-      ctx.fillRect(x + 1, y + 1, 5, 4);    // right leg
-      // Centre pouch (slightly rounded)
-      ctx.fillRect(x - 4, y - 2, 8, 4);
-      // Leg hole curves (shadow)
-      ctx.fillStyle = "#eeeeee";
-      ctx.fillRect(x - 6, y + 0, 2, 2);
-      ctx.fillRect(x + 4, y + 0, 2, 2);
-      // Y-stripe (grey seam)
-      ctx.fillStyle = "#cccccc";
-      ctx.fillRect(x - 1, y + 0, 2, 5);
-      ctx.fillRect(x, y + 0, 1, 5);
-      // Bottom hem
-      ctx.fillStyle = "#dddddd";
-      ctx.fillRect(x - 6, y + 4, 5, 1);
-      ctx.fillRect(x + 1, y + 4, 5, 1);
-      break;
-    }
-    case "bra": {
-      /* ═══ HIGH-RES PINK BRA (16×14) ═══ */
-      // Straps
-      ctx.fillStyle = "#ff88cc";
-      ctx.fillRect(x - 5, y - 6, 3, 5);    // left strap
-      ctx.fillRect(x + 2, y - 6, 3, 5);    // right strap
-      ctx.fillStyle = "#ff99cc";
-      ctx.fillRect(x - 5, y - 5, 3, 1);    // strap highlight
-      ctx.fillRect(x + 2, y - 5, 3, 1);
-      // Cups (curved shape)
-      ctx.fillStyle = "#ff69b4";
-      ctx.fillRect(x - 7, y - 2, 7, 4);    // left cup
-      ctx.fillRect(x - 6, y + 2, 5, 2);
-      ctx.fillRect(x + 0, y - 2, 7, 4);    // right cup
-      ctx.fillRect(x + 1, y + 2, 5, 2);
-      // Cup shading
-      ctx.fillStyle = "#ff5599";
-      ctx.fillRect(x - 7, y - 1, 2, 3);
-      ctx.fillRect(x + 5, y - 1, 2, 3);
-      // Centre clasp/bow
-      ctx.fillStyle = "#ff4499";
-      ctx.fillRect(x - 1, y + 0, 2, 3);
-      ctx.fillRect(x - 2, y + 1, 4, 1);
-      // Underband
-      ctx.fillStyle = "#ff88cc";
-      ctx.fillRect(x - 7, y + 3, 14, 2);
-      ctx.fillStyle = "#ff99bb";
-      ctx.fillRect(x - 7, y + 3, 14, 1);   // highlight
-      break;
-    }
-    case "thong": {
-      /* ═══ HIGH-RES GREEN THONG (14×16) ═══ */
-      // Thick waistband
-      ctx.fillStyle = "#39ff14";
-      ctx.fillRect(x - 7, y - 7, 14, 4);
-      ctx.fillStyle = "#66ff44";
-      ctx.fillRect(x - 7, y - 7, 14, 1);   // top highlight
-      ctx.fillStyle = "#22cc00";
-      ctx.fillRect(x - 7, y - 4, 14, 1);   // bottom shadow
-      // Centre pouch
-      ctx.fillStyle = "#39ff14";
-      ctx.fillRect(x - 4, y - 3, 8, 5);
-      ctx.fillRect(x - 3, y + 2, 6, 2);
-      // Pouch shading
-      ctx.fillStyle = "#33dd11";
-      ctx.fillRect(x - 4, y - 1, 2, 3);
-      ctx.fillRect(x + 2, y - 1, 2, 3);
-      // Back string (thin)
-      ctx.fillStyle = "#44ee22";
-      ctx.fillRect(x - 1, y + 3, 2, 6);
-      ctx.fillStyle = "#66ff44";
-      ctx.fillRect(x - 1, y + 4, 1, 4);    // highlight
-      // String bottom knot
-      ctx.fillStyle = "#39ff14";
-      ctx.fillRect(x - 2, y + 8, 4, 2);
-      break;
-    }
+// ── Enemy projectile sprite sheet loader ────────────────────────────────────
+// public/projectiles/spritesheets/underwear.png
+// Layout: 4 rows × 4 columns = 16 different projectile sprites.
+// Each enemy is assigned a random index (0–15) when it spawns.
+// projectileIndex → row = Math.floor(index / 4), col = index % 4
+let underwearImg: HTMLImageElement | null = null;
+let underwearLoaded = false;
+
+export function loadUnderwearSprite(): void {
+  if (typeof window === "undefined" || underwearLoaded) return;
+  underwearLoaded = true;
+  underwearImg = new Image();
+  underwearImg.src = "/projectiles/spritesheets/underwear.png";
+}
+
+// Fallback palette: 16 colours cycling through hues for variety when sprite not loaded
+const FALLBACK_COLORS = [
+  "#ff006e", "#ff4500", "#ff8c00", "#ffd700",
+  "#39ff14", "#00f0ff", "#0080ff", "#8000ff",
+  "#ff66cc", "#ff3333", "#ffaa00", "#aaff00",
+  "#00ffaa", "#00aaff", "#aa00ff", "#ffffff",
+];
+
+/**
+ * Draw one enemy projectile from the 4×4 sprite sheet.
+ * Falls back to a coloured pixel-art diamond when the sheet isn't loaded yet.
+ *
+ * @param projectileIndex  0–15 — which cell in the 4×4 grid to draw
+ * @param size             Rendered size in game units (configurable in editor)
+ * @param rows             Rows in the sheet (default 4)
+ * @param cols             Columns in the sheet (default 4)
+ */
+export function drawEnemyBullet(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  projectileIndex = 0,
+  size = 16,
+  rows = 4,
+  cols = 4,
+) {
+  const idx = Math.max(0, Math.min(rows * cols - 1, projectileIndex));
+
+  // Try sprite sheet first
+  if (underwearImg && underwearImg.complete && underwearImg.naturalWidth > 0) {
+    const fw = underwearImg.naturalWidth  / cols;
+    const fh = underwearImg.naturalHeight / rows;
+    const row = Math.floor(idx / cols);
+    const col = idx % cols;
+    ctx.drawImage(underwearImg, col * fw, row * fh, fw, fh, x - size / 2, y - size / 2, size, size);
+    return;
   }
-  ctx.restore();
+
+  // ── Procedural fallback: small coloured pixel diamond ──────────────────
+  const color = FALLBACK_COLORS[idx % FALLBACK_COLORS.length];
+  const h = Math.ceil(size / 2);
+  const w = Math.ceil(size / 3);
+  ctx.fillStyle = color;
+  ctx.fillRect(x - w / 2,       y - h,         w,     h / 2); // top
+  ctx.fillRect(x - size / 4,    y - h / 2,     size / 2, h); // middle
+  ctx.fillRect(x - w / 2,       y + h / 2,     w,     h / 2); // bottom
+  // Bright highlight
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(x - w / 4,       y - h + 1,     Math.max(1, w / 2), 1);
 }
 
 /* ── Particles ── */
@@ -791,7 +759,7 @@ export function drawPowerUp(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
-  type: "rapid" | "shield" | "wideshot" | "extralife" | "invincible",
+  type: "rapid" | "shield" | "wideshot" | "extralife" | "invincible" | "choice",
   frame: number,
   size = 8
 ) {
@@ -809,6 +777,7 @@ export function drawPowerUp(
     wideshot: { core: "#fcee0a", glow: "rgba(252, 238, 10,", bright: "#ffffff" },
     extralife:{ core: "#ff006e", glow: "rgba(255, 0, 110,", bright: "#ff88bb" },
     invincible:{ core: "#ffd700", glow: "rgba(255, 215, 0,", bright: "#ffffff" },
+    choice:   { core: "#00CED1", glow: "rgba(0, 206, 209,", bright: "#80FFFF" },
   };
   const c = colors[type];
 
@@ -910,6 +879,37 @@ export function drawPowerUp(
         ctx.fillRect(cx - 2 * s, cy, 1 * s, 1 * s);
         ctx.fillRect(cx + 1 * s, cy, 1 * s, 1 * s);
       }
+      break;
+    }
+    case "choice": {
+      // 8-bit upward-pointing turquoise arrow — pick-this-up for a permanent power-up.
+      const blink = frame % 8 < 4; // slow blink for shimmer highlight
+
+      // Arrow body (turquoise)
+      ctx.fillStyle = c.core;
+      // Arrowhead: tip → wings → base-of-head
+      ctx.fillRect(cx - 1 * s, cy - 4 * s, 2 * s, 1 * s); // tip (topmost row)
+      ctx.fillRect(cx - 2 * s, cy - 3 * s, 4 * s, 1 * s); // upper wings
+      ctx.fillRect(cx - 3 * s, cy - 2 * s, 6 * s, 1 * s); // wide base of arrowhead
+      // Stem
+      ctx.fillRect(cx - 1 * s, cy - 1 * s, 2 * s, 1 * s);
+      ctx.fillRect(cx - 1 * s, cy,          2 * s, 1 * s);
+      ctx.fillRect(cx - 1 * s, cy + 1 * s,  2 * s, 1 * s);
+      ctx.fillRect(cx - 1 * s, cy + 2 * s,  2 * s, 1 * s);
+
+      // Bright highlight pixels for 8-bit shimmer (alternate frames)
+      ctx.fillStyle = c.bright;
+      if (blink) {
+        ctx.fillRect(cx - 1 * s, cy - 4 * s, 1 * s, 1 * s); // tip left pixel
+        ctx.fillRect(cx - 2 * s, cy - 3 * s, 1 * s, 1 * s); // wing left edge
+        ctx.fillRect(cx - 1 * s, cy - 1 * s, 1 * s, 1 * s); // top of stem
+      }
+
+      // Faint secondary highlight row (outer corner sparks, turquoise sparkle)
+      const sparkOn = frame % 6 < 3;
+      ctx.fillStyle = sparkOn ? "#ffffff" : c.core;
+      ctx.fillRect(cx - 4 * s, cy - 3 * s, 1 * s, 1 * s); // left spark
+      ctx.fillRect(cx + 3 * s, cy - 3 * s, 1 * s, 1 * s); // right spark
       break;
     }
   }

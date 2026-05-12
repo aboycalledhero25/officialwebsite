@@ -63,6 +63,13 @@ export default function SecretGameAdminPage() {
           bossProjectileDropRate: sg.bossProjectileDropRate ?? 0.15,
           powerUpSize: sg.powerUpSize ?? 8,
           powerUpDurations: sg.powerUpDurations ?? { rapid: 5, wideShot: 4, invincible: 4 },
+          enemyBaseHp: sg.enemyBaseHp ?? 1,
+          enemyHpPerWave: sg.enemyHpPerWave ?? 0,
+          impacts: sg.impacts ?? { playerBullet: { w: 28, h: 28 }, enemyBullet: { w: 20, h: 20 } },
+          powerUpDropRates: sg.powerUpDropRates ?? { rapid: 1, shield: 1, wideshot: 1, extralife: 1, invincible: 1 },
+          waveRewardEnabled: sg.waveRewardEnabled ?? true,
+          enemyChoiceDropChance: sg.enemyChoiceDropChance ?? 0.05,
+          disabledPowerUps: sg.disabledPowerUps ?? [],
           boss: sg.boss ?? {
             enabled: true,
             interval: 10,
@@ -441,6 +448,117 @@ export default function SecretGameAdminPage() {
                 />
               </div>
               <p className="text-xs text-neutral-500">Chance to drop a power-up when an enemy is killed. 0.12 = 12%.</p>
+            </div>
+          </Section>
+
+          {/* Enemy HP Scaling */}
+          <Section title="Enemy HP Scaling">
+            <div className="grid grid-cols-2 gap-4">
+              <NumberField
+                label="Base HP (Wave 1)"
+                value={settings.enemyBaseHp ?? 1}
+                onChange={(v) => updateField("enemyBaseHp", v)}
+                min={1}
+                max={50}
+                step={1}
+              />
+              <NumberField
+                label="Extra HP Per Wave"
+                value={settings.enemyHpPerWave ?? 0}
+                onChange={(v) => updateField("enemyHpPerWave", v)}
+                min={0}
+                max={20}
+                step={1}
+              />
+            </div>
+            <p className="text-xs text-neutral-500 mt-2">Enemy HP at wave N = Base HP + (N − 1) × Extra HP Per Wave. Set Extra to 0 for one-hit enemies throughout.</p>
+          </Section>
+
+          {/* Reward Screen */}
+          <Section title="Reward Screen">
+            <Toggle
+              label="Show power-up selection after every wave"
+              checked={settings.waveRewardEnabled ?? true}
+              onChange={(v) => updateField("waveRewardEnabled", v)}
+            />
+            <p className="text-xs text-neutral-500">When on, the permanent power-up selection screen appears after clearing each wave. When off, only boss defeats trigger it.</p>
+            <NumberField
+              label="Enemy Choice Drop Chance (0–1)"
+              value={settings.enemyChoiceDropChance ?? 0}
+              onChange={(v) => updateField("enemyChoiceDropChance", v)}
+              min={0}
+              max={1}
+              step={0.01}
+            />
+            <p className="text-xs text-neutral-500">Chance (0–1) that a killed enemy drops a turquoise arrow pickup. Collecting it opens the power-up selection screen mid-wave. 0.05 = 5%.</p>
+          </Section>
+
+          {/* Power-Up Drop Rates */}
+          <Section title="Power-Up Drop Rates">
+            <p className="text-xs text-neutral-500 mb-3">Relative spawn weights — they&apos;re normalised automatically, so only the ratios matter. Set to 0 to disable a type.</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <NumberField label="Rapid Fire" value={settings.powerUpDropRates?.rapid ?? 1} onChange={(v) => updateField("powerUpDropRates.rapid", v)} min={0} max={100} step={1} />
+              <NumberField label="Shield" value={settings.powerUpDropRates?.shield ?? 1} onChange={(v) => updateField("powerUpDropRates.shield", v)} min={0} max={100} step={1} />
+              <NumberField label="Wide Shot" value={settings.powerUpDropRates?.wideshot ?? 1} onChange={(v) => updateField("powerUpDropRates.wideshot", v)} min={0} max={100} step={1} />
+              <NumberField label="Extra Life" value={settings.powerUpDropRates?.extralife ?? 1} onChange={(v) => updateField("powerUpDropRates.extralife", v)} min={0} max={100} step={1} />
+              <NumberField label="Invincible" value={settings.powerUpDropRates?.invincible ?? 1} onChange={(v) => updateField("powerUpDropRates.invincible", v)} min={0} max={100} step={1} />
+            </div>
+          </Section>
+
+          {/* Impact Effect Sizes */}
+          <Section title="Impact Effect Sizes">
+            <p className="text-xs text-neutral-500 mb-3">Size of the GIF explosion when player bullets land (player) or enemy bullets hit the player (enemy).</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <NumberField label="Player Hit W" value={settings.impacts?.playerBullet?.w ?? 28} onChange={(v) => updateField("impacts.playerBullet.w", v)} min={4} max={200} step={1} />
+              <NumberField label="Player Hit H" value={settings.impacts?.playerBullet?.h ?? 28} onChange={(v) => updateField("impacts.playerBullet.h", v)} min={4} max={200} step={1} />
+              <NumberField label="Enemy Hit W" value={settings.impacts?.enemyBullet?.w ?? 20} onChange={(v) => updateField("impacts.enemyBullet.w", v)} min={4} max={200} step={1} />
+              <NumberField label="Enemy Hit H" value={settings.impacts?.enemyBullet?.h ?? 20} onChange={(v) => updateField("impacts.enemyBullet.h", v)} min={4} max={200} step={1} />
+            </div>
+          </Section>
+
+          {/* Permanent Power-Up Toggles */}
+          <Section title="Permanent Power-Ups (enable/disable)">
+            <p className="text-xs text-neutral-500 mb-3">
+              Disable individual permanent upgrades to stop them appearing on the selection screen.
+              Useful for testing specific power-ups in isolation.
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {[
+                { id: "bomb",       label: "Bomb" },
+                { id: "lightning",  label: "Lightning" },
+                { id: "connect",    label: "Connect Beam" },
+                { id: "extraLife",  label: "Extra Life" },
+                { id: "fastReload", label: "Fast Reload" },
+                { id: "frenzy",     label: "Frenzy" },
+                { id: "health",     label: "Health (Slices)" },
+                { id: "luck",       label: "Luck" },
+                { id: "machineGun", label: "Machine Gun" },
+                { id: "nuke",       label: "Nuke" },
+                { id: "projectile", label: "Extra Projectile" },
+                { id: "rapidFire",  label: "Rapid Fire" },
+                { id: "seeker",     label: "Seeker" },
+                { id: "shield",     label: "Perm Shield" },
+                { id: "speed",      label: "Speed" },
+                { id: "strength",   label: "Strength" },
+                { id: "virus",      label: "Virus" },
+              ].map(({ id, label }) => {
+                const disabled = settings.disabledPowerUps ?? [];
+                const isEnabled = !disabled.includes(id);
+                return (
+                  <Toggle
+                    key={id}
+                    label={label}
+                    checked={isEnabled}
+                    onChange={(v) => {
+                      const current = settings.disabledPowerUps ?? [];
+                      const next = v
+                        ? current.filter((x) => x !== id)
+                        : [...current.filter((x) => x !== id), id];
+                      updateField("disabledPowerUps", next);
+                    }}
+                  />
+                );
+              })}
             </div>
           </Section>
 

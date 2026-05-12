@@ -468,40 +468,303 @@
       "width": 14,
       "height": 42
     },
+    "powerUpSpawnChance": 0.15,
+    "bossProjectileDropRate": 0.2,
+    "powerUpSize": 10,
+    "powerUpDurations": {
+      "rapid": 6,
+      "wideShot": 6,
+      "invincible": 6
+    },
+    "enemyBaseHp": 10,
+    "enemyHpPerWave": 1,
+    "impacts": {
+      "playerBullet": {
+        "w": 50,
+        "h": 50
+      },
+      "enemyBullet": {
+        "w": 50,
+        "h": 50
+      }
+    },
+    "powerUpDropRates": {
+      "rapid": 1,
+      "shield": 0,
+      "wideshot": 1,
+      "extralife": 1,
+      "invincible": 1
+    },
+    "waveRewardEnabled": true,
+    "enemyChoiceDropChance": 0.2,
+    "disabledPowerUps": [
+      "seeker"
+    ],
+    "playerHitbox": {
+      "offsetX": -3,
+      "offsetY": -13,
+      "width": 15,
+      "height": 44
+    },
+    "permShield": {
+      "offsetX": -1,
+      "offsetY": 12,
+      "radius": 20
+    },
+    "roguelikeConfig": {
+      "startingHearts": 3,
+      "baseReloadTime": 0.35,
+      "baseMovementSpeed": 90,
+      "baseBulletDamage": 20,
+      "baseEnemyDropChance": 0.12,
+      "reload": {
+        "maxShots": 10,
+        "reloadDuration": 3
+      },
+      "fastReload": {
+        "reductionPerStack": 0.1,
+        "minReloadTime": 0.05
+      },
+      "rapidFire": {
+        "ratePerStack": 1,
+        "minCooldown": 0.05
+      },
+      "machineGun": {
+        "baseBurst": 3,
+        "burstPerStack": 1,
+        "burstSpread": 0.1,
+        "burstDelay": 0.07
+      },
+      "frenzy": {
+        "cooldown": 30,
+        "damage": 20,
+        "baseProjectiles": 8,
+        "projectilesPerStack": 2
+      },
+      "bomb": {
+        "cooldown": 30,
+        "damage": 20,
+        "bombsPerStack": 1,
+        "crossRadius": 30
+      },
+      "lightning": {
+        "cooldown": 30,
+        "damage": 50,
+        "baseStrikes": 3,
+        "strikesPerStack": 1
+      },
+      "connect": {
+        "damage": 50,
+        "damagePerStack": 25
+      },
+      "seeker": {
+        "homingStrengthBase": 2,
+        "homingPerStack": 1,
+        "seekerRange": 200
+      },
+      "virus": {
+        "baseInfectionChance": 0.2,
+        "chancePerStack": 0.05,
+        "baseDamagePerTick": 5,
+        "damagePerStack": 5,
+        "duration": 3,
+        "maxVirusStacks": 3
+      },
+      "nuke": {
+        "cooldown": 30,
+        "bossHPReduction": 0.25,
+        "nukesPerStack": 1
+      },
+      "speed": {
+        "speedPerStack": 0.1
+      },
+      "strength": {
+        "damagePerStack": 0.1
+      },
+      "projectile": {
+        "projectilesPerStack": 1
+      },
+      "luck": {
+        "dropChancePerStack": 0.2
+      },
+      "extraLife": {
+        "heartsPerStack": 1
+      },
+      "shield": {
+        "duration": 10,
+        "cooldown": 30
+      }
+    },
+    "boss": {
+      "enabled": true,
+      "interval": 10,
+      "baseHealth": 500,
+      "healthIncrease": 500,
+      "bulletDamage": 20,
+      "projectileSpeed": 80,
+      "projectileSize": 20,
+      "fireInterval": 3,
+      "trackSpeed": 30,
+      "width": 50,
+      "height": 40,
+      "scoreReward": 150000
+    },
     "desktop": {
-      "player": { "x": 115, "y": 265 },
-      "hearts": { "visible": true, "x": 190, "y": 8, "size": 28 },
-      "arrowKeys": { "visible": false, "x": 8, "y": 280, "size": 40 },
-      "touchArea": { "visible": false, "x": 0, "y": 200, "width": 240, "height": 120 },
-      "fireButton": { "visible": true, "x": 200, "y": 270, "size": 44 },
+      "player": {
+        "x": 116,
+        "y": 233
+      },
+      "hearts": {
+        "visible": true,
+        "x": 2,
+        "y": 287,
+        "size": 28
+      },
+      "arrowKeys": {
+        "visible": false,
+        "x": 8,
+        "y": 280,
+        "size": 40
+      },
+      "touchArea": {
+        "visible": false,
+        "x": 0,
+        "y": 200,
+        "width": 240,
+        "height": 120
+      },
+      "fireButton": {
+        "visible": true,
+        "x": 194,
+        "y": 274,
+        "size": 44
+      },
+      "score": {
+        "visible": true,
+        "x": 2,
+        "y": 258,
+        "size": 14
+      },
+      "wave": {
+        "visible": true,
+        "x": 2,
+        "y": 198,
+        "size": 14
+      },
+      "powerUps": {
+        "visible": true,
+        "x": 2,
+        "y": 227,
+        "size": 8
+      },
+      "shield": {
+        "offsetX": 0,
+        "offsetY": 12,
+        "radius": 16
+      },
       "enemy": {
-        "speed": 18,
+        "speed": 15,
         "fireRate": 0.003,
         "projectileSpeed": 60,
+        "projectileSize": 25,
         "columns": 5,
         "rows": 3,
         "startY": 30,
-        "paddingX": 6,
-        "paddingY": 8,
-        "dropDistance": 6
+        "offsetX": 0,
+        "paddingX": 0,
+        "paddingY": 0,
+        "dropDistance": 6,
+        "width": 40,
+        "height": 40
+      },
+      "bossHealthBar": {
+        "visible": true,
+        "x": 2,
+        "y": 248,
+        "size": 6
+      },
+      "boss": {
+        "x": 94,
+        "y": 19
       }
     },
     "mobile": {
-      "player": { "x": 115, "y": 265 },
-      "hearts": { "visible": true, "x": 190, "y": 8, "size": 28 },
-      "arrowKeys": { "visible": false, "x": 8, "y": 280, "size": 40 },
-      "touchArea": { "visible": true, "x": 0, "y": 200, "width": 240, "height": 120 },
-      "fireButton": { "visible": true, "x": 200, "y": 270, "size": 44 },
+      "player": {
+        "x": 115,
+        "y": 265
+      },
+      "hearts": {
+        "visible": true,
+        "x": 2,
+        "y": 287,
+        "size": 28
+      },
+      "arrowKeys": {
+        "visible": false,
+        "x": 8,
+        "y": 280,
+        "size": 40
+      },
+      "touchArea": {
+        "visible": true,
+        "x": 0,
+        "y": -1,
+        "width": 240,
+        "height": 340
+      },
+      "fireButton": {
+        "visible": false,
+        "x": 193,
+        "y": 270,
+        "size": 44
+      },
+      "score": {
+        "visible": true,
+        "x": 2,
+        "y": 258,
+        "size": 14
+      },
+      "wave": {
+        "visible": true,
+        "x": 2,
+        "y": 198,
+        "size": 14
+      },
+      "powerUps": {
+        "visible": true,
+        "x": 2,
+        "y": 227,
+        "size": 8
+      },
+      "shield": {
+        "offsetX": -1,
+        "offsetY": 12,
+        "radius": 16
+      },
       "enemy": {
         "speed": 18,
         "fireRate": 0.003,
         "projectileSpeed": 60,
+        "projectileSize": 25,
         "columns": 5,
         "rows": 3,
         "startY": 30,
-        "paddingX": 6,
-        "paddingY": 8,
-        "dropDistance": 6
+        "offsetX": 0,
+        "paddingX": 0,
+        "paddingY": 0,
+        "dropDistance": 6,
+        "width": 40,
+        "height": 40
+      },
+      "bossHealthBar": {
+        "visible": true,
+        "x": 2,
+        "y": 248,
+        "size": 6
+      },
+      "boss": {
+        "x": 94,
+        "y": 23
       }
     }
   },
