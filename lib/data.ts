@@ -169,6 +169,12 @@ export interface GameFireButtonSettings extends GameUIElement {
   size: number;
 }
 
+export interface GameShieldSettings {
+  offsetX: number;
+  offsetY: number;
+  radius: number;
+}
+
 export interface GamePlatformSettings {
   player: { x: number; y: number };
   hearts: GameHeartsSettings;
@@ -178,6 +184,7 @@ export interface GamePlatformSettings {
   score: GameUIElement;
   wave: GameUIElement;
   powerUps: GameUIElement;
+  shield: GameShieldSettings;
   enemy: GameEnemySettings;
 }
 
@@ -186,6 +193,7 @@ export interface SecretGameSettings {
   title: string;
   instructions: string;
   playerSprite: PlayerSprite;
+  powerUpSpawnChance: number;
   desktop: GamePlatformSettings;
   mobile: GamePlatformSettings;
 }

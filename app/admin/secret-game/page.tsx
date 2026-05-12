@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Save, Gamepad2, RotateCcw, Play, Smartphone, Monitor, Trophy } from "lucide-react";
 import { GameEditorPreview } from "@/components/secret-game/game-editor-preview";
-import { updateSecretGameSettings, resetLeaderboard } from "@/lib/actions";
+import { updateSecretGameSettings, resetLeaderboard, getLeaderboard, deleteScore, updateScore } from "@/lib/actions";
 import { useRouter } from "next/navigation";
 import type { SecretGameSettings, GamePlatformSettings } from "@/lib/data";
 
@@ -16,6 +16,7 @@ const DEFAULT_PLATFORM: GamePlatformSettings = {
   score: { visible: true, x: 8, y: 8, size: 14 },
   wave: { visible: true, x: 120, y: 8, size: 14 },
   powerUps: { visible: true, x: 120, y: 28, size: 8 },
+  shield: { offsetX: 0, offsetY: 0, radius: 16 },
   enemy: {
     speed: 18,
     fireRate: 0.003,
@@ -37,6 +38,9 @@ export default function SecretGameAdminPage() {
   const [highScore, setHighScore] = useState(0);
   const [platform, setPlatform] = useState<"desktop" | "mobile">("desktop");
   const [resettingBoard, setResettingBoard] = useState(false);
+  const [leaderboard, setLeaderboard] = useState<{ id: string; name: string; score: number; wave: number; created_at: string }[]>([]);
+  const [leaderboardLoading, setLeaderboardLoading] = useState(true);
+  const [editingScore, setEditingScore] = useState<{ id: string; name: string; score: number; wave: number } | null>(null);
 
   useEffect(() => {
     fetch("/api/admin/data")
@@ -49,6 +53,7 @@ export default function SecretGameAdminPage() {
           title: sg.title ?? "HERO INVADERS",
           instructions: sg.instructions ?? "Defend the stage from the invasion!",
           playerSprite: sg.playerSprite ?? { offsetX: -2, offsetY: -12, width: 14, height: 42 },
+          powerUpSpawnChance: sg.powerUpSpawnChance ?? 0.12,
           desktop: { ...DEFAULT_PLATFORM, ...sg.desktop },
           mobile: { ...DEFAULT_PLATFORM, ...sg.mobile },
         };
@@ -61,6 +66,13 @@ export default function SecretGameAdminPage() {
       const hs = localStorage.getItem("abch-guitar-invaders-highscore");
       if (hs) setHighScore(parseInt(hs, 10));
     } catch {}
+
+    getLeaderboard(100)
+      .then((data) => {
+        setLeaderboard(data);
+        setLeaderboardLoading(false);
+      })
+      .catch(() => setLeaderboardLoading(false));
   }, []);
 
   const handleSave = useCallback(async () => {
@@ -83,6 +95,7 @@ export default function SecretGameAdminPage() {
     setResettingBoard(true);
     try {
       await resetLeaderboard();
+      setLeaderboard([]);
       alert("Leaderboard reset successfully.");
     } catch {
       alert("Failed to reset leaderboard.");
@@ -90,6 +103,35 @@ export default function SecretGameAdminPage() {
       setResettingBoard(false);
     }
   }, []);
+
+  const handleDeleteScore = useCallback(async (id: string) => {
+    if (!confirm("Delete this score?")) return;
+    try {
+      await deleteScore(id);
+      setLeaderboard((prev) => prev.filter((s) => s.id !== id));
+    } catch {
+      alert("Failed to delete score.");
+    }
+  }, []);
+
+  const handleUpdateScore = useCallback(async () => {
+    if (!editingScore) return;
+    try {
+      await updateScore(editingScore.id, editingScore.name, editingScore.score, editingScore.wave);
+      setLeaderboard((prev) =>
+        prev
+          .map((s) =>
+            s.id === editingScore.id
+              ? { ...s, name: editingScore.name, score: editingScore.score, wave: editingScore.wave }
+              : s
+          )
+          .sort((a, b) => b.score - a.score)
+      );
+      setEditingScore(null);
+    } catch {
+      alert("Failed to update score.");
+    }
+  }, [editingScore]);
 
   const updateField = useCallback((path: string, value: any) => {
     setSettings((prev) => {
@@ -209,7 +251,7 @@ export default function SecretGameAdminPage() {
               <NumberField label="Projectile Speed" value={plat.enemy.projectileSpeed} onChange={(v) => updateField(`${platform}.enemy.projectileSpeed`, v)} min={0} max={300} step={1} />
               <NumberField label="Columns" value={plat.enemy.columns} onChange={(v) => updateField(`${platform}.enemy.columns`, v)} min={1} max={12} step={1} />
               <NumberField label="Rows" value={plat.enemy.rows} onChange={(v) => updateField(`${platform}.enemy.rows`, v)} min={1} max={8} step={1} />
-              <NumberField label="Start Y" value={plat.enemy.startY} onChange={(v) => updateField(`${platform}.enemy.startY`, v)} min={0} max={300} step={1} />
+              <NumberField label="Start Y" value={plat.enemy.startY} onChange={(v) => updateField(`${platform}.enemy.startY`, v)} min={3} max={300} step={1} />
               <NumberField label="Padding X" value={plat.enemy.paddingX} onChange={(v) => updateField(`${platform}.enemy.paddingX`, v)} min={0} max={50} step={1} />
               <NumberField label="Padding Y" value={plat.enemy.paddingY} onChange={(v) => updateField(`${platform}.enemy.paddingY`, v)} min={0} max={50} step={1} />
 
@@ -310,6 +352,30 @@ export default function SecretGameAdminPage() {
             </div>
           </Section>
 
+          {/* Shield */}
+          <Section title="Shield Bubble">
+            <div className="grid grid-cols-3 gap-4">
+              <NumberField label="Offset X" value={plat.shield.offsetX} onChange={(v) => updateField(`${platform}.shield.offsetX`, v)} step={1} />
+              <NumberField label="Offset Y" value={plat.shield.offsetY} onChange={(v) => updateField(`${platform}.shield.offsetY`, v)} step={1} />
+              <NumberField label="Radius" value={plat.shield.radius} onChange={(v) => updateField(`${platform}.shield.radius`, v)} min={1} max={100} step={1} />
+            </div>
+          </Section>
+
+          {/* Power-up Spawn Rate */}
+          <Section title="Power-Up Drop Rate">
+            <div className="grid grid-cols-1 gap-4">
+              <NumberField
+                label="Spawn Chance (0–1)"
+                value={settings.powerUpSpawnChance}
+                onChange={(v) => updateField("powerUpSpawnChance", v)}
+                min={0}
+                max={1}
+                step={0.01}
+              />
+              <p className="text-xs text-neutral-500">Chance to drop a power-up when an enemy is killed. 0.12 = 12%.</p>
+            </div>
+          </Section>
+
           {/* Game Copy */}
           <Section title="Game Copy">
             <div className="space-y-4">
@@ -351,10 +417,10 @@ export default function SecretGameAdminPage() {
               <div className="flex items-center justify-between border-t border-[#1e1e1e] pt-4">
                 <div>
                   <p className="text-sm text-neutral-300">
-                    Global leaderboard (Supabase Postgres)
+                    Global leaderboard
                   </p>
                   <p className="text-xs text-neutral-500 mt-1">
-                    Deletes all submitted scores from the database.
+                    Delete all submitted scores or edit individual entries below.
                   </p>
                 </div>
                 <button
@@ -365,6 +431,75 @@ export default function SecretGameAdminPage() {
                   <Trophy className="w-4 h-4" />
                   {resettingBoard ? "Resetting..." : "Reset Scoreboard"}
                 </button>
+              </div>
+
+              {/* Leaderboard table */}
+              <div className="mt-2">
+                {leaderboardLoading ? (
+                  <p className="text-xs text-neutral-500">Loading scores...</p>
+                ) : leaderboard.length === 0 ? (
+                  <p className="text-xs text-neutral-500">No scores yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {leaderboard.map((entry) => (
+                      <div key={entry.id} className="flex items-center gap-2 text-sm">
+                        {editingScore?.id === entry.id ? (
+                          <>
+                            <input
+                              type="text"
+                              value={editingScore.name}
+                              onChange={(e) => setEditingScore({ ...editingScore, name: e.target.value })}
+                              className="w-24 rounded border border-[#1e1e1e] bg-[#0a0a0a] px-2 py-1 text-white text-xs"
+                              maxLength={20}
+                            />
+                            <input
+                              type="number"
+                              value={editingScore.score}
+                              onChange={(e) => setEditingScore({ ...editingScore, score: parseInt(e.target.value) || 0 })}
+                              className="w-20 rounded border border-[#1e1e1e] bg-[#0a0a0a] px-2 py-1 text-white text-xs"
+                            />
+                            <input
+                              type="number"
+                              value={editingScore.wave}
+                              onChange={(e) => setEditingScore({ ...editingScore, wave: parseInt(e.target.value) || 1 })}
+                              className="w-14 rounded border border-[#1e1e1e] bg-[#0a0a0a] px-2 py-1 text-white text-xs"
+                            />
+                            <button
+                              onClick={handleUpdateScore}
+                              className="px-2 py-1 rounded bg-[#00f0ff] text-black text-xs font-bold"
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={() => setEditingScore(null)}
+                              className="px-2 py-1 rounded bg-[#1e1e1e] text-neutral-300 text-xs"
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-[#fcee0a] font-mono w-24 truncate">{entry.name}</span>
+                            <span className="text-white font-mono w-20">{entry.score.toLocaleString()}</span>
+                            <span className="text-neutral-400 text-xs w-14">W{entry.wave}</span>
+                            <button
+                              onClick={() => setEditingScore({ id: entry.id, name: entry.name, score: entry.score, wave: entry.wave })}
+                              className="ml-auto px-2 py-1 rounded bg-[#1e1e1e] text-neutral-300 text-xs hover:bg-[#2a2a2a]"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteScore(entry.id)}
+                              className="px-2 py-1 rounded bg-red-500/10 text-red-400 text-xs hover:bg-red-500/20"
+                            >
+                              Delete
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </Section>

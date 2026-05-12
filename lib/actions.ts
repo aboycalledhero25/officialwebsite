@@ -535,6 +535,7 @@ export async function updatePageVisibility(visibility: any) {
 const LEADERBOARD_PATH = "leaderboard.json";
 
 interface LeaderboardEntry {
+  id: string;
   name: string;
   score: number;
   wave: number;
@@ -558,7 +559,13 @@ async function readLeaderboard(): Promise<LeaderboardEntry[]> {
   const text = await data.text();
   try {
     const parsed = JSON.parse(text);
-    if (Array.isArray(parsed)) return parsed;
+    if (Array.isArray(parsed)) {
+      // Ensure every entry has an id
+      return parsed.map((entry: any, index: number) => ({
+        id: entry.id || `${Date.now()}-${index}`,
+        ...entry,
+      }));
+    }
     return [];
   } catch {
     return [];
@@ -597,6 +604,7 @@ export async function submitScore(name: string, score: number, wave: number) {
 
   const entries = await readLeaderboard();
   entries.push({
+    id: crypto.randomUUID(),
     name: parsed.data.name,
     score: parsed.data.score,
     wave: parsed.data.wave,
@@ -608,6 +616,41 @@ export async function submitScore(name: string, score: number, wave: number) {
   const trimmed = entries.slice(0, 100);
 
   await writeLeaderboard(trimmed);
+  return { success: true };
+}
+
+export async function deleteScore(id: string) {
+  await requireAuth();
+
+  const entries = await readLeaderboard();
+  const filtered = entries.filter((e) => e.id !== id);
+  await writeLeaderboard(filtered);
+  return { success: true };
+}
+
+export async function updateScore(id: string, name: string, score: number, wave: number) {
+  await requireAuth();
+
+  const parsed = LeaderboardEntrySchema.safeParse({ name, score, wave });
+  if (!parsed.success) {
+    throw new Error("Invalid score data");
+  }
+
+  const entries = await readLeaderboard();
+  const idx = entries.findIndex((e) => e.id === id);
+  if (idx === -1) {
+    throw new Error("Score not found");
+  }
+
+  entries[idx] = {
+    ...entries[idx],
+    name: parsed.data.name,
+    score: parsed.data.score,
+    wave: parsed.data.wave,
+  };
+
+  entries.sort((a, b) => b.score - a.score);
+  await writeLeaderboard(entries);
   return { success: true };
 }
 

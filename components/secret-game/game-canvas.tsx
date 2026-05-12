@@ -30,7 +30,6 @@ const PLAYER_H_BASE = 20;
 const MAX_LIVES = 3;
 
 /* ── Power-up constants ── */
-const POWERUP_SPAWN_CHANCE = 0.12;
 const POWERUP_DRIFT_SPEED = 20;
 const POWERUP_SIZE = 8;
 const POWERUP_RAPID_DURATION = 5;
@@ -191,12 +190,13 @@ export function GameCanvas({
     const rows = cfg.rows + Math.floor((w - 1) / 3);
     const totalW = cols * colUnit - cfg.paddingX;
     const startX = Math.max(edgeMargin, (logW - totalW) / 2);
+    const startY = Math.max(3, cfg.startY); // ensure enemy hair is visible
 
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         s.enemies.push({
           x: startX + c * (ENEMY_W_BASE + cfg.paddingX),
-          y: cfg.startY + r * (ENEMY_H_BASE + cfg.paddingY),
+          y: startY + r * (ENEMY_H_BASE + cfg.paddingY),
           variant: ((r + c) % 3) as 0 | 1 | 2,
           alive: true,
           cooldown: Math.random() * 2, // staggered firing times
@@ -535,7 +535,8 @@ export function GameCanvas({
             play("enemyHit");
 
             // Chance to spawn power-up
-            if (Math.random() < POWERUP_SPAWN_CHANCE) {
+            const spawnChance = siteData.secretGame?.powerUpSpawnChance ?? 0.12;
+            if (Math.random() < spawnChance) {
               const types: PowerUpType[] = ["rapid", "shield", "wideshot", "extralife"];
               const type = types[Math.floor(Math.random() * types.length)];
               s.powerups.push({
@@ -705,13 +706,14 @@ export function GameCanvas({
 
     // Draw shield bubble if active
     if (s.activePowerUps.some((p) => p.type === "shield")) {
+      const shieldCfg = settingsRef.current.shield;
       ctx.strokeStyle = `rgba(0, 240, 255, ${0.4 + Math.sin(s.frame * 0.3) * 0.2})`;
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(
-        s.playerX + PLAYER_W_BASE / 2,
-        s.playerY + PLAYER_H_BASE / 2,
-        16,
+        s.playerX + PLAYER_W_BASE / 2 + (shieldCfg?.offsetX ?? 0),
+        s.playerY + PLAYER_H_BASE / 2 + (shieldCfg?.offsetY ?? 0),
+        shieldCfg?.radius ?? 16,
         0,
         Math.PI * 2
       );
