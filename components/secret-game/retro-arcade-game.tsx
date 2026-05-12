@@ -44,7 +44,7 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
       if (hs) setHighScore(parseInt(hs, 10));
     } catch {}
 
-    getLeaderboard(10)
+    getLeaderboard(5)
       .then((data) => {
         setLeaderboard(data);
         setLeaderboardLoading(false);
@@ -60,7 +60,7 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
         if (hs) setHighScore(parseInt(hs, 10));
       } catch {}
       // Also refresh leaderboard
-      getLeaderboard(10)
+      getLeaderboard(5)
         .then((data) => setLeaderboard(data))
         .catch(() => {});
     }

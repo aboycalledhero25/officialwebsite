@@ -99,12 +99,13 @@ export function GameHUD({ score, lives, wave, muted, activePowerUps, onPause, on
   const waveSizePx = scaleSize(wavePos.size ?? 14);
   const powerUpsSizePx = scaleSize(powerUpsPos.size ?? 8);
 
+  const settingsDurations = siteData.secretGame?.powerUpDurations;
   const powerUpDurations: Record<ActivePowerUp["type"], number> = {
-    rapid: 5,
+    rapid: settingsDurations?.rapid ?? 5,
     shield: 0,
-    wideshot: 4,
+    wideshot: settingsDurations?.wideShot ?? 4,
     extralife: 0,
-    invincible: 4,
+    invincible: settingsDurations?.invincible ?? 4,
   };
 
   return (

@@ -31,9 +31,6 @@ const MAX_LIVES = 3;
 
 /* ── Power-up constants ── */
 const POWERUP_DRIFT_SPEED = 20;
-const POWERUP_RAPID_DURATION = 5;
-const POWERUP_WIDESHOT_DURATION = 4;
-const POWERUP_INVINCIBLE_DURATION = 4;
 
 type PowerUpType = "rapid" | "shield" | "wideshot" | "extralife" | "invincible";
 
@@ -476,10 +473,11 @@ export function GameCanvas({
             onLivesChange(s.lives);
             play("levelComplete"); // reuse cheerful sound
           } else {
+            const durations = siteData.secretGame?.powerUpDurations;
             const duration =
-              pu.type === "rapid" ? POWERUP_RAPID_DURATION :
-              pu.type === "invincible" ? POWERUP_INVINCIBLE_DURATION :
-              POWERUP_WIDESHOT_DURATION;
+              pu.type === "rapid" ? (durations?.rapid ?? 5) :
+              pu.type === "invincible" ? (durations?.invincible ?? 4) :
+              (durations?.wideShot ?? 4);
             const existing = s.activePowerUps.find((p) => p.type === pu.type);
             if (existing) {
               existing.timer = duration;

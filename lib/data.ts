@@ -195,6 +195,11 @@ export interface SecretGameSettings {
   playerSprite: PlayerSprite;
   powerUpSpawnChance: number;
   powerUpSize: number;
+  powerUpDurations: {
+    rapid: number;
+    wideShot: number;
+    invincible: number;
+  };
   desktop: GamePlatformSettings;
   mobile: GamePlatformSettings;
 }

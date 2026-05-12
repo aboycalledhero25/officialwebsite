@@ -55,6 +55,7 @@ export default function SecretGameAdminPage() {
           playerSprite: sg.playerSprite ?? { offsetX: -2, offsetY: -12, width: 14, height: 42 },
           powerUpSpawnChance: sg.powerUpSpawnChance ?? 0.12,
           powerUpSize: sg.powerUpSize ?? 8,
+          powerUpDurations: sg.powerUpDurations ?? { rapid: 5, wideShot: 4, invincible: 4 },
           desktop: { ...DEFAULT_PLATFORM, ...sg.desktop },
           mobile: { ...DEFAULT_PLATFORM, ...sg.mobile },
         };
@@ -381,6 +382,32 @@ export default function SecretGameAdminPage() {
                 max={32}
                 step={1}
               />
+              <div className="grid grid-cols-3 gap-4">
+                <NumberField
+                  label="Rapid Fire (sec)"
+                  value={settings.powerUpDurations.rapid}
+                  onChange={(v) => updateField("powerUpDurations.rapid", v)}
+                  min={1}
+                  max={60}
+                  step={1}
+                />
+                <NumberField
+                  label="Wide Shot (sec)"
+                  value={settings.powerUpDurations.wideShot}
+                  onChange={(v) => updateField("powerUpDurations.wideShot", v)}
+                  min={1}
+                  max={60}
+                  step={1}
+                />
+                <NumberField
+                  label="Invincible (sec)"
+                  value={settings.powerUpDurations.invincible}
+                  onChange={(v) => updateField("powerUpDurations.invincible", v)}
+                  min={1}
+                  max={60}
+                  step={1}
+                />
+              </div>
               <p className="text-xs text-neutral-500">Chance to drop a power-up when an enemy is killed. 0.12 = 12%.</p>
             </div>
           </Section>

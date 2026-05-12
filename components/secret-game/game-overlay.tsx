@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { submitScore } from "@/lib/actions";
+import { submitScore, getLeaderboard } from "@/lib/actions";
 
 export type OverlayPhase = "menu" | "playing" | "paused" | "gameover" | "levelcomplete";
 
@@ -45,6 +45,7 @@ export function GameOverlay({
   const [playerName, setPlayerName] = useState("");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [savedName, setSavedName] = useState("");
+  const [isTopScore, setIsTopScore] = useState(false);
 
   useEffect(() => {
     setIsMobile(window.innerWidth < 768 || "ontouchstart" in window);
@@ -56,6 +57,7 @@ export function GameOverlay({
       setSaveStatus("idle");
       setPlayerName("");
       setSavedName("");
+      setIsTopScore(false);
     }
   }, [phase]);
 
@@ -67,6 +69,11 @@ export function GameOverlay({
       await submitScore(name, score, wave);
       setSaveStatus("saved");
       setSavedName(name);
+      // Check if this is the new #1 score
+      const fresh = await getLeaderboard(5);
+      if (fresh.length > 0 && fresh[0].name.toLowerCase() === name.toLowerCase() && fresh[0].score === score) {
+        setIsTopScore(true);
+      }
     } catch {
       setSaveStatus("error");
     }
@@ -197,6 +204,24 @@ export function GameOverlay({
                 <span className="text-[#ff006e] font-bold text-sm animate-pulse">
                   New High Score!
                 </span>
+              )}
+              {isTopScore && (
+                <div className="flex flex-col items-center gap-1 animate-in zoom-in duration-300">
+                  <span className="text-[#ffd700] font-black text-lg tracking-wider drop-shadow-[0_0_10px_rgba(255,215,0,0.8)] animate-bounce">
+                    🏆 #1 ON THE LEADERBOARD!
+                  </span>
+                  <div className="flex gap-1">
+                    {[...Array(5)].map((_, i) => (
+                      <span
+                        key={i}
+                        className="text-xs animate-pulse"
+                        style={{ animationDelay: `${i * 0.15}s` }}
+                      >
+                        ✨
+                      </span>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
             {/* Name input */}

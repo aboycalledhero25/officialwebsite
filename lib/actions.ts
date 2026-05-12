@@ -603,13 +603,29 @@ export async function submitScore(name: string, score: number, wave: number) {
   }
 
   const entries = await readLeaderboard();
-  entries.push({
-    id: crypto.randomUUID(),
-    name: parsed.data.name,
-    score: parsed.data.score,
-    wave: parsed.data.wave,
-    created_at: new Date().toISOString(),
-  });
+  const existingIdx = entries.findIndex((e) => e.name.toLowerCase() === parsed.data.name.toLowerCase());
+
+  if (existingIdx >= 0) {
+    // Player already has a score — only replace if new score is higher
+    if (parsed.data.score > entries[existingIdx].score) {
+      entries[existingIdx] = {
+        ...entries[existingIdx],
+        score: parsed.data.score,
+        wave: parsed.data.wave,
+        created_at: new Date().toISOString(),
+      };
+    }
+    // If not higher, keep existing score (do nothing)
+  } else {
+    // New player
+    entries.push({
+      id: crypto.randomUUID(),
+      name: parsed.data.name,
+      score: parsed.data.score,
+      wave: parsed.data.wave,
+      created_at: new Date().toISOString(),
+    });
+  }
 
   // Sort by score descending and keep top 100
   entries.sort((a, b) => b.score - a.score);
