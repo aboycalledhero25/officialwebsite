@@ -565,12 +565,13 @@ export function GameCanvas({
       const powerUpSize = siteData.secretGame?.powerUpSize ?? 8;
       for (let i = s.powerups.length - 1; i >= 0; i--) {
         const pu = s.powerups[i];
-        // AABB collision with player
+        // AABB collision with player — generous 4px padding for better feel
+        const pad = 4;
         if (
-          pu.x < s.playerX + PLAYER_W_BASE &&
-          pu.x + powerUpSize > s.playerX &&
-          pu.y < s.playerY + PLAYER_H_BASE &&
-          pu.y + powerUpSize > s.playerY
+          pu.x - pad < s.playerX + PLAYER_W_BASE &&
+          pu.x + powerUpSize + pad > s.playerX &&
+          pu.y - pad < s.playerY + PLAYER_H_BASE &&
+          pu.y + powerUpSize + pad > s.playerY
         ) {
           // Apply power-up
           if (pu.type === "extralife") {
@@ -678,8 +679,8 @@ export function GameCanvas({
         }
       }
 
-      // ── Collision: player bullets vs enemy bullets ──
-      const ENEMY_BULLET_HITBOX = 6;
+      // ── Collision: player bullets vs enemy / boss bullets ──
+      const ENEMY_BULLET_HITBOX = 10;
       for (let bi = s.bullets.length - 1; bi >= 0; bi--) {
         const pb = s.bullets[bi];
         if (!pb.isPlayer) continue;
@@ -699,6 +700,19 @@ export function GameCanvas({
             spawnParticles(eb.x, eb.y, "#ffffff", 3);
             spawnParticles(eb.x, eb.y, "#00f0ff", 2);
             play("enemyHit");
+
+            // Chance to drop power-up when destroying ANY enemy projectile
+            const spawnChance = siteData.secretGame?.powerUpSpawnChance ?? 0.12;
+            if (Math.random() < spawnChance) {
+              const types: PowerUpType[] = ["rapid", "shield", "wideshot", "extralife", "invincible"];
+              const type = types[Math.floor(Math.random() * types.length)];
+              const pSize = siteData.secretGame?.powerUpSize ?? 8;
+              s.powerups.push({
+                x: eb.x - pSize / 2,
+                y: eb.y,
+                type,
+              });
+            }
             break;
           }
         }
