@@ -154,6 +154,7 @@ export function GameCanvas({
       fireCooldown: number;
       hitFlash: number;
       dir: number;
+      bossNumber: number;
     } | null,
   });
 
@@ -223,6 +224,7 @@ export function GameCanvas({
         fireCooldown: 1,
         hitFlash: 0,
         dir: 1,
+        bossNumber,
       };
     } else {
       const maxW = logW - edgeMargin * 2;
@@ -701,17 +703,19 @@ export function GameCanvas({
             spawnParticles(eb.x, eb.y, "#00f0ff", 2);
             play("enemyHit");
 
-            // Chance to drop power-up when destroying ANY enemy projectile
-            const spawnChance = siteData.secretGame?.powerUpSpawnChance ?? 0.12;
-            if (Math.random() < spawnChance) {
-              const types: PowerUpType[] = ["rapid", "shield", "wideshot", "extralife", "invincible"];
-              const type = types[Math.floor(Math.random() * types.length)];
-              const pSize = siteData.secretGame?.powerUpSize ?? 8;
-              s.powerups.push({
-                x: eb.x - pSize / 2,
-                y: eb.y,
-                type,
-              });
+            // Only BOSS projectiles drop power-ups when destroyed
+            if (eb.isBoss) {
+              const spawnChance = siteData.secretGame?.powerUpSpawnChance ?? 0.12;
+              if (Math.random() < spawnChance) {
+                const types: PowerUpType[] = ["rapid", "shield", "wideshot", "extralife", "invincible"];
+                const type = types[Math.floor(Math.random() * types.length)];
+                const pSize = siteData.secretGame?.powerUpSize ?? 8;
+                s.powerups.push({
+                  x: eb.x - pSize / 2,
+                  y: eb.y,
+                  type,
+                });
+              }
             }
             break;
           }
@@ -979,7 +983,7 @@ export function GameCanvas({
       const bossCfg = siteData.secretGame?.boss;
       const bw = bossCfg?.width ?? 40;
       const bh = bossCfg?.height ?? 30;
-      drawBoss(ctx, s.boss.x, s.boss.y, bw, bh, s.frame, s.boss.hitFlash);
+      drawBoss(ctx, s.boss.x, s.boss.y, bw, bh, s.frame, s.boss.hitFlash, s.boss.bossNumber);
       // Boss health bar — fixed HUD position from editor, always red
       const bhb = settingsRef.current.bossHealthBar;
       if (bhb?.visible) {

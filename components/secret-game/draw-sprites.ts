@@ -744,10 +744,12 @@ export function drawBoss(
   w: number,
   h: number,
   frame: number,
-  hitFlash: number
+  hitFlash: number,
+  bossNumber = 1
 ) {
   const refW = 40;
   const refH = 30;
+  const variant = (bossNumber - 1) % 3;
 
   ctx.save();
   ctx.translate(x, y);
@@ -757,54 +759,180 @@ export function drawBoss(
     ctx.globalAlpha = 0.6 + Math.sin(frame * 0.8) * 0.4;
   }
 
-  // Main body (dark purple)
-  ctx.fillStyle = "#4a004a";
-  ctx.fillRect(8, 6, 24, 20);
+  if (variant === 0) {
+    /* ═══════════════════════════════════════
+       ═══ BOSS 1: THE WATCHER ═══
+       Dark purple mech, single giant eye,
+       shoulder spikes, side cannons, thrusters
+       ═══════════════════════════════════════ */
+    // Main body
+    ctx.fillStyle = "#4a004a";
+    ctx.fillRect(8, 6, 24, 20);
+    // Armour plates
+    ctx.fillStyle = "#6a006a";
+    ctx.fillRect(6, 4, 28, 4);
+    ctx.fillRect(6, 24, 28, 4);
+    ctx.fillRect(4, 8, 4, 16);
+    ctx.fillRect(32, 8, 4, 16);
+    // Shoulder spikes
+    ctx.fillStyle = "#ff006e";
+    ctx.fillRect(2, 6, 4, 4);
+    ctx.fillRect(0, 8, 2, 4);
+    ctx.fillRect(34, 6, 4, 4);
+    ctx.fillRect(38, 8, 2, 4);
+    // Giant single eye
+    const eyeColor = frame % 10 < 5 ? "#ff006e" : "#ff88bb";
+    ctx.fillStyle = eyeColor;
+    ctx.fillRect(16, 12, 8, 4);
+    ctx.fillRect(18, 10, 4, 2);
+    ctx.fillRect(18, 16, 4, 2);
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(19, 13, 2, 2);
+    // Vent mouth
+    ctx.fillStyle = "#220022";
+    ctx.fillRect(14, 20, 12, 2);
+    ctx.fillRect(16, 22, 8, 2);
+    // Side cannons
+    ctx.fillStyle = "#888888";
+    ctx.fillRect(2, 18, 6, 4);
+    ctx.fillRect(32, 18, 6, 4);
+    ctx.fillStyle = "#aaaaaa";
+    ctx.fillRect(0, 19, 2, 2);
+    ctx.fillRect(38, 19, 2, 2);
+    // Thrusters
+    ctx.fillStyle = frame % 6 < 3 ? "#ff8800" : "#ff4400";
+    ctx.fillRect(10, 28, 4, 2);
+    ctx.fillRect(26, 28, 4, 2);
 
-  // Body outline / armour plates
-  ctx.fillStyle = "#6a006a";
-  ctx.fillRect(6, 4, 28, 4);
-  ctx.fillRect(6, 24, 28, 4);
-  ctx.fillRect(4, 8, 4, 16);
-  ctx.fillRect(32, 8, 4, 16);
+  } else if (variant === 1) {
+    /* ═══════════════════════════════════════
+       ═══ BOSS 2: THE BRUTE ═══
+       Red horned demon, two glowing eyes,
+       sharp teeth, clawed hands, spiked shoulders
+       ═══════════════════════════════════════ */
+    // Horns (curved back)
+    ctx.fillStyle = "#ccaa00";
+    ctx.fillRect(8, 0, 3, 5);
+    ctx.fillRect(6, 2, 3, 3);
+    ctx.fillRect(29, 0, 3, 5);
+    ctx.fillRect(31, 2, 3, 3);
+    ctx.fillStyle = "#ffdd33";
+    ctx.fillRect(8, 0, 2, 3);
+    ctx.fillRect(30, 0, 2, 3);
+    // Main body (dark red)
+    ctx.fillStyle = "#5a0000";
+    ctx.fillRect(8, 6, 24, 20);
+    // Muscle definition
+    ctx.fillStyle = "#7a1010";
+    ctx.fillRect(10, 8, 8, 6);
+    ctx.fillRect(22, 8, 8, 6);
+    ctx.fillRect(12, 16, 16, 4);
+    // Spiked shoulder pads
+    ctx.fillStyle = "#888888";
+    ctx.fillRect(2, 6, 5, 5);
+    ctx.fillRect(33, 6, 5, 5);
+    ctx.fillStyle = "#aaaaaa";
+    ctx.fillRect(2, 6, 2, 3);
+    ctx.fillRect(36, 6, 2, 3);
+    // Two glowing red eyes
+    const eyeGlow = frame % 10 < 5 ? "#ff0000" : "#ff6666";
+    ctx.fillStyle = eyeGlow;
+    ctx.fillRect(13, 11, 5, 3);
+    ctx.fillRect(22, 11, 5, 3);
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(14, 12, 3, 2);
+    ctx.fillRect(23, 12, 3, 2);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(15, 12, 1, 1);
+    ctx.fillRect(24, 12, 1, 1);
+    // Sharp teeth mouth
+    ctx.fillStyle = "#ffcc00";
+    ctx.fillRect(14, 18, 12, 3);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(14, 18, 2, 2);
+    ctx.fillRect(17, 19, 2, 2);
+    ctx.fillRect(20, 18, 2, 2);
+    ctx.fillRect(23, 19, 2, 2);
+    // Clawed hands
+    ctx.fillStyle = "#7a1010";
+    ctx.fillRect(0, 14, 5, 6);
+    ctx.fillRect(35, 14, 5, 6);
+    ctx.fillStyle = "#ffcc00";
+    ctx.fillRect(0, 16, 2, 3);
+    ctx.fillRect(38, 16, 2, 3);
+    // Feet / hooves
+    ctx.fillStyle = "#3a0000";
+    ctx.fillRect(10, 26, 6, 4);
+    ctx.fillRect(24, 26, 6, 4);
+    ctx.fillStyle = "#ffcc00";
+    ctx.fillRect(10, 28, 6, 1);
+    ctx.fillRect(24, 28, 6, 1);
 
-  // Shoulder spikes
-  ctx.fillStyle = "#ff006e";
-  ctx.fillRect(2, 6, 4, 4);
-  ctx.fillRect(0, 8, 2, 4);
-  ctx.fillRect(34, 6, 4, 4);
-  ctx.fillRect(38, 8, 2, 4);
-
-  // Eye (glowing, pulsating)
-  const eyeColor = frame % 10 < 5 ? "#ff006e" : "#ff88bb";
-  ctx.fillStyle = eyeColor;
-  ctx.fillRect(16, 12, 8, 4);
-  ctx.fillRect(18, 10, 4, 2);
-  ctx.fillRect(18, 16, 4, 2);
-
-  // Eye pupil
-  ctx.fillStyle = "#000000";
-  ctx.fillRect(19, 13, 2, 2);
-
-  // Mouth / vent
-  ctx.fillStyle = "#220022";
-  ctx.fillRect(14, 20, 12, 2);
-  ctx.fillRect(16, 22, 8, 2);
-
-  // Side cannons
-  ctx.fillStyle = "#888888";
-  ctx.fillRect(2, 18, 6, 4);
-  ctx.fillRect(32, 18, 6, 4);
-
-  // Cannon barrels
-  ctx.fillStyle = "#aaaaaa";
-  ctx.fillRect(0, 19, 2, 2);
-  ctx.fillRect(38, 19, 2, 2);
-
-  // Bottom thrusters
-  ctx.fillStyle = frame % 6 < 3 ? "#ff8800" : "#ff4400";
-  ctx.fillRect(10, 28, 4, 2);
-  ctx.fillRect(26, 28, 4, 2);
+  } else {
+    /* ═══════════════════════════════════════
+       ═══ BOSS 3: THE SENTRY ═══
+       Cyan cyber skull, hollow eyes, reactor core,
+       antenna, mechanical arms, hover jets
+       ═══════════════════════════════════════ */
+    // Antennae
+    ctx.fillStyle = "#00aaaa";
+    ctx.fillRect(10, 0, 2, 5);
+    ctx.fillRect(28, 0, 2, 5);
+    ctx.fillStyle = "#00ffcc";
+    ctx.fillRect(10, 0, 1, 3);
+    ctx.fillRect(28, 0, 1, 3);
+    // Main body (dark cyan)
+    ctx.fillStyle = "#003a3a";
+    ctx.fillRect(8, 6, 24, 20);
+    // Metal plates
+    ctx.fillStyle = "#005a5a";
+    ctx.fillRect(6, 4, 28, 3);
+    ctx.fillRect(6, 25, 28, 3);
+    ctx.fillRect(4, 7, 4, 18);
+    ctx.fillRect(32, 7, 4, 18);
+    // Skull face plate
+    ctx.fillStyle = "#004444";
+    ctx.fillRect(12, 8, 16, 10);
+    // Hollow eyes (glowing cyan)
+    const eyePulse = frame % 10 < 5 ? "#00ffcc" : "#00aaaa";
+    ctx.fillStyle = eyePulse;
+    ctx.fillRect(14, 11, 4, 3);
+    ctx.fillRect(22, 11, 4, 3);
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(15, 12, 2, 2);
+    ctx.fillRect(23, 12, 2, 2);
+    // Nose socket
+    ctx.fillStyle = "#002222";
+    ctx.fillRect(18, 15, 4, 2);
+    // Grinning teeth
+    ctx.fillStyle = "#aaaaaa";
+    ctx.fillRect(14, 18, 2, 2);
+    ctx.fillRect(17, 19, 2, 2);
+    ctx.fillRect(20, 19, 2, 2);
+    ctx.fillRect(23, 18, 2, 2);
+    // Reactor core (chest)
+    const coreColor = frame % 8 < 4 ? "#00ffcc" : "#0088aa";
+    ctx.fillStyle = coreColor;
+    ctx.fillRect(17, 22, 6, 4);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(19, 23, 2, 2);
+    // Mechanical tentacle arms
+    ctx.fillStyle = "#005a5a";
+    ctx.fillRect(0, 10, 4, 10);
+    ctx.fillRect(36, 10, 4, 10);
+    ctx.fillStyle = "#00aaaa";
+    ctx.fillRect(0, 12, 2, 2);
+    ctx.fillRect(0, 16, 2, 2);
+    ctx.fillRect(38, 12, 2, 2);
+    ctx.fillRect(38, 16, 2, 2);
+    // Hover jets (bottom)
+    ctx.fillStyle = frame % 4 < 2 ? "#00ffcc" : "#0088aa";
+    ctx.fillRect(8, 28, 4, 2);
+    ctx.fillRect(28, 28, 4, 2);
+    ctx.fillStyle = "#00ffff";
+    ctx.fillRect(9, 28, 2, 1);
+    ctx.fillRect(29, 28, 2, 1);
+  }
 
   ctx.restore();
 }

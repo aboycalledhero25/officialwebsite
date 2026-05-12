@@ -139,7 +139,7 @@ export function GameEditorPreview({
     if (bossSettings.enabled) {
       const bx = settings.boss.x * (logW / BASE_W);
       const by = settings.boss.y;
-      drawBoss(ctx, bx, by, bossSettings.width, bossSettings.height, 0, 0);
+      drawBoss(ctx, bx, by, bossSettings.width, bossSettings.height, 0, 0, 1);
       // Dashed outline so user knows the hitbox bounds
       ctx.strokeStyle = "#ff006e";
       ctx.lineWidth = 1;
