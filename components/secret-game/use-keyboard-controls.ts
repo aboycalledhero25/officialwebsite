@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 
+import { unlockAudio } from "./use-audio-sfx";
+
 export interface KeyState {
   left: boolean;
   right: boolean;
@@ -50,6 +52,7 @@ export function useKeyboardControls() {
   useEffect(() => {
     const handleDown = (e: KeyboardEvent) => {
       if (isTyping()) return;
+      unlockAudio();
 
       switch (e.key) {
         case "ArrowLeft":

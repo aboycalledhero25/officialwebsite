@@ -551,65 +551,70 @@ export function drawBoss(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
+  w: number,
+  h: number,
   frame: number,
   hitFlash: number
 ) {
-  const w = 40;
-  const h = 30;
+  const refW = 40;
+  const refH = 30;
 
   ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(w / refW, h / refH);
+
   if (hitFlash > 0) {
     ctx.globalAlpha = 0.6 + Math.sin(frame * 0.8) * 0.4;
   }
 
   // Main body (dark purple)
   ctx.fillStyle = "#4a004a";
-  ctx.fillRect(x + 8, y + 6, 24, 20);
+  ctx.fillRect(8, 6, 24, 20);
 
   // Body outline / armour plates
   ctx.fillStyle = "#6a006a";
-  ctx.fillRect(x + 6, y + 4, 28, 4);
-  ctx.fillRect(x + 6, y + 24, 28, 4);
-  ctx.fillRect(x + 4, y + 8, 4, 16);
-  ctx.fillRect(x + 32, y + 8, 4, 16);
+  ctx.fillRect(6, 4, 28, 4);
+  ctx.fillRect(6, 24, 28, 4);
+  ctx.fillRect(4, 8, 4, 16);
+  ctx.fillRect(32, 8, 4, 16);
 
   // Shoulder spikes
   ctx.fillStyle = "#ff006e";
-  ctx.fillRect(x + 2, y + 6, 4, 4);
-  ctx.fillRect(x + 0, y + 8, 2, 4);
-  ctx.fillRect(x + 34, y + 6, 4, 4);
-  ctx.fillRect(x + 38, y + 8, 2, 4);
+  ctx.fillRect(2, 6, 4, 4);
+  ctx.fillRect(0, 8, 2, 4);
+  ctx.fillRect(34, 6, 4, 4);
+  ctx.fillRect(38, 8, 2, 4);
 
   // Eye (glowing, pulsating)
   const eyeColor = frame % 10 < 5 ? "#ff006e" : "#ff88bb";
   ctx.fillStyle = eyeColor;
-  ctx.fillRect(x + 16, y + 12, 8, 4);
-  ctx.fillRect(x + 18, y + 10, 4, 2);
-  ctx.fillRect(x + 18, y + 16, 4, 2);
+  ctx.fillRect(16, 12, 8, 4);
+  ctx.fillRect(18, 10, 4, 2);
+  ctx.fillRect(18, 16, 4, 2);
 
   // Eye pupil
   ctx.fillStyle = "#000000";
-  ctx.fillRect(x + 19, y + 13, 2, 2);
+  ctx.fillRect(19, 13, 2, 2);
 
   // Mouth / vent
   ctx.fillStyle = "#220022";
-  ctx.fillRect(x + 14, y + 20, 12, 2);
-  ctx.fillRect(x + 16, y + 22, 8, 2);
+  ctx.fillRect(14, 20, 12, 2);
+  ctx.fillRect(16, 22, 8, 2);
 
   // Side cannons
   ctx.fillStyle = "#888888";
-  ctx.fillRect(x + 2, y + 18, 6, 4);
-  ctx.fillRect(x + 32, y + 18, 6, 4);
+  ctx.fillRect(2, 18, 6, 4);
+  ctx.fillRect(32, 18, 6, 4);
 
   // Cannon barrels
   ctx.fillStyle = "#aaaaaa";
-  ctx.fillRect(x + 0, y + 19, 2, 2);
-  ctx.fillRect(x + 38, y + 19, 2, 2);
+  ctx.fillRect(0, 19, 2, 2);
+  ctx.fillRect(38, 19, 2, 2);
 
   // Bottom thrusters
   ctx.fillStyle = frame % 6 < 3 ? "#ff8800" : "#ff4400";
-  ctx.fillRect(x + 10, y + 28, 4, 2);
-  ctx.fillRect(x + 26, y + 28, 4, 2);
+  ctx.fillRect(10, 28, 4, 2);
+  ctx.fillRect(26, 28, 4, 2);
 
   ctx.restore();
 }
@@ -651,7 +656,8 @@ export function draw8BitHealthBar(
   height: number,
   current: number,
   max: number,
-  label: string
+  label: string,
+  fillColor?: string
 ) {
   const ratio = Math.max(0, Math.min(1, current / max));
   const fillWidth = Math.max(0, Math.floor(width * ratio));
@@ -664,21 +670,24 @@ export function draw8BitHealthBar(
   ctx.fillStyle = "#000000";
   ctx.fillRect(x, y, width, height);
 
-  // Fill (green → yellow → red based on health)
-  let fillColor = "#00ff00";
-  if (ratio < 0.3) fillColor = "#ff0000";
-  else if (ratio < 0.6) fillColor = "#ffff00";
+  // Fill — use provided color or default gradient (green → yellow → red)
+  let color = fillColor ?? "#00ff00";
+  if (!fillColor) {
+    if (ratio < 0.3) color = "#ff0000";
+    else if (ratio < 0.6) color = "#ffff00";
+  }
 
   if (fillWidth > 0) {
-    ctx.fillStyle = fillColor;
+    ctx.fillStyle = color;
     ctx.fillRect(x, y, fillWidth, height);
   }
 
-  // Label text (simple pixel-style)
+  // Label text (8-bit pixel style — white, crisp monospace)
   ctx.fillStyle = "#ffffff";
   ctx.font = `${Math.max(8, height)}px monospace`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
+  ctx.textRendering = "geometricPrecision";
   ctx.fillText(`${label} ${Math.ceil(current)}/${max}`, x + width / 2, y + height / 2);
 }
 

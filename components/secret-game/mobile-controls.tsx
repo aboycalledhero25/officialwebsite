@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { sharedTouch, sharedAim } from "./use-keyboard-controls";
+import { unlockAudio } from "./use-audio-sfx";
 import { useSiteData } from "@/components/data-provider";
 
 const BASE_W = 240;
@@ -71,6 +72,7 @@ export function MobileControls({}: MobileControlsProps) {
   const handleTouchStart = useCallback(
     (e: React.TouchEvent) => {
       e.preventDefault();
+      unlockAudio(); // mobile browsers require user gesture to start AudioContext
       for (let i = 0; i < e.changedTouches.length; i++) {
         const t = e.changedTouches[i];
         const pos = screenToBase(t.clientX, t.clientY);
@@ -117,6 +119,7 @@ export function MobileControls({}: MobileControlsProps) {
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
+    unlockAudio();
     if (e.button === 0) {
       leftDownRef.current = true;
       sharedAim.firing = true;

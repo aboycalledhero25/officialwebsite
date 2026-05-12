@@ -213,10 +213,11 @@ export function GameCanvas({
     if (isBossWave) {
       const bossNumber = Math.floor(w / (bossCfg?.interval ?? 10));
       const bossHealth = (bossCfg?.baseHealth ?? 500) + (bossNumber - 1) * (bossCfg?.healthIncrease ?? 500);
-      const bx = (bossCfg?.x ?? 100) * (logW / BASE_W);
+      const bossPos = settingsRef.current.boss;
+      const bx = (bossPos?.x ?? 100) * (logW / BASE_W);
       s.boss = {
         x: bx,
-        y: bossCfg?.y ?? 20,
+        y: bossPos?.y ?? 20,
         health: bossHealth,
         maxHealth: bossHealth,
         fireCooldown: 1,
@@ -962,13 +963,15 @@ export function GameCanvas({
     // Draw boss
     if (s.boss) {
       const bossCfg = siteData.secretGame?.boss;
-      drawBoss(ctx, s.boss.x, s.boss.y, s.frame, s.boss.hitFlash);
-      // Boss health bar — use editor settings for accurate positioning
+      const bw = bossCfg?.width ?? 40;
+      const bh = bossCfg?.height ?? 30;
+      drawBoss(ctx, s.boss.x, s.boss.y, bw, bh, s.frame, s.boss.hitFlash);
+      // Boss health bar — fixed HUD position from editor, always red
       const bhb = settingsRef.current.bossHealthBar;
       if (bhb?.visible) {
         const barH = bhb.size ?? 6;
         const barW = barH * 10;
-        draw8BitHealthBar(ctx, bhb.x, bhb.y, barW, barH, s.boss.health, s.boss.maxHealth, "BOSS");
+        draw8BitHealthBar(ctx, bhb.x, bhb.y, barW, barH, s.boss.health, s.boss.maxHealth, "BOSS", "#ff0000");
       }
     }
 

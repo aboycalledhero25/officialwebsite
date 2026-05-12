@@ -4,6 +4,15 @@ import { useRef, useCallback } from "react";
 
 export type SoundName = "shoot" | "enemyHit" | "playerHit" | "gameOver" | "levelComplete";
 
+// Shared AudioContext reference for unlocking from input handlers
+let sharedCtx: AudioContext | null = null;
+
+export function unlockAudio() {
+  if (sharedCtx && sharedCtx.state === "suspended") {
+    sharedCtx.resume();
+  }
+}
+
 export function useAudioSfx() {
   const ctxRef = useRef<AudioContext | null>(null);
   const masterGainRef = useRef<GainNode | null>(null);
@@ -12,6 +21,7 @@ export function useAudioSfx() {
   const ensureCtx = () => {
     if (!ctxRef.current) {
       ctxRef.current = new AudioContext();
+      sharedCtx = ctxRef.current;
       masterGainRef.current = ctxRef.current.createGain();
       masterGainRef.current.connect(ctxRef.current.destination);
       masterGainRef.current.gain.value = 1;

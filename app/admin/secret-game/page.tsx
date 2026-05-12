@@ -30,6 +30,7 @@ const DEFAULT_PLATFORM: GamePlatformSettings = {
     dropDistance: 6,
   },
   bossHealthBar: { visible: true, x: 90, y: 4, size: 6 },
+  boss: { x: 100, y: 20 },
 };
 
 export default function SecretGameAdminPage() {
@@ -70,8 +71,6 @@ export default function SecretGameAdminPage() {
             trackSpeed: 30,
             width: 40,
             height: 30,
-            x: 100,
-            y: 20,
             scoreReward: 500,
           },
           desktop: { ...DEFAULT_PLATFORM, ...sg.desktop },
@@ -447,11 +446,20 @@ export default function SecretGameAdminPage() {
               <NumberField label="Track Speed" value={settings.boss.trackSpeed} onChange={(v) => updateField("boss.trackSpeed", v)} min={5} max={200} step={5} />
               <NumberField label="Boss Width" value={settings.boss.width} onChange={(v) => updateField("boss.width", v)} min={10} max={120} step={1} />
               <NumberField label="Boss Height" value={settings.boss.height} onChange={(v) => updateField("boss.height", v)} min={10} max={120} step={1} />
-              <NumberField label="Start X" value={settings.boss.x} onChange={(v) => updateField("boss.x", v)} min={0} max={240} step={1} />
-              <NumberField label="Start Y" value={settings.boss.y} onChange={(v) => updateField("boss.y", v)} min={0} max={300} step={1} />
               <NumberField label="Score Reward" value={settings.boss.scoreReward} onChange={(v) => updateField("boss.scoreReward", v)} min={0} max={5000} step={50} />
             </div>
             <p className="text-xs text-neutral-500 mt-2">Boss appears every N waves. HP = Base + (BossNumber - 1) × HealthIncrease.</p>
+          </Section>
+
+          {/* Boss Position (per-platform) */}
+          <Section title="Boss Position">
+            <p className="text-xs text-neutral-500 mb-3">
+              Where the boss spawns on {platform}. Drag the boss in the preview to move it.
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <NumberField label="X" value={plat.boss.x} onChange={(v) => updateField(`${platform}.boss.x`, v)} min={0} max={240} step={1} />
+              <NumberField label="Y" value={plat.boss.y} onChange={(v) => updateField(`${platform}.boss.y`, v)} min={0} max={300} step={1} />
+            </div>
           </Section>
 
           {/* Boss Health Bar */}

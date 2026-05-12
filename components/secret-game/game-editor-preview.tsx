@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState, useCallback, useLayoutEffect } from "react";
 import type { GamePlatformSettings, PlayerSprite, BossSettings } from "@/lib/data";
-import { drawEnemy, ENEMY_W_BASE, ENEMY_H_BASE } from "./draw-sprites";
+import { drawEnemy, drawBoss, ENEMY_W_BASE, ENEMY_H_BASE } from "./draw-sprites";
 
 const BASE_W = 240;
 const BASE_H = 320;
@@ -135,20 +135,17 @@ export function GameEditorPreview({
     ctx.fillStyle = `rgba(0, 240, 255, 0.08)`;
     ctx.fill();
 
-    // Draw boss preview
+    // Draw boss preview (actual scaled sprite)
     if (bossSettings.enabled) {
-      const bx = bossSettings.x * (logW / BASE_W);
-      const by = bossSettings.y;
+      const bx = settings.boss.x * (logW / BASE_W);
+      const by = settings.boss.y;
+      drawBoss(ctx, bx, by, bossSettings.width, bossSettings.height, 0, 0);
+      // Dashed outline so user knows the hitbox bounds
       ctx.strokeStyle = "#ff006e";
-      ctx.lineWidth = 2;
-      ctx.setLineDash([4, 4]);
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
       ctx.strokeRect(bx, by, bossSettings.width, bossSettings.height);
       ctx.setLineDash([]);
-      ctx.fillStyle = "rgba(255, 0, 110, 0.1)";
-      ctx.fillRect(bx, by, bossSettings.width, bossSettings.height);
-      ctx.fillStyle = "#ff006e";
-      ctx.font = "10px monospace";
-      ctx.fillText("BOSS", bx + 4, by + 12);
     }
 
     ctx.restore();
@@ -234,12 +231,13 @@ export function GameEditorPreview({
           next.bossHealthBar = { ...next.bossHealthBar, x: Math.round(d.origX + dx), y: Math.round(d.origY + dy) };
           changed = true;
           break;
-        case "boss":
-          if (onBossChange) {
-            onBossChange({ ...bossSettings, x: Math.round(d.origX + dx), y: Math.round(d.origY + dy) });
-          }
-          changed = false; // boss changes handled separately
+        case "boss": {
+          const next = { ...settings };
+          next.boss = { x: Math.round(d.origX + dx), y: Math.round(d.origY + dy) };
+          onChange(next);
+          changed = false;
           break;
+        }
         case "bossResize":
           if (onBossChange) {
             onBossChange({ ...bossSettings, width: Math.max(10, Math.round(d.origX + dx)), height: Math.max(10, Math.round(d.origY + dy)) });
@@ -531,8 +529,9 @@ export function GameEditorPreview({
         />
 
         {/* Boss overlay — draggable position + resizable */}
-        {bossSettings.enabled && onBossChange && (
+        {bossSettings.enabled && (
           <BossOverlay
+            bossPos={settings.boss}
             bossSettings={bossSettings}
             scaleX={scaleX}
             scaleY={scaleY}
@@ -546,18 +545,20 @@ export function GameEditorPreview({
 
 // Boss overlay — draggable body for position, bottom-right handle for resize
 function BossOverlay({
+  bossPos,
   bossSettings,
   scaleX,
   scaleY,
   onDragStart,
 }: {
+  bossPos: { x: number; y: number };
   bossSettings: BossSettings;
   scaleX: number;
   scaleY: number;
   onDragStart: (key: string, origX: number, origY: number, e: React.MouseEvent | React.TouchEvent) => void;
 }) {
-  const left = bossSettings.x * scaleX;
-  const top = bossSettings.y * scaleY;
+  const left = bossPos.x * scaleX;
+  const top = bossPos.y * scaleY;
   const width = bossSettings.width * scaleY;
   const height = bossSettings.height * scaleY;
   const handleSize = 12;
@@ -576,8 +577,8 @@ function BossOverlay({
           background: "rgba(255, 0, 110, 0.08)",
           zIndex: 10,
         }}
-        onMouseDown={(e) => onDragStart("boss", bossSettings.x, bossSettings.y, e)}
-        onTouchStart={(e) => onDragStart("boss", bossSettings.x, bossSettings.y, e)}
+        onMouseDown={(e) => onDragStart("boss", bossPos.x, bossPos.y, e)}
+        onTouchStart={(e) => onDragStart("boss", bossPos.x, bossPos.y, e)}
       >
         <div
           className="absolute -top-5 left-0 text-[10px] font-mono px-1 rounded"
