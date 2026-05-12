@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { sharedTouch, sharedAim } from "./use-keyboard-controls";
+import { useSiteData } from "@/components/data-provider";
 
 const BASE_W = 240;
 const BASE_H = 320;
-const MOBILE_Y_OFFSET = 32; // base units — moves guitar above finger
 
 interface MobileControlsProps {
   onShoot?: (active: boolean) => void; // kept for backward compat, unused
@@ -15,14 +15,27 @@ export function MobileControls({}: MobileControlsProps) {
   const activeTouches = useRef<Map<number, { x: number; y: number }>>(new Map());
   const leftDownRef = useRef(false);
   const rightDownRef = useRef(false);
+  const layerRef = useRef<HTMLDivElement>(null);
+  const siteData = useSiteData();
 
-  // Convert screen pixel to base game coordinates
+  const spriteConfig = siteData.secretGame?.playerSprite ?? { offsetX: -2, offsetY: -12, width: 14, height: 42 };
+  // Compute offset so guitar bottom sits exactly at the finger position
+  const mobileYOffset = spriteConfig.offsetY + spriteConfig.height;
+
+  // Convert screen pixel to base game coordinates using the control layer's actual size
   const screenToBase = useCallback((clientX: number, clientY: number) => {
-    const w = window.innerWidth;
-    const h = window.innerHeight;
+    const layer = layerRef.current;
+    const rect = layer ? layer.getBoundingClientRect() : { width: window.innerWidth, height: window.innerHeight, left: 0, top: 0 };
+    const vw = window.visualViewport;
+    // Use visualViewport when available for consistent sizing across mobile browsers
+    const viewW = vw ? vw.width : rect.width;
+    const viewH = vw ? vw.height : rect.height;
+    const viewLeft = vw ? vw.offsetLeft : rect.left;
+    const viewTop = vw ? vw.offsetTop : rect.top;
+
     return {
-      x: Math.max(0, Math.min(BASE_W, (clientX / w) * BASE_W)),
-      y: Math.max(0, Math.min(BASE_H, (clientY / h) * BASE_H)),
+      x: Math.max(0, Math.min(BASE_W, ((clientX - viewLeft) / viewW) * BASE_W)),
+      y: Math.max(0, Math.min(BASE_H, ((clientY - viewTop) / viewH) * BASE_H)),
     };
   }, []);
 
@@ -38,7 +51,7 @@ export function MobileControls({}: MobileControlsProps) {
     } else {
       // First touch = movement target
       sharedTouch.targetX = touches[0].x;
-      sharedTouch.targetY = Math.max(0, touches[0].y - MOBILE_Y_OFFSET);
+      sharedTouch.targetY = Math.max(0, touches[0].y - mobileYOffset);
       sharedAim.firing = true;
       if (touches.length >= 2) {
         // Second touch = directional aim
@@ -52,7 +65,7 @@ export function MobileControls({}: MobileControlsProps) {
         sharedAim.y = null;
       }
     }
-  }, []);
+  }, [mobileYOffset]);
 
   // Touch handlers
   const handleTouchStart = useCallback(
@@ -153,6 +166,7 @@ export function MobileControls({}: MobileControlsProps) {
 
   return (
     <div
+      ref={layerRef}
       className="fixed inset-0 z-20 touch-none select-none"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}

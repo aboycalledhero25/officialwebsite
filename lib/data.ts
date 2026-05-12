@@ -137,6 +137,7 @@ export interface GameEnemySettings {
   columns: number;
   rows: number;
   startY: number;
+  offsetX: number;
   paddingX: number;
   paddingY: number;
   dropDistance: number;

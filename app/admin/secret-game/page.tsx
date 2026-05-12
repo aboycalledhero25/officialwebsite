@@ -24,6 +24,7 @@ const DEFAULT_PLATFORM: GamePlatformSettings = {
     columns: 5,
     rows: 3,
     startY: 30,
+    offsetX: 0,
     paddingX: 6,
     paddingY: 8,
     dropDistance: 6,
@@ -254,6 +255,7 @@ export default function SecretGameAdminPage() {
               <NumberField label="Columns" value={plat.enemy.columns} onChange={(v) => updateField(`${platform}.enemy.columns`, v)} min={1} max={12} step={1} />
               <NumberField label="Rows" value={plat.enemy.rows} onChange={(v) => updateField(`${platform}.enemy.rows`, v)} min={1} max={8} step={1} />
               <NumberField label="Start Y" value={plat.enemy.startY} onChange={(v) => updateField(`${platform}.enemy.startY`, v)} min={3} max={300} step={1} />
+              <NumberField label="Offset X" value={plat.enemy.offsetX} onChange={(v) => updateField(`${platform}.enemy.offsetX`, v)} min={-120} max={120} step={1} />
               <NumberField label="Padding X" value={plat.enemy.paddingX} onChange={(v) => updateField(`${platform}.enemy.paddingX`, v)} min={0} max={50} step={1} />
               <NumberField label="Padding Y" value={plat.enemy.paddingY} onChange={(v) => updateField(`${platform}.enemy.paddingY`, v)} min={0} max={50} step={1} />
 

@@ -100,8 +100,11 @@ export function GameEditorPreview({
     const colUnit = 14 + enemy.paddingX;
     const rowUnit = 10 + enemy.paddingY;
     const totalW = enemy.columns * colUnit - enemy.paddingX;
-    const startX = Math.max(4, (logW - totalW) / 2);
-    for (let r = 0; r < enemy.rows; r++) {
+    const startX = Math.max(4, (logW - totalW) / 2) + (enemy.offsetX ?? 0);
+    // Cap rows so enemies never drop below 55% of screen height (matches game logic)
+    const maxRows = Math.floor((BASE_H * 0.55 - enemy.startY) / rowUnit) + 1;
+    const rows = Math.min(maxRows, enemy.rows);
+    for (let r = 0; r < rows; r++) {
       for (let c = 0; c < enemy.columns; c++) {
         drawEnemy(ctx, startX + c * colUnit, enemy.startY + r * rowUnit);
       }

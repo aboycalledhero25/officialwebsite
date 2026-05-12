@@ -148,8 +148,9 @@ export function GameCanvas({
     if (!canvas) return;
 
     const resize = () => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
+      const vw = window.visualViewport;
+      const w = vw ? Math.round(vw.width) : window.innerWidth;
+      const h = vw ? Math.round(vw.height) : window.innerHeight;
       canvas.width = w;
       canvas.height = h;
       const sc = h / BASE_H;
@@ -166,7 +167,15 @@ export function GameCanvas({
 
     resize();
     window.addEventListener("resize", resize);
-    return () => window.removeEventListener("resize", resize);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", resize);
+    }
+    return () => {
+      window.removeEventListener("resize", resize);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener("resize", resize);
+      }
+    };
   }, []);
 
   const getScaled = () => dimsRef.current.scale;
@@ -189,7 +198,7 @@ export function GameCanvas({
     const maxRows = Math.floor((BASE_H * 0.55 - cfg.startY) / rowUnit) + 1;
     const rows = Math.min(maxRows, cfg.rows + Math.floor((w - 1) / 3));
     const totalW = cols * colUnit - cfg.paddingX;
-    const startX = Math.max(edgeMargin, (logW - totalW) / 2);
+    const startX = Math.max(edgeMargin, (logW - totalW) / 2) + (cfg.offsetX ?? 0);
     const startY = Math.max(3, cfg.startY); // ensure enemy hair is visible
 
     for (let r = 0; r < rows; r++) {
