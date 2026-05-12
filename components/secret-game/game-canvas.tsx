@@ -15,6 +15,7 @@ import {
   drawBoss,
   drawBossProjectile,
   draw8BitHealthBar,
+  type UnderwearType,
 } from "./draw-sprites";
 
 export type GamePhase = "menu" | "playing" | "paused" | "gameover" | "levelcomplete";
@@ -118,8 +119,9 @@ export function GameCanvas({
       variant: 0 | 1 | 2;
       alive: boolean;
       cooldown: number;
+      underwearType: "yfront" | "bra" | "thong";
     }[],
-    bullets: [] as { x: number; y: number; vx: number; vy: number; isPlayer: boolean; variant?: 0 | 1 | 2; isBoss?: boolean }[],
+    bullets: [] as { x: number; y: number; vx: number; vy: number; isPlayer: boolean; variant?: 0 | 1 | 2; isBoss?: boolean; underwearType?: "yfront" | "bra" | "thong" }[],
     particles: [] as {
       x: number;
       y: number;
@@ -209,10 +211,10 @@ export function GameCanvas({
     if (isBossWave) {
       const bossNumber = Math.floor(w / (bossCfg?.interval ?? 10));
       const bossHealth = (bossCfg?.baseHealth ?? 500) + (bossNumber - 1) * (bossCfg?.healthIncrease ?? 500);
-      const bw = bossCfg?.width ?? 40;
+      const bx = (bossCfg?.x ?? 100) * (logW / BASE_W);
       s.boss = {
-        x: logW / 2 - bw / 2,
-        y: 20,
+        x: bx,
+        y: bossCfg?.y ?? 20,
         health: bossHealth,
         maxHealth: bossHealth,
         fireCooldown: 1,
@@ -233,12 +235,14 @@ export function GameCanvas({
 
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
+          const underwearTypes: ("yfront" | "bra" | "thong")[] = ["yfront", "bra", "thong"];
           s.enemies.push({
             x: startX + c * (ENEMY_W_BASE + cfg.paddingX),
             y: startY + r * (ENEMY_H_BASE + cfg.paddingY),
             variant: ((r + c) % 3) as 0 | 1 | 2,
             alive: true,
             cooldown: Math.random() * 2, // staggered firing times
+            underwearType: underwearTypes[Math.floor(Math.random() * underwearTypes.length)],
           });
         }
       }
@@ -488,7 +492,7 @@ export function GameCanvas({
             vx: 0,
             vy: cfg.projectileSpeed,
             isPlayer: false,
-            variant: Math.floor(Math.random() * 3) as 0 | 1 | 2,
+            underwearType: e.underwearType,
           });
           e.cooldown = 1; // 1 second cooldown
         }
@@ -565,9 +569,21 @@ export function GameCanvas({
               pu.type === "invincible" ? (durations?.invincible ?? 4) :
               (durations?.wideShot ?? 4);
             const existing = s.activePowerUps.find((p) => p.type === pu.type);
+            const noStackTypes: PowerUpType[] = ["shield", "invincible"];
+            const maxStack = 5;
+
             if (existing) {
-              existing.timer = duration;
-              existing.stacks = (existing.stacks || 1) + 1;
+              if (noStackTypes.includes(pu.type)) {
+                // No stacking — just reset timer
+                existing.timer = duration;
+              } else if (existing.stacks < maxStack) {
+                // Stack up to max, reset timer
+                existing.stacks = (existing.stacks || 1) + 1;
+                existing.timer = duration;
+              } else {
+                // Already at max stacks — just reset timer
+                existing.timer = duration;
+              }
             } else {
               s.activePowerUps.push({ type: pu.type, timer: duration, stacks: 1 });
             }
@@ -933,7 +949,7 @@ export function GameCanvas({
         const pSize = siteData.secretGame?.boss?.projectileSize ?? 10;
         drawBossProjectile(ctx, b.x, b.y, s.frame, pSize);
       } else {
-        drawEnemyBullet(ctx, b.x, b.y, b.variant ?? 0);
+        drawEnemyBullet(ctx, b.x, b.y, (b.underwearType ?? "yfront") as UnderwearType);
       }
     }
 

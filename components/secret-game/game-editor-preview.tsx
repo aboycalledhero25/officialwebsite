@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useState, useCallback, useLayoutEffect } from "react";
-import type { GamePlatformSettings, PlayerSprite } from "@/lib/data";
+import type { GamePlatformSettings, PlayerSprite, BossSettings } from "@/lib/data";
 
 const BASE_W = 240;
 const BASE_H = 320;
@@ -11,8 +11,10 @@ const PLAYER_H_BASE = 20;
 interface GameEditorPreviewProps {
   settings: GamePlatformSettings;
   playerSprite: PlayerSprite;
+  bossSettings: BossSettings;
   platform: "desktop" | "mobile";
   onChange: (next: GamePlatformSettings) => void;
+  onBossChange?: (next: BossSettings) => void;
 }
 
 function drawStarfield(ctx: CanvasRenderingContext2D, logW: number, h: number) {
@@ -26,12 +28,61 @@ function drawStarfield(ctx: CanvasRenderingContext2D, logW: number, h: number) {
   }
 }
 
-function drawEnemy(ctx: CanvasRenderingContext2D, x: number, y: number) {
-  ctx.fillStyle = "#ff006e";
-  ctx.fillRect(x, y, 14, 10);
-  ctx.fillStyle = "#fcee0a";
-  ctx.fillRect(x + 4, y + 2, 2, 2);
-  ctx.fillRect(x + 9, y + 2, 2, 2);
+function drawEnemy(ctx: CanvasRenderingContext2D, x: number, y: number, variant: 0 | 1 | 2, frame: number) {
+  const shirtColor = variant === 0 ? "#ff006e" : variant === 1 ? "#00f0ff" : "#fcee0a";
+  const skinTone = variant === 0 ? "#ffccaa" : variant === 1 ? "#eabb9e" : "#ddb090";
+  const hairColor = variant === 0 ? "#3a2818" : variant === 1 ? "#d4a017" : "#8b0000";
+  const jump = Math.abs(Math.sin(frame * 0.12 + variant * 3)) * 1.5;
+  const armWave = Math.sin(frame * 0.25 + variant * 2);
+  const headBop = Math.sin(frame * 0.18 + variant * 4) * 0.5;
+
+  // Hair
+  ctx.fillStyle = hairColor;
+  ctx.fillRect(x + 2, y + headBop + 0, 6, 2);
+  ctx.fillRect(x + 1, y + headBop + 1, 2, 2);
+  ctx.fillRect(x + 7, y + headBop + 1, 2, 2);
+
+  // Face
+  ctx.fillStyle = skinTone;
+  ctx.fillRect(x + 3, y + headBop + 2, 4, 2);
+
+  // Eyes
+  if (frame % 40 < 38) {
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(x + 3, y + headBop + 3, 1, 1);
+    ctx.fillRect(x + 6, y + headBop + 3, 1, 1);
+  }
+
+  // Open mouth
+  if (frame % 20 < 10) {
+    ctx.fillStyle = "#660000";
+    ctx.fillRect(x + 4, y + headBop + 4, 2, 1);
+  }
+
+  // Shirt with white stripe
+  ctx.fillStyle = shirtColor;
+  ctx.fillRect(x + 2, y + 4 + jump, 6, 3);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(x + 2, y + 5 + jump, 6, 1);
+
+  // Arms waving
+  ctx.fillStyle = skinTone;
+  const leftArmY = armWave > 0 ? y + 2 + jump : y + 4 + jump;
+  const rightArmY = armWave > 0 ? y + 4 + jump : y + 2 + jump;
+  ctx.fillRect(x + 0, leftArmY, 2, 3);
+  ctx.fillRect(x + 8, rightArmY, 2, 3);
+
+  // Legs dancing
+  ctx.fillStyle = "#1a1a2e";
+  const leftLegOffset = Math.sin(frame * 0.2 + variant) * 0.5;
+  const rightLegOffset = Math.sin(frame * 0.2 + variant + Math.PI) * 0.5;
+  ctx.fillRect(x + 3 + leftLegOffset, y + 7 + jump, 2, 2);
+  ctx.fillRect(x + 6 + rightLegOffset, y + 7 + jump, 2, 2);
+
+  // Shoes
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(x + 2 + leftLegOffset, y + 9 + jump, 3, 1);
+  ctx.fillRect(x + 5 + rightLegOffset, y + 9 + jump, 3, 1);
 }
 
 function drawPlayerFallback(ctx: CanvasRenderingContext2D, x: number, y: number) {
@@ -42,8 +93,10 @@ function drawPlayerFallback(ctx: CanvasRenderingContext2D, x: number, y: number)
 export function GameEditorPreview({
   settings,
   playerSprite,
+  bossSettings,
   platform,
   onChange,
+  onBossChange,
 }: GameEditorPreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -106,7 +159,7 @@ export function GameEditorPreview({
     const rows = Math.min(maxRows, enemy.rows);
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < enemy.columns; c++) {
-        drawEnemy(ctx, startX + c * colUnit, enemy.startY + r * rowUnit);
+        drawEnemy(ctx, startX + c * colUnit, enemy.startY + r * rowUnit, ((r + c) % 3) as 0 | 1 | 2, 0);
       }
     }
 
@@ -138,8 +191,24 @@ export function GameEditorPreview({
     ctx.fillStyle = `rgba(0, 240, 255, 0.08)`;
     ctx.fill();
 
+    // Draw boss preview
+    if (bossSettings.enabled) {
+      const bx = bossSettings.x * (logW / BASE_W);
+      const by = bossSettings.y;
+      ctx.strokeStyle = "#ff006e";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 4]);
+      ctx.strokeRect(bx, by, bossSettings.width, bossSettings.height);
+      ctx.setLineDash([]);
+      ctx.fillStyle = "rgba(255, 0, 110, 0.1)";
+      ctx.fillRect(bx, by, bossSettings.width, bossSettings.height);
+      ctx.fillStyle = "#ff006e";
+      ctx.font = "10px monospace";
+      ctx.fillText("BOSS", bx + 4, by + 12);
+    }
+
     ctx.restore();
-  }, [settings, playerSprite, dims.w, dims.h]);
+  }, [settings, playerSprite, bossSettings, dims.w, dims.h]);
 
   useEffect(() => {
     draw();
@@ -211,6 +280,16 @@ export function GameEditorPreview({
           break;
         case "bossHealthBar":
           next.bossHealthBar = { ...next.bossHealthBar, x: Math.round(d.origX + dx), y: Math.round(d.origY + dy) };
+          break;
+        case "boss":
+          if (onBossChange) {
+            onBossChange({ ...bossSettings, x: Math.round(d.origX + dx), y: Math.round(d.origY + dy) });
+          }
+          break;
+        case "bossResize":
+          if (onBossChange) {
+            onBossChange({ ...bossSettings, width: Math.max(10, Math.round(d.origX + dx)), height: Math.max(10, Math.round(d.origY + dy)) });
+          }
           break;
         case "shield": {
           // Shield offset is visually scaled by scaleY, so drag delta must use scaleY
@@ -493,7 +572,78 @@ export function GameEditorPreview({
           scaleY={scaleY}
           onDragStart={startDrag}
         />
+
+        {/* Boss overlay — draggable position + resizable */}
+        {bossSettings.enabled && onBossChange && (
+          <BossOverlay
+            bossSettings={bossSettings}
+            scaleX={scaleX}
+            scaleY={scaleY}
+            onDragStart={startDrag}
+          />
+        )}
       </div>
     </div>
+  );
+}
+
+// Boss overlay — draggable body for position, bottom-right handle for resize
+function BossOverlay({
+  bossSettings,
+  scaleX,
+  scaleY,
+  onDragStart,
+}: {
+  bossSettings: BossSettings;
+  scaleX: number;
+  scaleY: number;
+  onDragStart: (key: string, origX: number, origY: number, e: React.MouseEvent | React.TouchEvent) => void;
+}) {
+  const left = bossSettings.x * scaleX;
+  const top = bossSettings.y * scaleY;
+  const width = bossSettings.width * scaleY;
+  const height = bossSettings.height * scaleY;
+  const handleSize = 12;
+
+  return (
+    <>
+      {/* Boss body — draggable for position */}
+      <div
+        className="absolute cursor-grab active:cursor-grabbing select-none"
+        style={{
+          left,
+          top,
+          width,
+          height,
+          border: "2px dashed #ff006e",
+          background: "rgba(255, 0, 110, 0.08)",
+          zIndex: 10,
+        }}
+        onMouseDown={(e) => onDragStart("boss", bossSettings.x, bossSettings.y, e)}
+        onTouchStart={(e) => onDragStart("boss", bossSettings.x, bossSettings.y, e)}
+      >
+        <div
+          className="absolute -top-5 left-0 text-[10px] font-mono px-1 rounded"
+          style={{ background: "#ff006e", color: "#000", whiteSpace: "nowrap" }}
+        >
+          Boss
+        </div>
+      </div>
+      {/* Resize handle — bottom right */}
+      <div
+        className="absolute cursor-nwse-resize select-none"
+        style={{
+          left: left + width - handleSize / 2,
+          top: top + height - handleSize / 2,
+          width: handleSize,
+          height: handleSize,
+          background: "#ff006e",
+          border: "2px solid #ffffff",
+          zIndex: 11,
+        }}
+        onMouseDown={(e) => onDragStart("bossResize", bossSettings.width, bossSettings.height, e)}
+        onTouchStart={(e) => onDragStart("bossResize", bossSettings.width, bossSettings.height, e)}
+      />
+    </>
   );
 }

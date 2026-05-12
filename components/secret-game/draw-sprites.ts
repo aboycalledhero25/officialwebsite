@@ -67,51 +67,77 @@ export function drawPlayer(ctx: CanvasRenderingContext2D, x: number, y: number, 
   ctx.fillRect(x + 8, y + 15, 1, 1);
 }
 
-/* ── Enemies: fans invading the stage ── */
+/* ── Enemies: animated fans of A Boy Called Hero ── */
 function drawFanBody(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
-  variant: 0 | 1 | 2
+  variant: 0 | 1 | 2,
+  frame: number
 ) {
   // Fan colour palettes per variant
   const shirtColor = variant === 0 ? "#ff006e" : variant === 1 ? "#00f0ff" : "#fcee0a";
   const skinTone = variant === 0 ? "#ffccaa" : variant === 1 ? "#eabb9e" : "#ddb090";
   const hairColor = variant === 0 ? "#3a2818" : variant === 1 ? "#d4a017" : "#8b0000";
 
-  // Hair
+  // Animation cycles
+  const jump = Math.abs(Math.sin(frame * 0.12 + variant * 3)) * 1.5;
+  const armWave = Math.sin(frame * 0.25 + variant * 2);
+  const headBop = Math.sin(frame * 0.18 + variant * 4) * 0.5;
+
+  // Hair (bops with head)
   ctx.fillStyle = hairColor;
-  ctx.fillRect(x + 2, y + 0, 6, 2);
-  ctx.fillRect(x + 1, y + 1, 2, 2);
-  ctx.fillRect(x + 7, y + 1, 2, 2);
+  ctx.fillRect(x + 2, y + headBop + 0, 6, 2);
+  ctx.fillRect(x + 1, y + headBop + 1, 2, 2);
+  ctx.fillRect(x + 7, y + headBop + 1, 2, 2);
 
-  // Face
+  // Face (bops with head)
   ctx.fillStyle = skinTone;
-  ctx.fillRect(x + 3, y + 2, 4, 2);
+  ctx.fillRect(x + 3, y + headBop + 2, 4, 2);
 
-  // Eyes
-  ctx.fillStyle = "#000000";
-  ctx.fillRect(x + 3, y + 3, 1, 1);
-  ctx.fillRect(x + 6, y + 3, 1, 1);
+  // Eyes (blink occasionally)
+  if (frame % 40 < 38) {
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(x + 3, y + headBop + 3, 1, 1);
+    ctx.fillRect(x + 6, y + headBop + 3, 1, 1);
+  }
 
-  // Shirt
+  // Open mouth (singing along!)
+  if (frame % 20 < 10) {
+    ctx.fillStyle = "#660000";
+    ctx.fillRect(x + 4, y + headBop + 4, 2, 1);
+  }
+
+  // Shirt with "ABCH" hint (a small stripe)
   ctx.fillStyle = shirtColor;
-  ctx.fillRect(x + 2, y + 4, 6, 3);
+  ctx.fillRect(x + 2, y + 4 + jump, 6, 3);
+  // White stripe across shirt
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(x + 2, y + 5 + jump, 6, 1);
 
-  // Arms (raised in excitement)
+  // Arms waving in excitement
   ctx.fillStyle = skinTone;
-  ctx.fillRect(x + 0, y + 4, 2, 2);
-  ctx.fillRect(x + 8, y + 4, 2, 2);
+  const leftArmY = armWave > 0 ? y + 2 + jump : y + 4 + jump;
+  const rightArmY = armWave > 0 ? y + 4 + jump : y + 2 + jump;
+  ctx.fillRect(x + 0, leftArmY, 2, 3);
+  ctx.fillRect(x + 8, rightArmY, 2, 3);
 
-  // Legs
+  // Hands
+  ctx.fillStyle = skinTone;
+  ctx.fillRect(x - 1, leftArmY + (armWave > 0 ? 0 : 2), 1, 1);
+  ctx.fillRect(x + 10, rightArmY + (armWave > 0 ? 2 : 0), 1, 1);
+
+  // Legs (dancing)
   ctx.fillStyle = "#1a1a2e";
-  ctx.fillRect(x + 3, y + 7, 2, 2);
-  ctx.fillRect(x + 6, y + 7, 2, 2);
+  const leftLegOffset = Math.sin(frame * 0.2 + variant) * 0.5;
+  const rightLegOffset = Math.sin(frame * 0.2 + variant + Math.PI) * 0.5;
+  ctx.fillRect(x + 3 + leftLegOffset, y + 7 + jump, 2, 2);
+  ctx.fillRect(x + 6 + rightLegOffset, y + 7 + jump, 2, 2);
 
   // Shoes
   ctx.fillStyle = "#ffffff";
-  ctx.fillRect(x + 2, y + 9, 3, 1);
-  ctx.fillRect(x + 5, y + 9, 3, 1);
+  ctx.fillRect(x + 2 + leftLegOffset, y + 9 + jump, 3, 1);
+  ctx.fillRect(x + 5 + rightLegOffset, y + 9 + jump, 3, 1);
 }
 
 export function drawEnemy(
@@ -121,8 +147,7 @@ export function drawEnemy(
   variant: 0 | 1 | 2,
   frame: number
 ) {
-  const bob = Math.sin(frame * 0.15 + variant * 2) * 0.5;
-  drawFanBody(ctx, x, y + bob, variant);
+  drawFanBody(ctx, x, y, variant, frame);
 }
 
 /* ── Bullets ── */
@@ -134,10 +159,54 @@ export function drawPlayerBullet(ctx: CanvasRenderingContext2D, x: number, y: nu
   ctx.fillRect(x - 2, y - 3, 4, 6);
 }
 
-export function drawEnemyBullet(ctx: CanvasRenderingContext2D, x: number, y: number, variant: 0 | 1 | 2) {
-  const colors = ["#ff006e", "#fcee0a", "#00f0ff"];
-  ctx.fillStyle = colors[variant];
-  ctx.fillRect(x - 1, y - 1, 2, 2);
+/* ── Underwear projectiles (Y-fronts, bras, thongs) ── */
+export type UnderwearType = "yfront" | "bra" | "thong";
+
+export function drawEnemyBullet(ctx: CanvasRenderingContext2D, x: number, y: number, type: UnderwearType) {
+  switch (type) {
+    case "yfront": {
+      // White Y-fronts
+      ctx.fillStyle = "#ffffff";
+      // Waistband
+      ctx.fillRect(x - 3, y - 2, 6, 1);
+      // Left leg
+      ctx.fillRect(x - 3, y - 1, 2, 3);
+      // Right leg
+      ctx.fillRect(x + 1, y - 1, 2, 3);
+      // Centre pouch
+      ctx.fillRect(x - 1, y - 1, 2, 2);
+      // Y-stripe
+      ctx.fillStyle = "#cccccc";
+      ctx.fillRect(x, y, 1, 2);
+      break;
+    }
+    case "bra": {
+      // Pink bra
+      ctx.fillStyle = "#ff69b4";
+      // Left cup
+      ctx.fillRect(x - 3, y - 1, 3, 2);
+      // Right cup
+      ctx.fillRect(x, y - 1, 3, 2);
+      // Centre
+      ctx.fillRect(x - 1, y, 2, 1);
+      // Straps
+      ctx.fillStyle = "#ff69b4";
+      ctx.fillRect(x - 2, y - 3, 1, 2);
+      ctx.fillRect(x + 1, y - 3, 1, 2);
+      break;
+    }
+    case "thong": {
+      // Bright green thong
+      ctx.fillStyle = "#39ff14";
+      // Waistband
+      ctx.fillRect(x - 2, y - 2, 4, 1);
+      // Centre pouch
+      ctx.fillRect(x - 1, y - 1, 2, 2);
+      // Back string
+      ctx.fillRect(x, y + 1, 1, 2);
+      break;
+    }
+  }
 }
 
 /* ── Particles ── */

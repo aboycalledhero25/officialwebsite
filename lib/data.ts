@@ -202,6 +202,8 @@ export interface BossSettings {
   trackSpeed: number;
   width: number;
   height: number;
+  x: number;
+  y: number;
   scoreReward: number;
 }
 
