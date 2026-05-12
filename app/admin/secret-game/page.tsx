@@ -29,6 +29,7 @@ const DEFAULT_PLATFORM: GamePlatformSettings = {
     paddingY: 8,
     dropDistance: 6,
   },
+  bossHealthBar: { visible: true, x: 90, y: 4, size: 6 },
 };
 
 export default function SecretGameAdminPage() {
@@ -57,6 +58,20 @@ export default function SecretGameAdminPage() {
           powerUpSpawnChance: sg.powerUpSpawnChance ?? 0.12,
           powerUpSize: sg.powerUpSize ?? 8,
           powerUpDurations: sg.powerUpDurations ?? { rapid: 5, wideShot: 4, invincible: 4 },
+          boss: sg.boss ?? {
+            enabled: true,
+            interval: 10,
+            baseHealth: 500,
+            healthIncrease: 500,
+            bulletDamage: 20,
+            projectileSpeed: 80,
+            projectileSize: 10,
+            fireInterval: 3,
+            trackSpeed: 30,
+            width: 40,
+            height: 30,
+            scoreReward: 500,
+          },
           desktop: { ...DEFAULT_PLATFORM, ...sg.desktop },
           mobile: { ...DEFAULT_PLATFORM, ...sg.mobile },
         };
@@ -414,7 +429,40 @@ export default function SecretGameAdminPage() {
             </div>
           </Section>
 
-          {/* Game Copy */}
+          {/* Boss Settings */}
+          <Section title="Boss Settings">
+            <div className="flex items-center gap-4 mb-3">
+              <Toggle label="Enabled" checked={settings.boss.enabled} onChange={(v) => updateField("boss.enabled", v)} />
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <NumberField label="Interval (waves)" value={settings.boss.interval} onChange={(v) => updateField("boss.interval", v)} min={1} max={100} step={1} />
+              <NumberField label="Base Health" value={settings.boss.baseHealth} onChange={(v) => updateField("boss.baseHealth", v)} min={100} max={10000} step={100} />
+              <NumberField label="Health Increase" value={settings.boss.healthIncrease} onChange={(v) => updateField("boss.healthIncrease", v)} min={0} max={5000} step={100} />
+              <NumberField label="Bullet Damage" value={settings.boss.bulletDamage} onChange={(v) => updateField("boss.bulletDamage", v)} min={1} max={500} step={1} />
+              <NumberField label="Projectile Speed" value={settings.boss.projectileSpeed} onChange={(v) => updateField("boss.projectileSpeed", v)} min={10} max={300} step={1} />
+              <NumberField label="Projectile Size" value={settings.boss.projectileSize} onChange={(v) => updateField("boss.projectileSize", v)} min={4} max={32} step={1} />
+              <NumberField label="Fire Interval (sec)" value={settings.boss.fireInterval} onChange={(v) => updateField("boss.fireInterval", v)} min={0.5} max={10} step={0.5} />
+              <NumberField label="Track Speed" value={settings.boss.trackSpeed} onChange={(v) => updateField("boss.trackSpeed", v)} min={5} max={200} step={5} />
+              <NumberField label="Boss Width" value={settings.boss.width} onChange={(v) => updateField("boss.width", v)} min={10} max={120} step={1} />
+              <NumberField label="Boss Height" value={settings.boss.height} onChange={(v) => updateField("boss.height", v)} min={10} max={120} step={1} />
+              <NumberField label="Score Reward" value={settings.boss.scoreReward} onChange={(v) => updateField("boss.scoreReward", v)} min={0} max={5000} step={50} />
+            </div>
+            <p className="text-xs text-neutral-500 mt-2">Boss appears every N waves. HP = Base + (BossNumber - 1) × HealthIncrease.</p>
+          </Section>
+
+          {/* Boss Health Bar */}
+          <Section title="Boss Health Bar">
+            <div className="flex items-center gap-4 mb-3">
+              <Toggle label="Visible" checked={plat.bossHealthBar.visible} onChange={(v) => updateField(`${platform}.bossHealthBar.visible`, v)} />
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <NumberField label="X" value={plat.bossHealthBar.x} onChange={(v) => updateField(`${platform}.bossHealthBar.x`, v)} min={0} max={240} step={1} />
+              <NumberField label="Y" value={plat.bossHealthBar.y} onChange={(v) => updateField(`${platform}.bossHealthBar.y`, v)} min={0} max={320} step={1} />
+              <NumberField label="Size" value={plat.bossHealthBar.size ?? 6} onChange={(v) => updateField(`${platform}.bossHealthBar.size`, v)} min={4} max={32} step={1} />
+            </div>
+          </Section>
+
+          {/* Game Copy -->
           <Section title="Game Copy">
             <div className="space-y-4">
               <Field label="Title" value={settings.title} onChange={(v) => updateField("title", v)} />

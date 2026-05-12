@@ -209,6 +209,9 @@ export function GameEditorPreview({
         case "powerUps":
           next.powerUps = { ...next.powerUps, x: Math.round(d.origX + dx), y: Math.round(d.origY + dy) };
           break;
+        case "bossHealthBar":
+          next.bossHealthBar = { ...next.bossHealthBar, x: Math.round(d.origX + dx), y: Math.round(d.origY + dy) };
+          break;
         case "shield": {
           // Shield offset is visually scaled by scaleY, so drag delta must use scaleY
           next.shield = {
@@ -468,6 +471,18 @@ export function GameEditorPreview({
           height={((settings.powerUps.size ?? 8) * 2.5) * scaleY}
           visible={settings.powerUps.visible}
           color="#ff8800"
+        />
+
+        {/* Boss Health Bar overlay */}
+        <DraggableOverlay
+          label="Boss HP"
+          itemKey="bossHealthBar"
+          left={settings.bossHealthBar.x * scaleX}
+          top={settings.bossHealthBar.y * scaleY}
+          width={((settings.bossHealthBar.size ?? 6) * 10) * scaleY}
+          height={((settings.bossHealthBar.size ?? 6) * 1.5) * scaleY}
+          visible={settings.bossHealthBar.visible}
+          color="#ff006e"
         />
 
         {/* Shield overlay — circular, matches the actual rendered shield exactly */}

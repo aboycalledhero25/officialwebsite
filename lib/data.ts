@@ -187,6 +187,22 @@ export interface GamePlatformSettings {
   powerUps: GameUIElement;
   shield: GameShieldSettings;
   enemy: GameEnemySettings;
+  bossHealthBar: GameUIElement;
+}
+
+export interface BossSettings {
+  enabled: boolean;
+  interval: number;
+  baseHealth: number;
+  healthIncrease: number;
+  bulletDamage: number;
+  projectileSpeed: number;
+  projectileSize: number;
+  fireInterval: number;
+  trackSpeed: number;
+  width: number;
+  height: number;
+  scoreReward: number;
 }
 
 export interface SecretGameSettings {
@@ -201,6 +217,7 @@ export interface SecretGameSettings {
     wideShot: number;
     invincible: number;
   };
+  boss: BossSettings;
   desktop: GamePlatformSettings;
   mobile: GamePlatformSettings;
 }

@@ -24,41 +24,56 @@ interface GameHUDProps {
   onToggleMute: () => void;
 }
 
-function Heart({ filled, size }: { filled: boolean; size: number }) {
+/* ── 8-bit pixel heart ── */
+function PixelHeart({ filled, size }: { filled: boolean; size: number }) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill={filled ? "#ff006e" : "none"}
-      stroke={filled ? "#ff006e" : "rgba(255,0,110,0.35)"}
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="inline-block"
+    <div
       style={{
-        filter: filled
-          ? "drop-shadow(0 0 6px rgba(255,0,110,0.8))"
-          : "none",
+        width: size,
+        height: size,
+        imageRendering: "pixelated",
       }}
     >
-      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-    </svg>
+      <svg width={size} height={size} viewBox="0 0 7 7" shapeRendering="crispEdges">
+        {filled ? (
+          <>
+            <rect x="1" y="0" width="1" height="1" fill="#ff006e" />
+            <rect x="5" y="0" width="1" height="1" fill="#ff006e" />
+            <rect x="0" y="1" width="7" height="3" fill="#ff006e" />
+            <rect x="1" y="4" width="5" height="1" fill="#ff006e" />
+            <rect x="2" y="5" width="3" height="1" fill="#ff006e" />
+            <rect x="3" y="6" width="1" height="1" fill="#ff006e" />
+          </>
+        ) : (
+          <>
+            <rect x="1" y="0" width="1" height="1" fill="#ff006e" opacity="0.3" />
+            <rect x="5" y="0" width="1" height="1" fill="#ff006e" opacity="0.3" />
+            <rect x="0" y="1" width="7" height="3" fill="#ff006e" opacity="0.15" />
+            <rect x="1" y="4" width="5" height="1" fill="#ff006e" opacity="0.15" />
+            <rect x="2" y="5" width="3" height="1" fill="#ff006e" opacity="0.15" />
+            <rect x="3" y="6" width="1" height="1" fill="#ff006e" opacity="0.15" />
+          </>
+        )}
+      </svg>
+    </div>
   );
 }
 
 function PowerUpLabel({ type, size, stacks }: { type: ActivePowerUp["type"]; size: number; stacks?: number }) {
   const labels: Record<ActivePowerUp["type"], { text: string; color: string }> = {
-    rapid: { text: "RAPID FIRE", color: "#ff8800" },
+    rapid: { text: "RAPID", color: "#ff8800" },
     shield: { text: "SHIELD", color: "#00f0ff" },
-    wideshot: { text: "WIDE SHOT", color: "#fcee0a" },
-    extralife: { text: "EXTRA LIFE", color: "#ff006e" },
-    invincible: { text: "INVINCIBLE", color: "#ffd700" },
+    wideshot: { text: "WIDE", color: "#fcee0a" },
+    extralife: { text: "LIFE", color: "#ff006e" },
+    invincible: { text: "STAR", color: "#ffd700" },
   };
   const l = labels[type];
-  const suffix = stacks && stacks > 1 ? ` x${stacks}` : "";
+  const suffix = stacks && stacks > 1 ? `x${stacks}` : "";
   return (
-    <span className="font-mono font-bold tracking-wider" style={{ color: l.color, fontSize: size }}>
+    <span
+      className="font-mono font-bold leading-none"
+      style={{ color: l.color, fontSize: size, imageRendering: "pixelated" }}
+    >
       {l.text}{suffix}
     </span>
   );
@@ -109,14 +124,29 @@ export function GameHUD({ score, lives, wave, muted, activePowerUps, onPause, on
   };
 
   return (
-    <div className="absolute top-0 left-0 right-0 bottom-0 z-50 pointer-events-none">
+    <div
+      className="absolute top-0 left-0 right-0 bottom-0 z-50 pointer-events-none"
+      style={{ imageRendering: "pixelated" }}
+    >
       {/* Score */}
       {scorePos.visible && (
         <div className="absolute select-none" style={{ left: screenX(scorePos.x), top: screenY(scorePos.y) }}>
-          <span className="text-neutral-400 font-mono leading-none tracking-wider block" style={{ fontSize: scoreSizePx * 0.55 }}>SCORE</span>
           <span
-            className="text-[#00f0ff] font-mono font-bold leading-tight drop-shadow-[0_0_6px_rgba(0,240,255,0.5)] inline-block transition-transform duration-150"
-            style={{ fontSize: scoreSizePx, transform: scoreBump ? "scale(1.2)" : "scale(1)" }}
+            className="font-mono font-bold leading-none block"
+            style={{ fontSize: scoreSizePx * 0.5, color: "#888888", imageRendering: "pixelated" }}
+          >
+            SCORE
+          </span>
+          <span
+            className="font-mono font-bold leading-none inline-block"
+            style={{
+              color: "#00f0ff",
+              fontSize: scoreSizePx,
+              transform: scoreBump ? "scale(1.2)" : "scale(1)",
+              transition: "transform 150ms",
+              textShadow: "2px 2px 0 #004444",
+              imageRendering: "pixelated",
+            }}
           >
             {score.toString().padStart(6, "0")}
           </span>
@@ -126,27 +156,58 @@ export function GameHUD({ score, lives, wave, muted, activePowerUps, onPause, on
       {/* Wave */}
       {wavePos.visible && (
         <div className="absolute select-none" style={{ left: screenX(wavePos.x), top: screenY(wavePos.y) }}>
-          <span className="text-neutral-400 font-mono leading-none tracking-wider block" style={{ fontSize: waveSizePx * 0.55 }}>WAVE</span>
-          <span className="text-[#fcee0a] font-mono font-bold leading-tight drop-shadow-[0_0_6px_rgba(252,238,10,0.5)]" style={{ fontSize: waveSizePx }}>{wave}</span>
+          <span
+            className="font-mono font-bold leading-none block"
+            style={{ fontSize: waveSizePx * 0.5, color: "#888888", imageRendering: "pixelated" }}
+          >
+            WAVE
+          </span>
+          <span
+            className="font-mono font-bold leading-none"
+            style={{
+              color: "#fcee0a",
+              fontSize: waveSizePx,
+              textShadow: "2px 2px 0 #444400",
+              imageRendering: "pixelated",
+            }}
+          >
+            {wave}
+          </span>
         </div>
       )}
 
-      {/* Active power-up indicators */}
+      {/* Active power-up indicators (8-bit block bars) */}
       {powerUpsPos.visible && activePowerUps && activePowerUps.length > 0 && (
         <div className="absolute select-none flex flex-col gap-1" style={{ left: screenX(powerUpsPos.x), top: screenY(powerUpsPos.y) }}>
           {activePowerUps.map((pu, i) => (
-            <div key={`${pu.type}-${i}`} className="flex items-center gap-2 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10">
+            <div key={`${pu.type}-${i}`} className="flex items-center gap-1">
               <PowerUpLabel type={pu.type} size={powerUpsSizePx} stacks={pu.stacks} />
               {pu.type !== "extralife" && pu.type !== "shield" && (
-                <div className="w-16 h-1.5 rounded-full bg-white/20 overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${Math.max(0, Math.min(100, (pu.timer / powerUpDurations[pu.type]) * 100))}%`,
-                      backgroundColor: pu.type === "rapid" ? "#ff8800" :
-                        pu.type === "invincible" ? "#ffd700" : "#fcee0a",
-                    }}
-                  />
+                <div
+                  className="flex gap-px"
+                  style={{ height: Math.max(4, powerUpsSizePx * 0.6) }}
+                >
+                  {Array.from({ length: 8 }).map((_, j) => {
+                    const pct = Math.max(0, Math.min(100, (pu.timer / powerUpDurations[pu.type]) * 100));
+                    const filled = j < Math.ceil(pct / 12.5);
+                    return (
+                      <div
+                        key={j}
+                        style={{
+                          width: Math.max(3, powerUpsSizePx * 0.5),
+                          height: "100%",
+                          backgroundColor: filled
+                            ? pu.type === "rapid"
+                              ? "#ff8800"
+                              : pu.type === "invincible"
+                                ? "#ffd700"
+                                : "#fcee0a"
+                            : "#333333",
+                          imageRendering: "pixelated",
+                        }}
+                      />
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -154,7 +215,7 @@ export function GameHUD({ score, lives, wave, muted, activePowerUps, onPause, on
         </div>
       )}
 
-      {/* Hearts - positioned from settings, show up to absolute max */}
+      {/* Hearts - 8-bit pixel hearts */}
       {hearts.visible && (
         <div
           className="absolute select-none"
@@ -163,29 +224,45 @@ export function GameHUD({ score, lives, wave, muted, activePowerUps, onPause, on
             top: screenY(hearts.y),
           }}
         >
-          <div className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-black/70 backdrop-blur-md border border-white/15 shadow-lg">
+          <div className="flex items-center gap-1 p-1" style={{ background: "rgba(0,0,0,0.6)" }}>
             {Array.from({ length: ABSOLUTE_MAX_LIVES }).map((_, i) => (
-              <Heart key={i} filled={i < lives} size={Math.round(scaleSize(hearts.size))} />
+              <PixelHeart key={i} filled={i < lives} size={Math.round(scaleSize(hearts.size) * 0.7)} />
             ))}
           </div>
         </div>
       )}
 
-      {/* Controls - top right */}
-      <div className="absolute flex items-center gap-2 pointer-events-auto" style={{ right: screenX(8), top: screenY(8) }}>
+      {/* Controls - top right (8-bit) */}
+      <div className="absolute flex items-center gap-1 pointer-events-auto" style={{ right: screenX(8), top: screenY(8) }}>
         <button
           onClick={onToggleMute}
-          className="w-10 h-10 rounded-xl bg-black/70 border border-white/15 flex items-center justify-center text-sm text-neutral-300 hover:text-white hover:bg-black/90 transition-colors backdrop-blur-md shadow-lg"
+          className="flex items-center justify-center text-neutral-300 hover:text-white transition-colors"
+          style={{
+            width: scaleSize(24),
+            height: scaleSize(24),
+            background: "#000000",
+            border: "2px solid #444444",
+            fontSize: scaleSize(12),
+            imageRendering: "pixelated",
+          }}
           aria-label={muted ? "Unmute" : "Mute"}
         >
-          {muted ? "🔇" : "🔊"}
+          {muted ? "M" : "S"}
         </button>
         <button
           onClick={onPause}
-          className="w-10 h-10 rounded-xl bg-black/70 border border-white/15 flex items-center justify-center text-sm text-neutral-300 hover:text-white hover:bg-black/90 transition-colors backdrop-blur-md shadow-lg"
+          className="flex items-center justify-center text-neutral-300 hover:text-white transition-colors"
+          style={{
+            width: scaleSize(24),
+            height: scaleSize(24),
+            background: "#000000",
+            border: "2px solid #444444",
+            fontSize: scaleSize(12),
+            imageRendering: "pixelated",
+          }}
           aria-label="Pause"
         >
-          ⏸
+          II
         </button>
       </div>
     </div>

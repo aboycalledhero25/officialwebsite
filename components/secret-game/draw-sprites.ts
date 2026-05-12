@@ -78,85 +78,40 @@ function drawFanBody(
   const shirtColor = variant === 0 ? "#ff006e" : variant === 1 ? "#00f0ff" : "#fcee0a";
   const skinTone = variant === 0 ? "#ffccaa" : variant === 1 ? "#eabb9e" : "#ddb090";
   const hairColor = variant === 0 ? "#3a2818" : variant === 1 ? "#d4a017" : "#8b0000";
-  const pantsColor = "#2a2a3a";
 
-  // ── Legs ──
-  ctx.fillStyle = pantsColor;
-  ctx.fillRect(x + 2, y + 8, 2, 3); // left leg
-  ctx.fillRect(x + 6, y + 8, 2, 3); // right leg
-
-  // ── Torso / Shirt ──
-  ctx.fillStyle = shirtColor;
-  ctx.fillRect(x + 1, y + 4, 8, 5);
-
-  // Shirt detail (band logo stripe)
-  ctx.fillStyle = "rgba(255,255,255,0.4)";
-  ctx.fillRect(x + 1, y + 5, 8, 1);
-
-  // ── Arms raised ──
-  ctx.fillStyle = skinTone;
-  // Left arm angled up
-  ctx.fillRect(x + 0, y + 2, 2, 3);
-  ctx.fillRect(x - 1, y + 0, 2, 2);
-  // Right arm angled up
-  ctx.fillRect(x + 8, y + 2, 2, 3);
-  ctx.fillRect(x + 9, y + 0, 2, 2);
-
-  // Hands
-  ctx.fillStyle = skinTone;
-  ctx.fillRect(x - 1, y - 1, 2, 1);
-  ctx.fillRect(x + 9, y - 1, 2, 1);
-
-  // ── Head ──
-  ctx.fillStyle = skinTone;
-  ctx.fillRect(x + 3, y + 0, 4, 4);
-
-  // ── Hair ──
+  // Hair
   ctx.fillStyle = hairColor;
-  if (variant === 0) {
-    // Short dark hair
-    ctx.fillRect(x + 3, y - 1, 4, 2);
-    ctx.fillRect(x + 2, y + 0, 1, 2);
-    ctx.fillRect(x + 7, y + 0, 1, 2);
-  } else if (variant === 1) {
-    // Blonde long hair
-    ctx.fillRect(x + 3, y - 1, 4, 2);
-    ctx.fillRect(x + 2, y + 0, 1, 4);
-    ctx.fillRect(x + 7, y + 0, 1, 4);
-  } else {
-    // Red mohawk / spiky
-    ctx.fillRect(x + 3, y - 2, 4, 2);
-    ctx.fillRect(x + 4, y - 3, 2, 1);
-  }
+  ctx.fillRect(x + 2, y + 0, 6, 2);
+  ctx.fillRect(x + 1, y + 1, 2, 2);
+  ctx.fillRect(x + 7, y + 1, 2, 2);
 
-  // ── Face (eyes + mouth) ──
-  ctx.fillStyle = "#111";
-  ctx.fillRect(x + 4, y + 2, 1, 1); // left eye
-  ctx.fillRect(x + 6, y + 2, 1, 1); // right eye
+  // Face
+  ctx.fillStyle = skinTone;
+  ctx.fillRect(x + 3, y + 2, 4, 2);
 
-  // Mouth — open cheering
-  ctx.fillStyle = "#aa0000";
-  ctx.fillRect(x + 4, y + 3, 2, 1);
+  // Eyes
+  ctx.fillStyle = "#000000";
+  ctx.fillRect(x + 3, y + 3, 1, 1);
+  ctx.fillRect(x + 6, y + 3, 1, 1);
 
-  // ── Prop in hand ──
-  if (variant === 0) {
-    // Phone glow
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(x - 2, y - 2, 2, 2);
-    ctx.fillStyle = "rgba(255,255,255,0.4)";
-    ctx.fillRect(x - 3, y - 3, 4, 4);
-  } else if (variant === 1) {
-    // Glow stick
-    ctx.fillStyle = "#00f0ff";
-    ctx.fillRect(x + 10, y - 3, 1, 4);
-    ctx.fillStyle = "rgba(0,240,255,0.3)";
-    ctx.fillRect(x + 9, y - 4, 3, 6);
-  } else {
-    // Lighter flame
-    ctx.fillStyle = "#ff6600";
-    ctx.fillRect(x - 2, y - 3, 1, 2);
-    ctx.fillRect(x - 3, y - 4, 2, 2);
-  }
+  // Shirt
+  ctx.fillStyle = shirtColor;
+  ctx.fillRect(x + 2, y + 4, 6, 3);
+
+  // Arms (raised in excitement)
+  ctx.fillStyle = skinTone;
+  ctx.fillRect(x + 0, y + 4, 2, 2);
+  ctx.fillRect(x + 8, y + 4, 2, 2);
+
+  // Legs
+  ctx.fillStyle = "#1a1a2e";
+  ctx.fillRect(x + 3, y + 7, 2, 2);
+  ctx.fillRect(x + 6, y + 7, 2, 2);
+
+  // Shoes
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(x + 2, y + 9, 3, 1);
+  ctx.fillRect(x + 5, y + 9, 3, 1);
 }
 
 export function drawEnemy(
@@ -166,113 +121,26 @@ export function drawEnemy(
   variant: 0 | 1 | 2,
   frame: number
 ) {
-  // Subtle bob animation — fans bouncing to the beat
-  const bob = Math.sin(frame * 0.2 + variant * 2) * 1;
+  const bob = Math.sin(frame * 0.15 + variant * 2) * 0.5;
   drawFanBody(ctx, x, y + bob, variant);
 }
 
-/* ── Player bullet: animated electricity strand ── */
+/* ── Bullets ── */
 export function drawPlayerBullet(ctx: CanvasRenderingContext2D, x: number, y: number, frame: number) {
-  const turquoise = "#00f0ff";
-  const bright = "#ffffff";
-
-  // Main jagged strand
-  ctx.fillStyle = turquoise;
-
-  // Build a zigzag lightning bolt shape
-  const jitter = (n: number) => Math.sin(frame * 0.8 + n * 3) * 1.5;
-
-  // Left edge zigzag
-  for (let i = 0; i < 8; i++) {
-    const by = y + i;
-    const bx = x + jitter(i);
-    ctx.fillRect(bx, by, 2, 1);
-  }
-
-  // Right edge zigzag (offset phase)
-  for (let i = 0; i < 8; i++) {
-    const by = y + i;
-    const bx = x + 2 + jitter(i + 2);
-    ctx.fillRect(bx, by, 1, 1);
-  }
-
-  // Bright core (random flicker)
-  if (frame % 3 === 0) {
-    ctx.fillStyle = bright;
-    ctx.fillRect(x + 1 + jitter(0), y + 2, 1, 3);
-  }
-
-  // Glow spark at tip
-  ctx.fillStyle = turquoise;
-  ctx.fillRect(x + jitter(8), y - 1, 2, 1);
+  const flicker = frame % 4 < 2 ? "#00f0ff" : "#ffffff";
+  ctx.fillStyle = flicker;
+  ctx.fillRect(x - 1, y - 2, 2, 4);
+  ctx.fillStyle = "rgba(0, 240, 255, 0.4)";
+  ctx.fillRect(x - 2, y - 3, 4, 6);
 }
 
-/* ── Enemy projectile: 8-bit underwear, bra, or beer can ── */
-export function drawEnemyBullet(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  variant: 0 | 1 | 2
-) {
-  switch (variant) {
-    case 0: {
-      // ── Underwear (briefs) ──
-      const ux = x - 3;
-      const uy = y;
-      // Waistband
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(ux + 1, uy, 6, 1);
-      // Main body (skin tone base)
-      ctx.fillStyle = "#e8c4a0";
-      ctx.fillRect(ux, uy + 1, 8, 3);
-      // Leg holes
-      ctx.fillStyle = "#111";
-      ctx.fillRect(ux, uy + 3, 2, 1);
-      ctx.fillRect(ux + 6, uy + 3, 2, 1);
-      // Fly detail
-      ctx.fillStyle = "#d4a574";
-      ctx.fillRect(ux + 3, uy + 2, 2, 2);
-      break;
-    }
-    case 1: {
-      // ── Bra ──
-      const bx = x - 3;
-      const by = y;
-      // Straps
-      ctx.fillStyle = "#ff006e";
-      ctx.fillRect(bx + 1, by, 1, 2);
-      ctx.fillRect(bx + 6, by, 1, 2);
-      // Cups
-      ctx.fillStyle = "#ff4d9e";
-      ctx.fillRect(bx, by + 2, 4, 3);
-      ctx.fillRect(bx + 4, by + 2, 4, 3);
-      // Center detail
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(bx + 3, by + 3, 2, 1);
-      break;
-    }
-    case 2: {
-      // ── Beer can ──
-      const cx = x - 2;
-      const cy = y;
-      // Can body (silver/grey)
-      ctx.fillStyle = "#c0c0c0";
-      ctx.fillRect(cx, cy + 1, 5, 6);
-      // Top rim
-      ctx.fillStyle = "#a0a0a0";
-      ctx.fillRect(cx, cy, 5, 1);
-      // Label (gold)
-      ctx.fillStyle = "#d4a017";
-      ctx.fillRect(cx, cy + 2, 5, 3);
-      // Pull tab
-      ctx.fillStyle = "#e0e0e0";
-      ctx.fillRect(cx + 1, cy, 3, 1);
-      break;
-    }
-  }
+export function drawEnemyBullet(ctx: CanvasRenderingContext2D, x: number, y: number, variant: 0 | 1 | 2) {
+  const colors = ["#ff006e", "#fcee0a", "#00f0ff"];
+  ctx.fillStyle = colors[variant];
+  ctx.fillRect(x - 1, y - 1, 2, 2);
 }
 
-/* ── Particle explosion ── */
+/* ── Particles ── */
 export function drawParticle(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -411,6 +279,142 @@ export function drawPowerUp(
       break;
     }
   }
+}
+
+/* ── Boss: large menacing pixel-art enemy ── */
+export function drawBoss(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  frame: number,
+  hitFlash: number
+) {
+  const w = 40;
+  const h = 30;
+
+  ctx.save();
+  if (hitFlash > 0) {
+    ctx.globalAlpha = 0.6 + Math.sin(frame * 0.8) * 0.4;
+  }
+
+  // Main body (dark purple)
+  ctx.fillStyle = "#4a004a";
+  ctx.fillRect(x + 8, y + 6, 24, 20);
+
+  // Body outline / armour plates
+  ctx.fillStyle = "#6a006a";
+  ctx.fillRect(x + 6, y + 4, 28, 4);
+  ctx.fillRect(x + 6, y + 24, 28, 4);
+  ctx.fillRect(x + 4, y + 8, 4, 16);
+  ctx.fillRect(x + 32, y + 8, 4, 16);
+
+  // Shoulder spikes
+  ctx.fillStyle = "#ff006e";
+  ctx.fillRect(x + 2, y + 6, 4, 4);
+  ctx.fillRect(x + 0, y + 8, 2, 4);
+  ctx.fillRect(x + 34, y + 6, 4, 4);
+  ctx.fillRect(x + 38, y + 8, 2, 4);
+
+  // Eye (glowing, pulsating)
+  const eyeColor = frame % 10 < 5 ? "#ff006e" : "#ff88bb";
+  ctx.fillStyle = eyeColor;
+  ctx.fillRect(x + 16, y + 12, 8, 4);
+  ctx.fillRect(x + 18, y + 10, 4, 2);
+  ctx.fillRect(x + 18, y + 16, 4, 2);
+
+  // Eye pupil
+  ctx.fillStyle = "#000000";
+  ctx.fillRect(x + 19, y + 13, 2, 2);
+
+  // Mouth / vent
+  ctx.fillStyle = "#220022";
+  ctx.fillRect(x + 14, y + 20, 12, 2);
+  ctx.fillRect(x + 16, y + 22, 8, 2);
+
+  // Side cannons
+  ctx.fillStyle = "#888888";
+  ctx.fillRect(x + 2, y + 18, 6, 4);
+  ctx.fillRect(x + 32, y + 18, 6, 4);
+
+  // Cannon barrels
+  ctx.fillStyle = "#aaaaaa";
+  ctx.fillRect(x + 0, y + 19, 2, 2);
+  ctx.fillRect(x + 38, y + 19, 2, 2);
+
+  // Bottom thrusters
+  ctx.fillStyle = frame % 6 < 3 ? "#ff8800" : "#ff4400";
+  ctx.fillRect(x + 10, y + 28, 4, 2);
+  ctx.fillRect(x + 26, y + 28, 4, 2);
+
+  ctx.restore();
+}
+
+/* ── Boss projectile: large glowing orb ── */
+export function drawBossProjectile(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  frame: number,
+  size: number
+) {
+  const pulse = 0.7 + Math.sin(frame * 0.3) * 0.3;
+  const s = size / 2;
+
+  // Outer glow
+  ctx.fillStyle = `rgba(255, 0, 110, ${0.2 * pulse})`;
+  ctx.fillRect(x - s - 2, y - s - 2, size + 4, size + 4);
+
+  // Middle glow
+  ctx.fillStyle = `rgba(255, 0, 110, ${0.5 * pulse})`;
+  ctx.fillRect(x - s, y - s, size, size);
+
+  // Core
+  ctx.fillStyle = `rgba(255, 136, 187, ${pulse})`;
+  ctx.fillRect(x - s + 1, y - s + 1, size - 2, size - 2);
+
+  // Bright centre
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(x - 1, y - 1, 2, 2);
+}
+
+/* ── 8-bit Health Bar ── */
+export function draw8BitHealthBar(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  current: number,
+  max: number,
+  label: string
+) {
+  const ratio = Math.max(0, Math.min(1, current / max));
+  const fillWidth = Math.max(0, Math.floor(width * ratio));
+
+  // Border
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(x - 2, y - 2, width + 4, height + 4);
+
+  // Background
+  ctx.fillStyle = "#000000";
+  ctx.fillRect(x, y, width, height);
+
+  // Fill (green → yellow → red based on health)
+  let fillColor = "#00ff00";
+  if (ratio < 0.3) fillColor = "#ff0000";
+  else if (ratio < 0.6) fillColor = "#ffff00";
+
+  if (fillWidth > 0) {
+    ctx.fillStyle = fillColor;
+    ctx.fillRect(x, y, fillWidth, height);
+  }
+
+  // Label text (simple pixel-style)
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `${Math.max(8, height)}px monospace`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(`${label} ${Math.ceil(current)}/${max}`, x + width / 2, y + height / 2);
 }
 
 /* ── Barricade / shield block ── */

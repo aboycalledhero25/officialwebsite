@@ -12,6 +12,9 @@ import {
   drawEnemyBullet,
   drawParticle,
   drawPowerUp,
+  drawBoss,
+  drawBossProjectile,
+  draw8BitHealthBar,
 } from "./draw-sprites";
 
 export type GamePhase = "menu" | "playing" | "paused" | "gameover" | "levelcomplete";
@@ -116,7 +119,7 @@ export function GameCanvas({
       alive: boolean;
       cooldown: number;
     }[],
-    bullets: [] as { x: number; y: number; vx: number; vy: number; isPlayer: boolean; variant?: 0 | 1 | 2 }[],
+    bullets: [] as { x: number; y: number; vx: number; vy: number; isPlayer: boolean; variant?: 0 | 1 | 2; isBoss?: boolean }[],
     particles: [] as {
       x: number;
       y: number;
@@ -140,6 +143,14 @@ export function GameCanvas({
     wave: 1,
     spawnAnim: 0,
     playAreaW: BASE_W,
+    boss: null as {
+      x: number;
+      y: number;
+      health: number;
+      maxHealth: number;
+      fireCooldown: number;
+      hitFlash: number;
+    } | null,
   });
 
   // Resize canvas to fill viewport
@@ -184,32 +195,52 @@ export function GameCanvas({
     const s = stateRef.current;
     s.enemies = [];
     s.bullets = []; // clear all projectiles on new wave
+    s.boss = null;
     const edgeMargin = 4;
     const { w: CW, h: CH } = dimsRef.current;
     const sc = CH / BASE_H;
     const logW = CW / sc;
     const cfg = settingsRef.current.enemy;
-    const maxW = logW - edgeMargin * 2;
-    const colUnit = ENEMY_W_BASE + cfg.paddingX;
-    const rowUnit = ENEMY_H_BASE + cfg.paddingY;
-    const maxCols = Math.max(1, Math.floor((maxW + cfg.paddingX) / colUnit));
-    const cols = Math.min(maxCols, cfg.columns + Math.floor((w - 1) / 2));
-    // Cap rows so enemies never drop below 55% of screen height (above player area)
-    const maxRows = Math.floor((BASE_H * 0.55 - cfg.startY) / rowUnit) + 1;
-    const rows = Math.min(maxRows, cfg.rows + Math.floor((w - 1) / 3));
-    const totalW = cols * colUnit - cfg.paddingX;
-    const startX = Math.max(edgeMargin, (logW - totalW) / 2) + (cfg.offsetX ?? 0);
-    const startY = Math.max(3, cfg.startY); // ensure enemy hair is visible
+    const bossCfg = siteData.secretGame?.boss;
 
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        s.enemies.push({
-          x: startX + c * (ENEMY_W_BASE + cfg.paddingX),
-          y: startY + r * (ENEMY_H_BASE + cfg.paddingY),
-          variant: ((r + c) % 3) as 0 | 1 | 2,
-          alive: true,
-          cooldown: Math.random() * 2, // staggered firing times
-        });
+    // Check if this is a boss wave
+    const isBossWave = bossCfg?.enabled && w > 0 && w % (bossCfg?.interval ?? 10) === 0;
+
+    if (isBossWave) {
+      const bossNumber = Math.floor(w / (bossCfg?.interval ?? 10));
+      const bossHealth = (bossCfg?.baseHealth ?? 500) + (bossNumber - 1) * (bossCfg?.healthIncrease ?? 500);
+      const bw = bossCfg?.width ?? 40;
+      s.boss = {
+        x: logW / 2 - bw / 2,
+        y: 20,
+        health: bossHealth,
+        maxHealth: bossHealth,
+        fireCooldown: 1,
+        hitFlash: 0,
+      };
+    } else {
+      const maxW = logW - edgeMargin * 2;
+      const colUnit = ENEMY_W_BASE + cfg.paddingX;
+      const rowUnit = ENEMY_H_BASE + cfg.paddingY;
+      const maxCols = Math.max(1, Math.floor((maxW + cfg.paddingX) / colUnit));
+      const cols = Math.min(maxCols, cfg.columns + Math.floor((w - 1) / 2));
+      // Cap rows so enemies never drop below 55% of screen height (above player area)
+      const maxRows = Math.floor((BASE_H * 0.55 - cfg.startY) / rowUnit) + 1;
+      const rows = Math.min(maxRows, cfg.rows + Math.floor((w - 1) / 3));
+      const totalW = cols * colUnit - cfg.paddingX;
+      const startX = Math.max(edgeMargin, (logW - totalW) / 2) + (cfg.offsetX ?? 0);
+      const startY = Math.max(3, cfg.startY); // ensure enemy hair is visible
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          s.enemies.push({
+            x: startX + c * (ENEMY_W_BASE + cfg.paddingX),
+            y: startY + r * (ENEMY_H_BASE + cfg.paddingY),
+            variant: ((r + c) % 3) as 0 | 1 | 2,
+            alive: true,
+            cooldown: Math.random() * 2, // staggered firing times
+          });
+        }
       }
     }
 
@@ -235,6 +266,7 @@ export function GameCanvas({
     s.particles = [];
     s.powerups = [];
     s.activePowerUps = [];
+    s.boss = null;
     s.enemyDir = 1;
     s.enemyDropAccum = 0;
     s.screenShake = 0;
@@ -462,6 +494,45 @@ export function GameCanvas({
         }
       });
 
+      // ── Boss behaviour ──
+      const bossCfg = siteData.secretGame?.boss;
+      if (s.boss && bossCfg?.enabled) {
+        // Track player horizontally
+        const targetX = s.playerX + PLAYER_W_BASE / 2 - (bossCfg?.width ?? 40) / 2;
+        s.boss.x += (targetX - s.boss.x) * (bossCfg?.trackSpeed ?? 30) * dt;
+        s.boss.x = Math.max(4, Math.min(playAreaW - (bossCfg?.width ?? 40) - 4, s.boss.x));
+
+        // Fire large projectile at player every N seconds
+        s.boss.fireCooldown -= dt;
+        if (s.boss.fireCooldown <= 0) {
+          const bx = s.boss.x + (bossCfg?.width ?? 40) / 2;
+          const by = s.boss.y + (bossCfg?.height ?? 30);
+          const px = s.playerX + PLAYER_W_BASE / 2;
+          const py = s.playerY + PLAYER_H_BASE / 2;
+          const bdx = px - bx;
+          const bdy = py - by;
+          const bdist = Math.sqrt(bdx * bdx + bdy * bdy);
+          const pspeed = bossCfg?.projectileSpeed ?? 80;
+          const vx = bdist > 1 ? (bdx / bdist) * pspeed : 0;
+          const vy = bdist > 1 ? (bdy / bdist) * pspeed : pspeed;
+          s.bullets.push({
+            x: bx,
+            y: by,
+            vx,
+            vy,
+            isPlayer: false,
+            isBoss: true,
+          });
+          s.boss.fireCooldown = bossCfg?.fireInterval ?? 3;
+          play("shoot");
+        }
+
+        // Decay hit flash
+        if (s.boss.hitFlash > 0) {
+          s.boss.hitFlash = Math.max(0, s.boss.hitFlash - dt);
+        }
+      }
+
       // ── Power-up drift ──
       for (let i = s.powerups.length - 1; i >= 0; i--) {
         const pu = s.powerups[i];
@@ -586,6 +657,41 @@ export function GameCanvas({
         }
       }
 
+      // ── Collision: player bullets vs boss ──
+      if (s.boss && bossCfg?.enabled) {
+        const bw = bossCfg?.width ?? 40;
+        const bh = bossCfg?.height ?? 30;
+        for (let bi = s.bullets.length - 1; bi >= 0; bi--) {
+          const b = s.bullets[bi];
+          if (!b.isPlayer) continue;
+          if (
+            b.x >= s.boss.x &&
+            b.x <= s.boss.x + bw &&
+            b.y >= s.boss.y &&
+            b.y <= s.boss.y + bh
+          ) {
+            s.bullets.splice(bi, 1);
+            const damage = bossCfg?.bulletDamage ?? 20;
+            s.boss.health -= damage;
+            s.boss.hitFlash = 0.1;
+            spawnParticles(b.x, b.y, "#ff006e", 4);
+            spawnParticles(b.x, b.y, "#fcee0a", 3);
+            play("enemyHit");
+            if (s.boss.health <= 0) {
+              s.score += bossCfg?.scoreReward ?? 500;
+              onScoreChange(s.score);
+              spawnParticles(s.boss.x + bw / 2, s.boss.y + bh / 2, "#ff006e", 20);
+              spawnParticles(s.boss.x + bw / 2, s.boss.y + bh / 2, "#fcee0a", 15);
+              spawnParticles(s.boss.x + bw / 2, s.boss.y + bh / 2, "#00f0ff", 10);
+              play("levelComplete");
+              s.boss = null;
+              onPhaseChange("levelcomplete");
+              return;
+            }
+          }
+        }
+      }
+
       // ── Collision: enemy bullets vs player ──
       const px = s.playerX;
       const py = s.playerY;
@@ -596,7 +702,13 @@ export function GameCanvas({
       for (let bi = s.bullets.length - 1; bi >= 0; bi--) {
         const b = s.bullets[bi];
         if (b.isPlayer) continue;
-        if (b.x >= px && b.x <= px + pw && b.y >= py && b.y <= py + ph) {
+        const hitbox = b.isBoss ? (bossCfg?.projectileSize ?? 10) / 2 : 0;
+        if (
+          b.x >= px - hitbox &&
+          b.x <= px + pw + hitbox &&
+          b.y >= py - hitbox &&
+          b.y <= py + ph + hitbox
+        ) {
           s.bullets.splice(bi, 1);
           if (isInvincible) {
             // Invincible — ignore hit
@@ -632,8 +744,33 @@ export function GameCanvas({
         }
       }
 
+      // ── Collision: boss vs player (touch damage) ──
+      if (s.boss && bossCfg?.enabled) {
+        const bw = bossCfg?.width ?? 40;
+        const bh = bossCfg?.height ?? 30;
+        if (
+          s.boss.x < px + pw &&
+          s.boss.x + bw > px &&
+          s.boss.y < py + ph &&
+          s.boss.y + bh > py
+        ) {
+          if (!isInvincible) {
+            s.lives--;
+            onLivesChange(s.lives);
+            s.screenShake = 0.3;
+            spawnParticles(px + pw / 2, py + ph / 2, "#ff006e", 10);
+            play("playerHit");
+            if (s.lives <= 0) {
+              play("gameOver");
+              onPhaseChange("gameover");
+              return;
+            }
+          }
+        }
+      }
+
       // ── Wave complete? ──
-      if (aliveEnemies.length === 0) {
+      if (aliveEnemies.length === 0 && !s.boss) {
         play("levelComplete");
         onPhaseChange("levelcomplete");
         return;
@@ -776,10 +913,25 @@ export function GameCanvas({
       ctx.fill();
     }
 
+    // Draw boss
+    if (s.boss) {
+      const bossCfg = siteData.secretGame?.boss;
+      drawBoss(ctx, s.boss.x, s.boss.y, s.frame, s.boss.hitFlash);
+      // Boss health bar (8-bit)
+      const barW = bossCfg?.width ?? 40;
+      const barH = 6;
+      const barX = s.boss.x + barW / 2 - 30;
+      const barY = s.boss.y - 10;
+      draw8BitHealthBar(ctx, barX, barY, 60, barH, s.boss.health, s.boss.maxHealth, "BOSS");
+    }
+
     // Draw bullets
     for (const b of s.bullets) {
       if (b.isPlayer) {
         drawPlayerBullet(ctx, b.x, b.y, s.frame);
+      } else if (b.isBoss) {
+        const pSize = siteData.secretGame?.boss?.projectileSize ?? 10;
+        drawBossProjectile(ctx, b.x, b.y, s.frame, pSize);
       } else {
         drawEnemyBullet(ctx, b.x, b.y, b.variant ?? 0);
       }
