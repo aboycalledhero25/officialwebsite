@@ -626,7 +626,6 @@ function drawFanBody(
       ctx.fillRect(x + 20 + legR, by + 27, 1, 1);
     }
   }
-  ctx.restore();
 }
 
 export function drawEnemy(
@@ -772,6 +771,7 @@ export function drawEnemyBullet(ctx: CanvasRenderingContext2D, x: number, y: num
       break;
     }
   }
+  ctx.restore();
 }
 
 /* ── Particles ── */
