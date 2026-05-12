@@ -725,6 +725,42 @@ export function GameCanvas({
       drawPlayer(ctx, s.playerX, s.playerY, s.frame);
     }
 
+    // Draw invincibility sparkles (Sonic-style) around the guitar
+    if (s.activePowerUps.some((p) => p.type === "invincible")) {
+      const sc = spriteConfig;
+      const cx = s.playerX + sc.offsetX + sc.width / 2;
+      const cy = s.playerY + sc.offsetY + sc.height / 2;
+      const sparkleColors = ["#ffd700", "#ffffff", "#00f0ff", "#ff006e", "#fcee0a"];
+      for (let i = 0; i < 10; i++) {
+        const angle = s.frame * 0.08 + i * ((Math.PI * 2) / 10);
+        const radius = 18 + Math.sin(s.frame * 0.05 + i * 1.3) * 8;
+        const sx = cx + Math.cos(angle) * radius;
+        const sy = cy + Math.sin(angle) * radius * 0.7;
+        const size = 1.5 + Math.sin(s.frame * 0.2 + i * 2) * 1;
+        const alpha = 0.5 + Math.sin(s.frame * 0.15 + i) * 0.5;
+        const color = sparkleColors[i % sparkleColors.length];
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = color;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 4;
+        ctx.beginPath();
+        // Draw a 4-point star shape
+        ctx.moveTo(sx, sy - size);
+        ctx.lineTo(sx + size * 0.3, sy - size * 0.3);
+        ctx.lineTo(sx + size, sy);
+        ctx.lineTo(sx + size * 0.3, sy + size * 0.3);
+        ctx.lineTo(sx, sy + size);
+        ctx.lineTo(sx - size * 0.3, sy + size * 0.3);
+        ctx.lineTo(sx - size, sy);
+        ctx.lineTo(sx - size * 0.3, sy - size * 0.3);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
     // Draw shield bubble if active
     if (s.activePowerUps.some((p) => p.type === "shield")) {
       const shieldCfg = settingsRef.current.shield;
