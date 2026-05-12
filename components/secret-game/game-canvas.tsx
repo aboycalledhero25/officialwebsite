@@ -31,12 +31,11 @@ const MAX_LIVES = 3;
 
 /* ── Power-up constants ── */
 const POWERUP_DRIFT_SPEED = 20;
-const POWERUP_SIZE = 8;
 const POWERUP_RAPID_DURATION = 5;
-const POWERUP_SHIELD_DURATION = 6;
 const POWERUP_WIDESHOT_DURATION = 4;
+const POWERUP_INVINCIBLE_DURATION = 4;
 
-type PowerUpType = "rapid" | "shield" | "wideshot" | "extralife";
+type PowerUpType = "rapid" | "shield" | "wideshot" | "extralife" | "invincible";
 
 interface PowerUp {
   x: number;
@@ -47,6 +46,7 @@ interface PowerUp {
 interface ActivePowerUp {
   type: PowerUpType;
   timer: number;
+  stacks: number;
 }
 
 interface GameCanvasProps {
@@ -338,8 +338,10 @@ export function GameCanvas({
       // ── Active power-up timers ──
       if (s.activePowerUps.length > 0) {
         for (let i = s.activePowerUps.length - 1; i >= 0; i--) {
-          s.activePowerUps[i].timer -= dt;
-          if (s.activePowerUps[i].timer <= 0) {
+          const ap = s.activePowerUps[i];
+          if (ap.type === "shield") continue; // shield has no timer
+          ap.timer -= dt;
+          if (ap.timer <= 0) {
             s.activePowerUps.splice(i, 1);
           }
         }
@@ -350,9 +352,10 @@ export function GameCanvas({
       s.playerCooldown -= dt;
       const firing = keys.shoot || sharedAim.firing;
       if (firing && s.playerCooldown <= 0) {
-        const isWideShot = s.activePowerUps.some((p) => p.type === "wideshot");
-        const isRapid = s.activePowerUps.some((p) => p.type === "rapid");
-        const baseCooldown = isRapid ? 0.12 : 0.35;
+        const wideShot = s.activePowerUps.find((p) => p.type === "wideshot");
+        const rapid = s.activePowerUps.find((p) => p.type === "rapid");
+        const rapidStacks = rapid?.stacks ?? 0;
+        const baseCooldown = rapidStacks > 0 ? Math.max(0.06, 0.12 - 0.02 * (rapidStacks - 1)) : 0.35;
 
         const px = s.playerX + PLAYER_W_BASE / 2;
         const py = s.playerY + PLAYER_H_BASE / 2;
@@ -376,30 +379,20 @@ export function GameCanvas({
           vy = (dy / dist) * speed;
         }
 
-        if (isWideShot) {
+        if (wideShot) {
           const baseAngle = Math.atan2(vy, vx);
           const spread = 0.26; // ~15°
-          s.bullets.push({
-            x: px,
-            y: py,
-            vx: Math.cos(baseAngle - spread) * speed,
-            vy: Math.sin(baseAngle - spread) * speed,
-            isPlayer: true,
-          });
-          s.bullets.push({
-            x: px,
-            y: py,
-            vx,
-            vy,
-            isPlayer: true,
-          });
-          s.bullets.push({
-            x: px,
-            y: py,
-            vx: Math.cos(baseAngle + spread) * speed,
-            vy: Math.sin(baseAngle + spread) * speed,
-            isPlayer: true,
-          });
+          const bulletCount = 2 + wideShot.stacks; // 3, 4, 5...
+          for (let i = 0; i < bulletCount; i++) {
+            const angle = baseAngle - spread + (spread * 2 * i) / (bulletCount - 1);
+            s.bullets.push({
+              x: px,
+              y: py,
+              vx: Math.cos(angle) * speed,
+              vy: Math.sin(angle) * speed,
+              isPlayer: true,
+            });
+          }
         } else {
           s.bullets.push({
             x: px,
@@ -467,14 +460,15 @@ export function GameCanvas({
       }
 
       // ── Power-up collection ──
+      const powerUpSize = siteData.secretGame?.powerUpSize ?? 8;
       for (let i = s.powerups.length - 1; i >= 0; i--) {
         const pu = s.powerups[i];
         // AABB collision with player
         if (
           pu.x < s.playerX + PLAYER_W_BASE &&
-          pu.x + POWERUP_SIZE > s.playerX &&
+          pu.x + powerUpSize > s.playerX &&
           pu.y < s.playerY + PLAYER_H_BASE &&
-          pu.y + POWERUP_SIZE > s.playerY
+          pu.y + powerUpSize > s.playerY
         ) {
           // Apply power-up
           if (pu.type === "extralife") {
@@ -484,21 +478,23 @@ export function GameCanvas({
           } else {
             const duration =
               pu.type === "rapid" ? POWERUP_RAPID_DURATION :
-              pu.type === "shield" ? POWERUP_SHIELD_DURATION :
+              pu.type === "invincible" ? POWERUP_INVINCIBLE_DURATION :
               POWERUP_WIDESHOT_DURATION;
             const existing = s.activePowerUps.find((p) => p.type === pu.type);
             if (existing) {
               existing.timer = duration;
+              existing.stacks = (existing.stacks || 1) + 1;
             } else {
-              s.activePowerUps.push({ type: pu.type, timer: duration });
+              s.activePowerUps.push({ type: pu.type, timer: duration, stacks: 1 });
             }
             if (onPowerUpChange) onPowerUpChange(s.activePowerUps);
           }
           const puColor =
             pu.type === "rapid" ? "#ff8800" :
             pu.type === "shield" ? "#00f0ff" :
-            pu.type === "wideshot" ? "#fcee0a" : "#ff006e";
-          spawnParticles(pu.x + POWERUP_SIZE / 2, pu.y + POWERUP_SIZE / 2, puColor, 6);
+            pu.type === "wideshot" ? "#fcee0a" :
+            pu.type === "invincible" ? "#ffd700" : "#ff006e";
+          spawnParticles(pu.x + powerUpSize / 2, pu.y + powerUpSize / 2, puColor, 6);
           s.powerups.splice(i, 1);
         }
       }
@@ -537,10 +533,11 @@ export function GameCanvas({
             // Chance to spawn power-up
             const spawnChance = siteData.secretGame?.powerUpSpawnChance ?? 0.12;
             if (Math.random() < spawnChance) {
-              const types: PowerUpType[] = ["rapid", "shield", "wideshot", "extralife"];
+              const types: PowerUpType[] = ["rapid", "shield", "wideshot", "extralife", "invincible"];
               const type = types[Math.floor(Math.random() * types.length)];
+              const pSize = siteData.secretGame?.powerUpSize ?? 8;
               s.powerups.push({
-                x: e.x + ENEMY_W_BASE / 2 - POWERUP_SIZE / 2,
+                x: e.x + ENEMY_W_BASE / 2 - pSize / 2,
                 y: e.y + ENEMY_H_BASE / 2,
                 type,
               });
@@ -582,14 +579,24 @@ export function GameCanvas({
       const pw = PLAYER_W_BASE;
       const ph = PLAYER_H_BASE;
       const hasShield = s.activePowerUps.some((p) => p.type === "shield");
+      const isInvincible = s.activePowerUps.some((p) => p.type === "invincible");
       for (let bi = s.bullets.length - 1; bi >= 0; bi--) {
         const b = s.bullets[bi];
         if (b.isPlayer) continue;
         if (b.x >= px && b.x <= px + pw && b.y >= py && b.y <= py + ph) {
           s.bullets.splice(bi, 1);
+          if (isInvincible) {
+            // Invincible — ignore hit
+            continue;
+          }
           if (hasShield) {
-            // Shield absorbs hit — visual feedback only
-            spawnParticles(px + pw / 2, py + ph / 2, "#00f0ff", 4);
+            // Shield absorbs one hit then breaks
+            const shieldIdx = s.activePowerUps.findIndex((p) => p.type === "shield");
+            if (shieldIdx >= 0) {
+              s.activePowerUps.splice(shieldIdx, 1);
+              if (onPowerUpChange) onPowerUpChange(s.activePowerUps);
+            }
+            spawnParticles(px + pw / 2, py + ph / 2, "#00f0ff", 6);
             play("shoot"); // reuse a light sound
             continue;
           }
@@ -672,8 +679,9 @@ export function GameCanvas({
     }
 
     // Draw power-ups
+    const puSize = siteData.secretGame?.powerUpSize ?? 8;
     for (const pu of s.powerups) {
-      drawPowerUp(ctx, pu.x, pu.y, pu.type, s.frame);
+      drawPowerUp(ctx, pu.x, pu.y, pu.type, s.frame, puSize);
     }
 
     // Draw enemies with spawn animation
@@ -707,16 +715,13 @@ export function GameCanvas({
     // Draw shield bubble if active
     if (s.activePowerUps.some((p) => p.type === "shield")) {
       const shieldCfg = settingsRef.current.shield;
+      const sc = spriteConfig;
+      const cx = s.playerX + sc.offsetX + sc.width / 2 + (shieldCfg?.offsetX ?? 0);
+      const cy = s.playerY + sc.offsetY + sc.height / 2 + (shieldCfg?.offsetY ?? 0);
       ctx.strokeStyle = `rgba(0, 240, 255, ${0.4 + Math.sin(s.frame * 0.3) * 0.2})`;
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(
-        s.playerX + PLAYER_W_BASE / 2 + (shieldCfg?.offsetX ?? 0),
-        s.playerY + PLAYER_H_BASE / 2 + (shieldCfg?.offsetY ?? 0),
-        shieldCfg?.radius ?? 16,
-        0,
-        Math.PI * 2
-      );
+      ctx.arc(cx, cy, shieldCfg?.radius ?? 16, 0, Math.PI * 2);
       ctx.stroke();
       ctx.fillStyle = `rgba(0, 240, 255, 0.08)`;
       ctx.fill();

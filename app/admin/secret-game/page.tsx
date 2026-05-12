@@ -54,6 +54,7 @@ export default function SecretGameAdminPage() {
           instructions: sg.instructions ?? "Defend the stage from the invasion!",
           playerSprite: sg.playerSprite ?? { offsetX: -2, offsetY: -12, width: 14, height: 42 },
           powerUpSpawnChance: sg.powerUpSpawnChance ?? 0.12,
+          powerUpSize: sg.powerUpSize ?? 8,
           desktop: { ...DEFAULT_PLATFORM, ...sg.desktop },
           mobile: { ...DEFAULT_PLATFORM, ...sg.mobile },
         };
@@ -362,7 +363,7 @@ export default function SecretGameAdminPage() {
           </Section>
 
           {/* Power-up Spawn Rate */}
-          <Section title="Power-Up Drop Rate">
+          <Section title="Power-Up Settings">
             <div className="grid grid-cols-1 gap-4">
               <NumberField
                 label="Spawn Chance (0–1)"
@@ -371,6 +372,14 @@ export default function SecretGameAdminPage() {
                 min={0}
                 max={1}
                 step={0.01}
+              />
+              <NumberField
+                label="Power-Up Size (px)"
+                value={settings.powerUpSize}
+                onChange={(v) => updateField("powerUpSize", v)}
+                min={4}
+                max={32}
+                step={1}
               />
               <p className="text-xs text-neutral-500">Chance to drop a power-up when an enemy is killed. 0.12 = 12%.</p>
             </div>

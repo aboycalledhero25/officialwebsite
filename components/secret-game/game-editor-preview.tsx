@@ -194,8 +194,8 @@ export function GameEditorPreview({
           next.powerUps = { ...next.powerUps, x: Math.round(d.origX + dx), y: Math.round(d.origY + dy) };
           break;
         case "shield": {
-          const pcx = settings.player.x + PLAYER_W_BASE / 2;
-          const pcy = settings.player.y + PLAYER_H_BASE / 2;
+          const pcx = settings.player.x + playerSprite.offsetX + playerSprite.width / 2;
+          const pcy = settings.player.y + playerSprite.offsetY + playerSprite.height / 2;
           next.shield = {
             ...next.shield,
             offsetX: Math.round(d.origX + dx - pcx),
@@ -261,7 +261,7 @@ export function GameEditorPreview({
           if (itemKey === "player") {
             startDrag(itemKey, settings.player.x + playerSprite.offsetX, settings.player.y + playerSprite.offsetY, e);
           } else if (itemKey === "shield") {
-            startDrag(itemKey, settings.player.x + PLAYER_W_BASE / 2 + (settings.shield?.offsetX ?? 0), settings.player.y + PLAYER_H_BASE / 2 + (settings.shield?.offsetY ?? 0), e);
+            startDrag(itemKey, settings.player.x + playerSprite.offsetX + playerSprite.width / 2 + (settings.shield?.offsetX ?? 0), settings.player.y + playerSprite.offsetY + playerSprite.height / 2 + (settings.shield?.offsetY ?? 0), e);
           } else {
             const item = settings[itemKey as keyof GamePlatformSettings] as { x: number; y: number };
             startDrag(itemKey, item.x, item.y, e);
@@ -271,7 +271,7 @@ export function GameEditorPreview({
           if (itemKey === "player") {
             startDrag(itemKey, settings.player.x + playerSprite.offsetX, settings.player.y + playerSprite.offsetY, e);
           } else if (itemKey === "shield") {
-            startDrag(itemKey, settings.player.x + PLAYER_W_BASE / 2 + (settings.shield?.offsetX ?? 0), settings.player.y + PLAYER_H_BASE / 2 + (settings.shield?.offsetY ?? 0), e);
+            startDrag(itemKey, settings.player.x + playerSprite.offsetX + playerSprite.width / 2 + (settings.shield?.offsetX ?? 0), settings.player.y + playerSprite.offsetY + playerSprite.height / 2 + (settings.shield?.offsetY ?? 0), e);
           } else {
             const item = settings[itemKey as keyof GamePlatformSettings] as { x: number; y: number };
             startDrag(itemKey, item.x, item.y, e);
@@ -413,8 +413,8 @@ export function GameEditorPreview({
         <DraggableOverlay
           label="Shield"
           itemKey="shield"
-          left={settings.player.x * scaleX + ((PLAYER_W_BASE / 2 + (settings.shield?.offsetX ?? 0) - (settings.shield?.radius ?? 16)) * scaleY)}
-          top={settings.player.y * scaleY + ((PLAYER_H_BASE / 2 + (settings.shield?.offsetY ?? 0) - (settings.shield?.radius ?? 16)) * scaleY)}
+          left={(settings.player.x + playerSprite.offsetX + playerSprite.width / 2 + (settings.shield?.offsetX ?? 0) - (settings.shield?.radius ?? 16)) * scaleY}
+          top={(settings.player.y + playerSprite.offsetY + playerSprite.height / 2 + (settings.shield?.offsetY ?? 0) - (settings.shield?.radius ?? 16)) * scaleY}
           width={((settings.shield?.radius ?? 16) * 2) * scaleY}
           height={((settings.shield?.radius ?? 16) * 2) * scaleY}
           visible={true}

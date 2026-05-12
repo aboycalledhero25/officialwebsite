@@ -9,8 +9,9 @@ const MAX_LIVES = 3;
 const ABSOLUTE_MAX_LIVES = MAX_LIVES + 2; // extralife can push to 5
 
 interface ActivePowerUp {
-  type: "rapid" | "shield" | "wideshot" | "extralife";
+  type: "rapid" | "shield" | "wideshot" | "extralife" | "invincible";
   timer: number;
+  stacks?: number;
 }
 
 interface GameHUDProps {
@@ -46,17 +47,19 @@ function Heart({ filled, size }: { filled: boolean; size: number }) {
   );
 }
 
-function PowerUpLabel({ type, size }: { type: ActivePowerUp["type"]; size: number }) {
+function PowerUpLabel({ type, size, stacks }: { type: ActivePowerUp["type"]; size: number; stacks?: number }) {
   const labels: Record<ActivePowerUp["type"], { text: string; color: string }> = {
     rapid: { text: "RAPID FIRE", color: "#ff8800" },
     shield: { text: "SHIELD", color: "#00f0ff" },
     wideshot: { text: "WIDE SHOT", color: "#fcee0a" },
     extralife: { text: "EXTRA LIFE", color: "#ff006e" },
+    invincible: { text: "INVINCIBLE", color: "#ffd700" },
   };
   const l = labels[type];
+  const suffix = stacks && stacks > 1 ? ` x${stacks}` : "";
   return (
     <span className="font-mono font-bold tracking-wider" style={{ color: l.color, fontSize: size }}>
-      {l.text}
+      {l.text}{suffix}
     </span>
   );
 }
@@ -98,9 +101,10 @@ export function GameHUD({ score, lives, wave, muted, activePowerUps, onPause, on
 
   const powerUpDurations: Record<ActivePowerUp["type"], number> = {
     rapid: 5,
-    shield: 6,
+    shield: 0,
     wideshot: 4,
     extralife: 0,
+    invincible: 4,
   };
 
   return (
@@ -131,15 +135,15 @@ export function GameHUD({ score, lives, wave, muted, activePowerUps, onPause, on
         <div className="absolute select-none flex flex-col gap-1" style={{ left: screenX(powerUpsPos.x), top: screenY(powerUpsPos.y) }}>
           {activePowerUps.map((pu, i) => (
             <div key={`${pu.type}-${i}`} className="flex items-center gap-2 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10">
-              <PowerUpLabel type={pu.type} size={powerUpsSizePx} />
-              {pu.type !== "extralife" && (
+              <PowerUpLabel type={pu.type} size={powerUpsSizePx} stacks={pu.stacks} />
+              {pu.type !== "extralife" && pu.type !== "shield" && (
                 <div className="w-16 h-1.5 rounded-full bg-white/20 overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all"
                     style={{
                       width: `${Math.max(0, Math.min(100, (pu.timer / powerUpDurations[pu.type]) * 100))}%`,
                       backgroundColor: pu.type === "rapid" ? "#ff8800" :
-                        pu.type === "shield" ? "#00f0ff" : "#fcee0a",
+                        pu.type === "invincible" ? "#ffd700" : "#fcee0a",
                     }}
                   />
                 </div>

@@ -284,108 +284,129 @@ export function drawParticle(
   ctx.fillRect(x - size / 2, y - size / 2, size, size);
 }
 
-/* ── Power-up: 4 variants with strong pulse + glow ── */
+/* ── Power-up: 5 variants with strong pulse + glow ── */
 export function drawPowerUp(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
-  type: "rapid" | "shield" | "wideshot" | "extralife",
-  frame: number
+  type: "rapid" | "shield" | "wideshot" | "extralife" | "invincible",
+  frame: number,
+  size = 8
 ) {
-  const pulse = Math.sin(frame * 0.2) * 1.5; // stronger vertical bob
+  const scale = size / 8;
+  const pulse = Math.sin(frame * 0.2) * 1.5 * scale; // stronger vertical bob
   const glowPulse = 0.6 + Math.sin(frame * 0.15) * 0.4; // 0.2 -> 1.0 alpha pulse
   const sizePulse = 1 + Math.sin(frame * 0.25) * 0.25; // scale pulse
-  const cx = x + 4;
-  const cy = y + 4 + pulse;
+  const cx = x + size / 2;
+  const cy = y + size / 2 + pulse;
 
   // Color definitions per type
   const colors: Record<string, { core: string; glow: string; bright: string }> = {
-    rapid:   { core: "#ffa500", glow: "rgba(255, 165, 0,", bright: "#ffdd44" },
-    shield:  { core: "#00f0ff", glow: "rgba(0, 240, 255,", bright: "#ffffff" },
-    wideshot:{ core: "#fcee0a", glow: "rgba(252, 238, 10,", bright: "#ffffff" },
+    rapid:    { core: "#ffa500", glow: "rgba(255, 165, 0,", bright: "#ffdd44" },
+    shield:   { core: "#00f0ff", glow: "rgba(0, 240, 255,", bright: "#ffffff" },
+    wideshot: { core: "#fcee0a", glow: "rgba(252, 238, 10,", bright: "#ffffff" },
     extralife:{ core: "#ff006e", glow: "rgba(255, 0, 110,", bright: "#ff88bb" },
+    invincible:{ core: "#ffd700", glow: "rgba(255, 215, 0,", bright: "#ffffff" },
   };
   const c = colors[type];
 
   // Outer aura (large soft glow)
-  const auraSize = 7 * sizePulse;
+  const auraSize = 7 * sizePulse * scale;
   ctx.fillStyle = `${c.glow} ${0.15 * glowPulse})`;
   ctx.fillRect(cx - auraSize, cy - auraSize, auraSize * 2, auraSize * 2);
 
   // Middle glow
-  const midSize = 5 * sizePulse;
+  const midSize = 5 * sizePulse * scale;
   ctx.fillStyle = `${c.glow} ${0.35 * glowPulse})`;
   ctx.fillRect(cx - midSize, cy - midSize, midSize * 2, midSize * 2);
 
   // Inner bright glow
-  const innerSize = 3 * sizePulse;
+  const innerSize = 3 * sizePulse * scale;
   ctx.fillStyle = `${c.glow} ${0.6 * glowPulse})`;
   ctx.fillRect(cx - innerSize, cy - innerSize, innerSize * 2, innerSize * 2);
 
   // Icon body
+  const s = scale;
   switch (type) {
     case "rapid": {
       // Lightning bolt (orange/yellow)
       ctx.fillStyle = c.core;
-      ctx.fillRect(cx - 1, cy - 3, 2, 2);
-      ctx.fillRect(cx - 2, cy - 1, 3, 1);
-      ctx.fillRect(cx - 1, cy, 2, 1);
-      ctx.fillRect(cx, cy + 1, 2, 2);
+      ctx.fillRect(cx - 1 * s, cy - 3 * s, 2 * s, 2 * s);
+      ctx.fillRect(cx - 2 * s, cy - 1 * s, 3 * s, 1 * s);
+      ctx.fillRect(cx - 1 * s, cy, 2 * s, 1 * s);
+      ctx.fillRect(cx, cy + 1 * s, 2 * s, 2 * s);
       // Bright highlight
       ctx.fillStyle = c.bright;
       if (frame % 6 < 3) {
-        ctx.fillRect(cx - 1, cy - 2, 1, 1);
-        ctx.fillRect(cx, cy + 1, 1, 1);
+        ctx.fillRect(cx - 1 * s, cy - 2 * s, 1 * s, 1 * s);
+        ctx.fillRect(cx, cy + 1 * s, 1 * s, 1 * s);
       }
       break;
     }
     case "shield": {
       // Shield shape (cyan)
       ctx.fillStyle = c.core;
-      ctx.fillRect(cx - 2, cy - 3, 4, 1);
-      ctx.fillRect(cx - 3, cy - 2, 6, 1);
-      ctx.fillRect(cx - 3, cy - 1, 6, 3);
-      ctx.fillRect(cx - 2, cy + 2, 4, 1);
-      ctx.fillRect(cx - 1, cy + 3, 2, 1);
+      ctx.fillRect(cx - 2 * s, cy - 3 * s, 4 * s, 1 * s);
+      ctx.fillRect(cx - 3 * s, cy - 2 * s, 6 * s, 1 * s);
+      ctx.fillRect(cx - 3 * s, cy - 1 * s, 6 * s, 3 * s);
+      ctx.fillRect(cx - 2 * s, cy + 2 * s, 4 * s, 1 * s);
+      ctx.fillRect(cx - 1 * s, cy + 3 * s, 2 * s, 1 * s);
       // Bright highlight
       ctx.fillStyle = c.bright;
       if (frame % 8 < 4) {
-        ctx.fillRect(cx - 1, cy - 2, 2, 1);
-        ctx.fillRect(cx - 2, cy, 1, 1);
-        ctx.fillRect(cx + 1, cy, 1, 1);
+        ctx.fillRect(cx - 1 * s, cy - 2 * s, 2 * s, 1 * s);
+        ctx.fillRect(cx - 2 * s, cy, 1 * s, 1 * s);
+        ctx.fillRect(cx + 1 * s, cy, 1 * s, 1 * s);
       }
       break;
     }
     case "wideshot": {
       // Triple chevrons (yellow)
       ctx.fillStyle = c.core;
-      ctx.fillRect(cx - 2, cy - 3, 4, 1);
-      ctx.fillRect(cx - 3, cy - 1, 6, 1);
-      ctx.fillRect(cx - 2, cy + 1, 4, 1);
+      ctx.fillRect(cx - 2 * s, cy - 3 * s, 4 * s, 1 * s);
+      ctx.fillRect(cx - 3 * s, cy - 1 * s, 6 * s, 1 * s);
+      ctx.fillRect(cx - 2 * s, cy + 1 * s, 4 * s, 1 * s);
       // Bright highlight
       ctx.fillStyle = c.bright;
       if (frame % 5 < 2) {
-        ctx.fillRect(cx - 1, cy - 3, 2, 1);
-        ctx.fillRect(cx - 2, cy - 1, 1, 1);
-        ctx.fillRect(cx + 1, cy - 1, 1, 1);
+        ctx.fillRect(cx - 1 * s, cy - 3 * s, 2 * s, 1 * s);
+        ctx.fillRect(cx - 2 * s, cy - 1 * s, 1 * s, 1 * s);
+        ctx.fillRect(cx + 1 * s, cy - 1 * s, 1 * s, 1 * s);
       }
       break;
     }
     case "extralife": {
       // Heart (pink)
       ctx.fillStyle = c.core;
-      ctx.fillRect(cx - 2, cy - 2, 1, 1);
-      ctx.fillRect(cx + 1, cy - 2, 1, 1);
-      ctx.fillRect(cx - 3, cy - 1, 3, 1);
-      ctx.fillRect(cx, cy - 1, 3, 1);
-      ctx.fillRect(cx - 3, cy, 6, 2);
-      ctx.fillRect(cx - 2, cy + 2, 4, 1);
-      ctx.fillRect(cx - 1, cy + 3, 2, 1);
+      ctx.fillRect(cx - 2 * s, cy - 2 * s, 1 * s, 1 * s);
+      ctx.fillRect(cx + 1 * s, cy - 2 * s, 1 * s, 1 * s);
+      ctx.fillRect(cx - 3 * s, cy - 1 * s, 3 * s, 1 * s);
+      ctx.fillRect(cx, cy - 1 * s, 3 * s, 1 * s);
+      ctx.fillRect(cx - 3 * s, cy, 6 * s, 2 * s);
+      ctx.fillRect(cx - 2 * s, cy + 2 * s, 4 * s, 1 * s);
+      ctx.fillRect(cx - 1 * s, cy + 3 * s, 2 * s, 1 * s);
       // Bright highlight
       ctx.fillStyle = c.bright;
       if (frame % 7 < 3) {
-        ctx.fillRect(cx - 1, cy - 1, 2, 1);
-        ctx.fillRect(cx - 2, cy, 1, 1);
+        ctx.fillRect(cx - 1 * s, cy - 1 * s, 2 * s, 1 * s);
+        ctx.fillRect(cx - 2 * s, cy, 1 * s, 1 * s);
+      }
+      break;
+    }
+    case "invincible": {
+      // Flashing star (gold)
+      ctx.fillStyle = c.core;
+      ctx.fillRect(cx - 1 * s, cy - 3 * s, 2 * s, 1 * s);
+      ctx.fillRect(cx - 2 * s, cy - 2 * s, 4 * s, 1 * s);
+      ctx.fillRect(cx - 3 * s, cy - 1 * s, 6 * s, 2 * s);
+      ctx.fillRect(cx - 2 * s, cy + 1 * s, 4 * s, 1 * s);
+      ctx.fillRect(cx - 1 * s, cy + 2 * s, 2 * s, 1 * s);
+      // Bright highlight — flash on/off
+      ctx.fillStyle = c.bright;
+      if (frame % 4 < 2) {
+        ctx.fillRect(cx - 1 * s, cy - 2 * s, 2 * s, 1 * s);
+        ctx.fillRect(cx - 2 * s, cy, 1 * s, 1 * s);
+        ctx.fillRect(cx + 1 * s, cy, 1 * s, 1 * s);
       }
       break;
     }

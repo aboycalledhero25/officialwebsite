@@ -194,6 +194,7 @@ export interface SecretGameSettings {
   instructions: string;
   playerSprite: PlayerSprite;
   powerUpSpawnChance: number;
+  powerUpSize: number;
   desktop: GamePlatformSettings;
   mobile: GamePlatformSettings;
 }
