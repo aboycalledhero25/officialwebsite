@@ -31,6 +31,7 @@ const DEFAULT_PLATFORM: GamePlatformSettings = {
     dropDistance: 6,
     width: 32,
     height: 28,
+    spriteScale: 1,
   },
   bossHealthBar: { visible: true, x: 90, y: 4, size: 6 },
   boss: { x: 100, y: 20 },
@@ -66,7 +67,7 @@ export default function SecretGameAdminPage() {
           enemyBaseHp: sg.enemyBaseHp ?? 1,
           enemyHpPerWave: sg.enemyHpPerWave ?? 0,
           impacts: sg.impacts ?? { playerBullet: { w: 28, h: 28 }, enemyBullet: { w: 20, h: 20 } },
-          powerUpDropRates: sg.powerUpDropRates ?? { rapid: 1, shield: 1, wideshot: 1, extralife: 1, invincible: 1 },
+          powerUpDropRates: sg.powerUpDropRates ?? { rapid: 1, wideshot: 1, extralife: 1, invincible: 1 },
           waveRewardEnabled: sg.waveRewardEnabled ?? true,
           enemyChoiceDropChance: sg.enemyChoiceDropChance ?? 0.05,
           disabledPowerUps: sg.disabledPowerUps ?? [],
@@ -84,8 +85,17 @@ export default function SecretGameAdminPage() {
             height: 30,
             scoreReward: 500,
           },
-          desktop: { ...DEFAULT_PLATFORM, ...sg.desktop },
-          mobile: { ...DEFAULT_PLATFORM, ...sg.mobile },
+          roguelikeConfig: sg.roguelikeConfig ?? {},
+          desktop: {
+            ...DEFAULT_PLATFORM,
+            ...sg.desktop,
+            enemy: { ...DEFAULT_PLATFORM.enemy, ...(sg.desktop?.enemy ?? {}) },
+          },
+          mobile: {
+            ...DEFAULT_PLATFORM,
+            ...sg.mobile,
+            enemy: { ...DEFAULT_PLATFORM.enemy, ...(sg.mobile?.enemy ?? {}) },
+          },
         };
         setSettings(merged);
         setLoading(false);
@@ -274,20 +284,28 @@ export default function SecretGameAdminPage() {
           </div>
 
           {/* Enemy Logic */}
-          <Section title="Enemy Logic">
+          <Section title={`Enemy Grid (${platform})`}>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <NumberField label="Columns" value={plat.enemy.columns} onChange={(v) => updateField(`${platform}.enemy.columns`, v)} min={1} max={20} step={1} />
+              <NumberField label="Rows" value={plat.enemy.rows} onChange={(v) => updateField(`${platform}.enemy.rows`, v)} min={1} max={20} step={1} />
+              <NumberField label="Cell Width" value={plat.enemy.width} onChange={(v) => updateField(`${platform}.enemy.width`, v)} min={4} max={200} step={1} />
+              <NumberField label="Cell Height" value={plat.enemy.height} onChange={(v) => updateField(`${platform}.enemy.height`, v)} min={4} max={200} step={1} />
+              <NumberField label="Pad X" value={plat.enemy.paddingX} onChange={(v) => updateField(`${platform}.enemy.paddingX`, v)} min={-100} max={100} step={1} />
+              <NumberField label="Pad Y" value={plat.enemy.paddingY} onChange={(v) => updateField(`${platform}.enemy.paddingY`, v)} min={-100} max={100} step={1} />
+              <NumberField label="Start Y" value={plat.enemy.startY} onChange={(v) => updateField(`${platform}.enemy.startY`, v)} min={0} max={300} step={1} />
+              <NumberField label="Offset X" value={plat.enemy.offsetX} onChange={(v) => updateField(`${platform}.enemy.offsetX`, v)} min={-120} max={120} step={1} />
+              <NumberField label="Drop Distance" value={plat.enemy.dropDistance} onChange={(v) => updateField(`${platform}.enemy.dropDistance`, v)} min={1} max={40} step={1} />
+            </div>
+            <NumberField label="Sprite Scale" value={(plat.enemy as { spriteScale?: number }).spriteScale ?? 1} onChange={(v) => updateField(`${platform}.enemy.spriteScale`, v)} min={0.1} max={5} step={0.05} />
+            <p className="text-xs text-neutral-500 -mt-2">Scales the sprite visually only — does not affect grid spacing or collision.</p>
+          </Section>
+
+          <Section title="Enemy Combat">
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               <NumberField label="Speed" value={plat.enemy.speed} onChange={(v) => updateField(`${platform}.enemy.speed`, v)} min={0} max={200} step={1} />
               <NumberField label="Fire Rate" value={plat.enemy.fireRate} onChange={(v) => updateField(`${platform}.enemy.fireRate`, v)} min={0} max={1} step={0.001} />
               <NumberField label="Projectile Speed" value={plat.enemy.projectileSpeed} onChange={(v) => updateField(`${platform}.enemy.projectileSpeed`, v)} min={0} max={300} step={1} />
-              <NumberField label="Projectile Size" value={plat.enemy.projectileSize} onChange={(v) => updateField(`${platform}.enemy.projectileSize`, v)} min={4} max={32} step={1} />
-              <NumberField label="Columns" value={plat.enemy.columns} onChange={(v) => updateField(`${platform}.enemy.columns`, v)} min={1} max={12} step={1} />
-              <NumberField label="Rows" value={plat.enemy.rows} onChange={(v) => updateField(`${platform}.enemy.rows`, v)} min={1} max={8} step={1} />
-              <NumberField label="Start Y" value={plat.enemy.startY} onChange={(v) => updateField(`${platform}.enemy.startY`, v)} min={3} max={300} step={1} />
-              <NumberField label="Offset X" value={plat.enemy.offsetX} onChange={(v) => updateField(`${platform}.enemy.offsetX`, v)} min={-120} max={120} step={1} />
-              <NumberField label="Padding X" value={plat.enemy.paddingX} onChange={(v) => updateField(`${platform}.enemy.paddingX`, v)} min={0} max={50} step={1} />
-              <NumberField label="Padding Y" value={plat.enemy.paddingY} onChange={(v) => updateField(`${platform}.enemy.paddingY`, v)} min={0} max={50} step={1} />
-              <NumberField label="Width" value={plat.enemy.width} onChange={(v) => updateField(`${platform}.enemy.width`, v)} min={8} max={64} step={1} />
-              <NumberField label="Height" value={plat.enemy.height} onChange={(v) => updateField(`${platform}.enemy.height`, v)} min={8} max={64} step={1} />
+              <NumberField label="Projectile Size" value={plat.enemy.projectileSize} onChange={(v) => updateField(`${platform}.enemy.projectileSize`, v)} min={1} max={200} step={1} />
             </div>
           </Section>
 
@@ -514,6 +532,135 @@ export default function SecretGameAdminPage() {
               <NumberField label="Enemy Hit H" value={settings.impacts?.enemyBullet?.h ?? 20} onChange={(v) => updateField("impacts.enemyBullet.h", v)} min={4} max={200} step={1} />
             </div>
           </Section>
+
+          {/* Roguelike Config */}
+          {(() => {
+            const rc = settings.roguelikeConfig ?? {};
+            const reload    = rc.reload      ?? { maxShots: 10, reloadDuration: 3 };
+            const fr        = rc.fastReload  ?? { reductionPerStack: 0.01, minReloadTime: 0.05 };
+            const rf        = rc.rapidFire   ?? { ratePerStack: 0.02, minCooldown: 0.05 };
+            const mg        = rc.machineGun  ?? { baseBurst: 3, burstPerStack: 1, burstSpread: 0.1, burstDelay: 0.07 };
+            const frenzy    = rc.frenzy      ?? { cooldown: 30, damage: 20, baseProjectiles: 8, projectilesPerStack: 2 };
+            const bomb      = rc.bomb        ?? { cooldown: 30, damage: 20, bombsPerStack: 1, crossRadius: 30 };
+            const lightning = rc.lightning   ?? { cooldown: 30, damage: 50, baseStrikes: 3, strikesPerStack: 1 };
+            const connect   = rc.connect     ?? { damage: 50, damagePerStack: 25 };
+            const seeker    = rc.seeker      ?? { homingStrengthBase: 2, homingPerStack: 1, seekerRange: 200 };
+            const virus     = rc.virus       ?? { baseInfectionChance: 0.2, chancePerStack: 0.05, baseDamagePerTick: 10, damagePerStack: 5, duration: 3, maxVirusStacks: 3 };
+            const nuke      = rc.nuke        ?? { cooldown: 30, bossHPReduction: 0.25, nukesPerStack: 1 };
+            const shield    = rc.shield      ?? { duration: 10, cooldown: 30 };
+            const speed     = rc.speed       ?? { speedPerStack: 0.01 };
+            const strength  = rc.strength    ?? { damagePerStack: 0.02 };
+            const proj      = rc.projectile  ?? { projectilesPerStack: 1 };
+            const luck      = rc.luck        ?? { dropChancePerStack: 0.01 };
+            const extraLife = rc.extraLife   ?? { heartsPerStack: 1 };
+            const upRc = (key: string, val: object) =>
+              updateField("roguelikeConfig", { ...settings.roguelikeConfig, [key]: { ...(settings.roguelikeConfig as Record<string,object> ?? {})[key], ...val } });
+            return (<>
+              <Section title="Player Base Stats">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  <NumberField label="Starting Hearts" value={rc.startingHearts ?? 3} onChange={(v) => updateField("roguelikeConfig.startingHearts", v)} min={1} max={10} step={1} />
+                  <NumberField label="Base Reload (s)" value={rc.baseReloadTime ?? 0.35} onChange={(v) => updateField("roguelikeConfig.baseReloadTime", v)} min={0.05} max={2} step={0.01} />
+                  <NumberField label="Move Speed" value={rc.baseMovementSpeed ?? 90} onChange={(v) => updateField("roguelikeConfig.baseMovementSpeed", v)} min={10} max={300} step={5} />
+                  <NumberField label="Bullet Damage" value={rc.baseBulletDamage ?? 20} onChange={(v) => updateField("roguelikeConfig.baseBulletDamage", v)} min={1} max={500} step={5} />
+                </div>
+              </Section>
+              <Section title="Reload Mechanic">
+                <div className="grid grid-cols-2 gap-4">
+                  <NumberField label="Clip Size" value={reload.maxShots ?? 10} onChange={(v) => upRc("reload", { maxShots: v })} min={1} max={50} step={1} />
+                  <NumberField label="Reload Time (s)" value={reload.reloadDuration ?? 3} onChange={(v) => upRc("reload", { reloadDuration: v })} min={0.5} max={10} step={0.1} />
+                </div>
+              </Section>
+              <Section title="Fast Reload (perm upgrade)">
+                <div className="grid grid-cols-2 gap-4">
+                  <NumberField label="Reduction/Stack" value={fr.reductionPerStack ?? 0.01} onChange={(v) => upRc("fastReload", { reductionPerStack: v })} min={0} max={0.5} step={0.005} />
+                  <NumberField label="Min Reload (s)" value={fr.minReloadTime ?? 0.05} onChange={(v) => upRc("fastReload", { minReloadTime: v })} min={0.01} max={1} step={0.01} />
+                </div>
+              </Section>
+              <Section title="Rapid Fire (temp power-up)">
+                <div className="grid grid-cols-2 gap-4">
+                  <NumberField label="Rate/Stack" value={rf.ratePerStack ?? 0.02} onChange={(v) => upRc("rapidFire", { ratePerStack: v })} min={0} max={0.5} step={0.005} />
+                  <NumberField label="Min Cooldown (s)" value={rf.minCooldown ?? 0.05} onChange={(v) => upRc("rapidFire", { minCooldown: v })} min={0.01} max={1} step={0.01} />
+                </div>
+              </Section>
+              <Section title="Machine Gun (perm upgrade)">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <NumberField label="Base Burst" value={mg.baseBurst ?? 3} onChange={(v) => upRc("machineGun", { baseBurst: v })} min={1} max={20} step={1} />
+                  <NumberField label="Burst/Stack" value={mg.burstPerStack ?? 1} onChange={(v) => upRc("machineGun", { burstPerStack: v })} min={0} max={10} step={1} />
+                  <NumberField label="Spread (rad)" value={mg.burstSpread ?? 0.1} onChange={(v) => upRc("machineGun", { burstSpread: v })} min={0} max={1} step={0.01} />
+                  <NumberField label="Burst Delay (s)" value={mg.burstDelay ?? 0.07} onChange={(v) => upRc("machineGun", { burstDelay: v })} min={0.01} max={0.5} step={0.01} />
+                </div>
+              </Section>
+              <Section title="Frenzy (perm upgrade)">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <NumberField label="Base Projectiles" value={frenzy.baseProjectiles ?? 8} onChange={(v) => upRc("frenzy", { baseProjectiles: v })} min={1} max={30} step={1} />
+                  <NumberField label="Projectiles/Stack" value={frenzy.projectilesPerStack ?? 2} onChange={(v) => upRc("frenzy", { projectilesPerStack: v })} min={0} max={10} step={1} />
+                  <NumberField label="Damage" value={frenzy.damage ?? 20} onChange={(v) => upRc("frenzy", { damage: v })} min={1} max={500} step={5} />
+                  <NumberField label="Cooldown (s)" value={frenzy.cooldown ?? 30} onChange={(v) => upRc("frenzy", { cooldown: v })} min={1} max={120} step={1} />
+                </div>
+              </Section>
+              <Section title="Bomb (perm upgrade)">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <NumberField label="Bombs/Stack" value={bomb.bombsPerStack ?? 1} onChange={(v) => upRc("bomb", { bombsPerStack: v })} min={1} max={10} step={1} />
+                  <NumberField label="Cross Radius" value={bomb.crossRadius ?? 30} onChange={(v) => upRc("bomb", { crossRadius: v })} min={5} max={200} step={1} />
+                  <NumberField label="Damage" value={bomb.damage ?? 20} onChange={(v) => upRc("bomb", { damage: v })} min={1} max={500} step={5} />
+                  <NumberField label="Cooldown (s)" value={bomb.cooldown ?? 30} onChange={(v) => upRc("bomb", { cooldown: v })} min={1} max={120} step={1} />
+                </div>
+              </Section>
+              <Section title="Lightning (perm upgrade)">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <NumberField label="Base Strikes" value={lightning.baseStrikes ?? 3} onChange={(v) => upRc("lightning", { baseStrikes: v })} min={1} max={20} step={1} />
+                  <NumberField label="Strikes/Stack" value={lightning.strikesPerStack ?? 1} onChange={(v) => upRc("lightning", { strikesPerStack: v })} min={0} max={10} step={1} />
+                  <NumberField label="Damage" value={lightning.damage ?? 50} onChange={(v) => upRc("lightning", { damage: v })} min={1} max={1000} step={10} />
+                  <NumberField label="Cooldown (s)" value={lightning.cooldown ?? 30} onChange={(v) => upRc("lightning", { cooldown: v })} min={1} max={120} step={1} />
+                </div>
+              </Section>
+              <Section title="Connect Beam (perm upgrade)">
+                <div className="grid grid-cols-2 gap-4">
+                  <NumberField label="Base Damage" value={connect.damage ?? 50} onChange={(v) => upRc("connect", { damage: v })} min={1} max={1000} step={5} />
+                  <NumberField label="Damage/Stack" value={connect.damagePerStack ?? 25} onChange={(v) => upRc("connect", { damagePerStack: v })} min={0} max={500} step={5} />
+                </div>
+              </Section>
+              <Section title="Seeker (perm upgrade)">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  <NumberField label="Homing Strength" value={seeker.homingStrengthBase ?? 2} onChange={(v) => upRc("seeker", { homingStrengthBase: v })} min={0.1} max={20} step={0.1} />
+                  <NumberField label="Strength/Stack" value={seeker.homingPerStack ?? 1} onChange={(v) => upRc("seeker", { homingPerStack: v })} min={0} max={10} step={0.5} />
+                  <NumberField label="Range" value={seeker.seekerRange ?? 200} onChange={(v) => upRc("seeker", { seekerRange: v })} min={10} max={500} step={10} />
+                </div>
+              </Section>
+              <Section title="Virus (perm upgrade)">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  <NumberField label="Infect Chance" value={virus.baseInfectionChance ?? 0.2} onChange={(v) => upRc("virus", { baseInfectionChance: v })} min={0} max={1} step={0.01} />
+                  <NumberField label="Chance/Stack" value={virus.chancePerStack ?? 0.05} onChange={(v) => upRc("virus", { chancePerStack: v })} min={0} max={0.5} step={0.01} />
+                  <NumberField label="Dmg/Tick" value={virus.baseDamagePerTick ?? 10} onChange={(v) => upRc("virus", { baseDamagePerTick: v })} min={1} max={200} step={1} />
+                  <NumberField label="Dmg/Stack" value={virus.damagePerStack ?? 5} onChange={(v) => upRc("virus", { damagePerStack: v })} min={0} max={100} step={1} />
+                  <NumberField label="Duration (s)" value={virus.duration ?? 3} onChange={(v) => upRc("virus", { duration: v })} min={0.5} max={20} step={0.5} />
+                  <NumberField label="Max Stacks" value={virus.maxVirusStacks ?? 3} onChange={(v) => upRc("virus", { maxVirusStacks: v })} min={1} max={10} step={1} />
+                </div>
+              </Section>
+              <Section title="Nuke (perm upgrade)">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  <NumberField label="Nukes/Stack" value={nuke.nukesPerStack ?? 1} onChange={(v) => upRc("nuke", { nukesPerStack: v })} min={1} max={5} step={1} />
+                  <NumberField label="Boss HP −%" value={(nuke.bossHPReduction ?? 0.25) * 100} onChange={(v) => upRc("nuke", { bossHPReduction: v / 100 })} min={1} max={100} step={1} />
+                  <NumberField label="Cooldown (s)" value={nuke.cooldown ?? 30} onChange={(v) => upRc("nuke", { cooldown: v })} min={1} max={120} step={1} />
+                </div>
+              </Section>
+              <Section title="Perm Shield (perm upgrade)">
+                <div className="grid grid-cols-2 gap-4">
+                  <NumberField label="Duration (s)" value={shield.duration ?? 10} onChange={(v) => upRc("shield", { duration: v })} min={1} max={60} step={1} />
+                  <NumberField label="Cooldown (s)" value={shield.cooldown ?? 30} onChange={(v) => upRc("shield", { cooldown: v })} min={1} max={120} step={1} />
+                </div>
+              </Section>
+              <Section title="Other Perm Upgrades">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  <NumberField label="Speed/Stack" value={speed.speedPerStack ?? 0.01} onChange={(v) => upRc("speed", { speedPerStack: v })} min={0} max={0.5} step={0.005} />
+                  <NumberField label="Strength/Stack" value={strength.damagePerStack ?? 0.02} onChange={(v) => upRc("strength", { damagePerStack: v })} min={0} max={0.5} step={0.005} />
+                  <NumberField label="Projectiles/Stack" value={proj.projectilesPerStack ?? 1} onChange={(v) => upRc("projectile", { projectilesPerStack: v })} min={1} max={10} step={1} />
+                  <NumberField label="Luck/Stack" value={luck.dropChancePerStack ?? 0.01} onChange={(v) => upRc("luck", { dropChancePerStack: v })} min={0} max={0.5} step={0.005} />
+                  <NumberField label="Extra Life Hearts/Stack" value={extraLife.heartsPerStack ?? 1} onChange={(v) => upRc("extraLife", { heartsPerStack: v })} min={1} max={5} step={1} />
+                </div>
+              </Section>
+            </>);
+          })()}
 
           {/* Permanent Power-Up Toggles */}
           <Section title="Permanent Power-Ups (enable/disable)">
