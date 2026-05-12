@@ -248,60 +248,73 @@ export function GameEditorPreview({
       const dy = (clientY - d.startY) / scaleY;
 
       const next = { ...settings };
+      let changed = false;
       switch (d.key) {
         case "player":
-          // origX/Y include the sprite offset, so subtract it to get the raw player position
           next.player = {
             ...next.player,
             x: Math.round(d.origX + dx - playerSprite.offsetX),
             y: Math.round(d.origY + dy - playerSprite.offsetY),
           };
+          changed = true;
           break;
         case "hearts":
           next.hearts = { ...next.hearts, x: Math.round(d.origX + dx), y: Math.round(d.origY + dy) };
+          changed = true;
           break;
         case "arrowKeys":
           next.arrowKeys = { ...next.arrowKeys, x: Math.round(d.origX + dx), y: Math.round(d.origY + dy) };
+          changed = true;
           break;
         case "touchArea":
           next.touchArea = { ...next.touchArea, x: Math.round(d.origX + dx), y: Math.round(d.origY + dy) };
+          changed = true;
           break;
         case "fireButton":
           next.fireButton = { ...next.fireButton, x: Math.round(d.origX + dx), y: Math.round(d.origY + dy) };
+          changed = true;
           break;
         case "score":
           next.score = { ...next.score, x: Math.round(d.origX + dx), y: Math.round(d.origY + dy) };
+          changed = true;
           break;
         case "wave":
           next.wave = { ...next.wave, x: Math.round(d.origX + dx), y: Math.round(d.origY + dy) };
+          changed = true;
           break;
         case "powerUps":
           next.powerUps = { ...next.powerUps, x: Math.round(d.origX + dx), y: Math.round(d.origY + dy) };
+          changed = true;
           break;
         case "bossHealthBar":
           next.bossHealthBar = { ...next.bossHealthBar, x: Math.round(d.origX + dx), y: Math.round(d.origY + dy) };
+          changed = true;
           break;
         case "boss":
           if (onBossChange) {
             onBossChange({ ...bossSettings, x: Math.round(d.origX + dx), y: Math.round(d.origY + dy) });
           }
+          changed = false; // boss changes handled separately
           break;
         case "bossResize":
           if (onBossChange) {
             onBossChange({ ...bossSettings, width: Math.max(10, Math.round(d.origX + dx)), height: Math.max(10, Math.round(d.origY + dy)) });
           }
+          changed = false; // boss changes handled separately
           break;
         case "shield": {
-          // Shield offset is visually scaled by scaleY, so drag delta must use scaleY
           next.shield = {
             ...next.shield,
             offsetX: Math.round(d.origX + dx * (scaleX / scaleY)),
             offsetY: Math.round(d.origY + dy * (scaleX / scaleY)),
           };
+          changed = true;
           break;
         }
       }
-      onChange(next);
+      if (changed) {
+        onChange(next);
+      }
     };
 
     const handleUp = () => {
@@ -318,7 +331,7 @@ export function GameEditorPreview({
       window.removeEventListener("touchmove", handleMove);
       window.removeEventListener("touchend", handleUp);
     };
-  }, [scaleX, scaleY, settings, onChange, playerSprite.offsetX, playerSprite.offsetY]);
+  }, [scaleX, scaleY, settings, onChange, onBossChange, bossSettings, playerSprite.offsetX, playerSprite.offsetY]);
 
   // Overlay renderer for draggable items
   function DraggableOverlay({

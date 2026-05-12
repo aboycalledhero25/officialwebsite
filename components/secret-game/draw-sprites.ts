@@ -150,13 +150,33 @@ export function drawEnemy(
   drawFanBody(ctx, x, y, variant, frame);
 }
 
-/* ── Bullets ── */
+/* ── Player bullet: 8-bit electricity burst ── */
 export function drawPlayerBullet(ctx: CanvasRenderingContext2D, x: number, y: number, frame: number) {
-  const flicker = frame % 4 < 2 ? "#00f0ff" : "#ffffff";
-  ctx.fillStyle = flicker;
-  ctx.fillRect(x - 1, y - 2, 2, 4);
-  ctx.fillStyle = "rgba(0, 240, 255, 0.4)";
-  ctx.fillRect(x - 2, y - 3, 4, 6);
+  const primary = frame % 3 === 0 ? "#ffffff" : "#00f0ff";
+  const secondary = frame % 3 === 0 ? "#00f0ff" : "#88ffff";
+
+  ctx.save();
+  ctx.fillStyle = primary;
+
+  // Main jagged bolt — 3 vertical segments with horizontal zig-zags
+  const zig = (frame % 4) - 1.5; // -1.5, -0.5, 0.5, 1.5
+  ctx.fillRect(x + zig, y - 4, 1, 2);
+  ctx.fillRect(x - zig, y - 2, 1, 2);
+  ctx.fillRect(x + zig * 0.5, y, 1, 2);
+  ctx.fillRect(x - zig * 0.5, y + 2, 1, 2);
+
+  // Secondary sparks
+  ctx.fillStyle = secondary;
+  ctx.fillRect(x + 2, y - 3, 1, 1);
+  ctx.fillRect(x - 2, y - 1, 1, 1);
+  ctx.fillRect(x + 1, y + 1, 1, 1);
+  ctx.fillRect(x - 1, y + 3, 1, 1);
+
+  // Electric glow around core
+  ctx.fillStyle = "rgba(0, 240, 255, 0.25)";
+  ctx.fillRect(x - 2, y - 5, 4, 10);
+
+  ctx.restore();
 }
 
 /* ── Underwear projectiles (Y-fronts, bras, thongs) ── */

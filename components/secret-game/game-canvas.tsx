@@ -152,6 +152,7 @@ export function GameCanvas({
       maxHealth: number;
       fireCooldown: number;
       hitFlash: number;
+      dir: number;
     } | null,
   });
 
@@ -219,6 +220,7 @@ export function GameCanvas({
         maxHealth: bossHealth,
         fireCooldown: 1,
         hitFlash: 0,
+        dir: 1,
       };
     } else {
       const maxW = logW - edgeMargin * 2;
@@ -501,15 +503,22 @@ export function GameCanvas({
       // ── Boss behaviour ──
       const bossCfg = siteData.secretGame?.boss;
       if (s.boss && bossCfg?.enabled) {
-        // Track player horizontally
-        const targetX = s.playerX + PLAYER_W_BASE / 2 - (bossCfg?.width ?? 40) / 2;
-        s.boss.x += (targetX - s.boss.x) * (bossCfg?.trackSpeed ?? 30) * dt;
-        s.boss.x = Math.max(4, Math.min(playAreaW - (bossCfg?.width ?? 40) - 4, s.boss.x));
+        // Patrol freely left / right, bouncing off walls
+        const bw = bossCfg?.width ?? 40;
+        const bossSpeed = (bossCfg?.trackSpeed ?? 30);
+        s.boss.x += s.boss.dir * bossSpeed * dt;
+        if (s.boss.x <= 4) {
+          s.boss.x = 4;
+          s.boss.dir = 1;
+        } else if (s.boss.x + bw >= playAreaW - 4) {
+          s.boss.x = playAreaW - 4 - bw;
+          s.boss.dir = -1;
+        }
 
         // Fire large projectile at player every N seconds
         s.boss.fireCooldown -= dt;
         if (s.boss.fireCooldown <= 0) {
-          const bx = s.boss.x + (bossCfg?.width ?? 40) / 2;
+          const bx = s.boss.x + bw / 2;
           const by = s.boss.y + (bossCfg?.height ?? 30);
           const px = s.playerX + PLAYER_W_BASE / 2;
           const py = s.playerY + PLAYER_H_BASE / 2;
@@ -602,6 +611,22 @@ export function GameCanvas({
       // ── Bullet update ──
       for (let i = s.bullets.length - 1; i >= 0; i--) {
         const b = s.bullets[i];
+        // Boss projectiles home in on player
+        if (b.isBoss) {
+          const px = s.playerX + PLAYER_W_BASE / 2;
+          const py = s.playerY + PLAYER_H_BASE / 2;
+          const hdx = px - b.x;
+          const hdy = py - b.y;
+          const hdist = Math.sqrt(hdx * hdx + hdy * hdy);
+          if (hdist > 1) {
+            const pspeed = bossCfg?.projectileSpeed ?? 80;
+            const targetVx = (hdx / hdist) * pspeed;
+            const targetVy = (hdy / hdist) * pspeed;
+            // Smoothly steer toward player
+            b.vx += (targetVx - b.vx) * 2 * dt;
+            b.vy += (targetVy - b.vy) * 2 * dt;
+          }
+        }
         b.x += (b.vx || 0) * dt;
         b.y += b.vy * dt;
         if (b.y < -20 || b.y > BASE_H + 20 || b.x < -20 || b.x > playAreaW + 20) {
