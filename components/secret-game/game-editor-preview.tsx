@@ -103,7 +103,7 @@ export function GameEditorPreview({
     const rows = Math.min(maxRows, enemy.rows);
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < enemy.columns; c++) {
-        drawEnemy(ctx, startX + c * colUnit, enemy.startY + r * rowUnit, ((r + c) % 3) as 0 | 1 | 2, 0);
+        drawEnemy(ctx, startX + c * colUnit, enemy.startY + r * rowUnit, ((r + c) % 3) as 0 | 1 | 2, 0, false);
       }
     }
 

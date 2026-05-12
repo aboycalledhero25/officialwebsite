@@ -906,10 +906,10 @@ export function GameCanvas({
       if (spawnScale < 1) {
         ctx.save();
         ctx.globalAlpha = spawnScale;
-        drawEnemy(ctx, e.x, e.y, e.variant, s.frame);
+        drawEnemy(ctx, e.x, e.y, e.variant, s.frame, e.cooldown > 0.75);
         ctx.restore();
       } else {
-        drawEnemy(ctx, e.x, e.y, e.variant, s.frame);
+        drawEnemy(ctx, e.x, e.y, e.variant, s.frame, e.cooldown > 0.75);
       }
     }
 
