@@ -130,7 +130,7 @@ export function GameHUD({ score, lives, wave, muted, activePowerUps, onPause, on
   const scorePos = plat?.score ?? { visible: true, x: 8, y: 8, size: 14 };
   const wavePos = plat?.wave ?? { visible: true, x: 120, y: 8, size: 14 };
   const powerUpsPos = plat?.powerUps ?? { visible: true, x: 120, y: 28, size: 8 };
-  const controlsPos = plat?.controls ?? { x: 152, y: 4, size: 24 };
+  const controlsPos = plat?.controls ?? { x: 159, y: 292, size: 24 };
 
   // Scale stored positions (0-240 x, 0-320 y) to actual screen dimensions
   const screenX = (baseX: number) => (baseX / BASE_W) * dims.w;
