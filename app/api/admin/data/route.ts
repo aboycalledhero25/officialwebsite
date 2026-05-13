@@ -23,15 +23,14 @@ function readLocalJson(): Record<string, unknown> | null {
 }
 
 /**
- * In-memory cache — seeded from local data.json at startup so the game
- * immediately gets the correct values (including all secretGame settings)
- * without a Supabase round-trip.  Updated on every editor POST.
- * TTL is 60 s; after that, GET falls back to Supabase for any newer data.
+ * In-memory cache — set only when a POST (save) comes in from the admin panel.
+ * NOT seeded from disk on startup: on Vercel each serverless container loads the
+ * baked-in data.json from the last *deploy*, not the latest Supabase data. Seeding
+ * from disk would make every fresh container serve 60 s of stale settings.
+ * TTL is 30 s; after that GET falls back to Supabase to pick up any newer data.
  */
-const localSeed = readLocalJson();
-let memCache: { data: Record<string, unknown>; ts: number } | null =
-  localSeed ? { data: localSeed, ts: Date.now() } : null;
-const MEM_CACHE_TTL_MS = 60_000;
+let memCache: { data: Record<string, unknown>; ts: number } | null = null;
+const MEM_CACHE_TTL_MS = 30_000;
 
 /** Write data to local data.json — keeps local file in sync with Supabase */
 function writeLocalJson(data: unknown): void {
