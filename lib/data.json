@@ -477,7 +477,7 @@
       "invincible": 6
     },
     "enemyBaseHp": 5,
-    "enemyHpPerWave": 1,
+    "enemyHpPerWave": 2,
     "impacts": {
       "playerBullet": { "w": 50, "h": 50 },
       "enemyBullet":  { "w": 50, "h": 50 },
@@ -526,7 +526,7 @@
         "minReloadTime": 0.05
       },
       "rapidFire": {
-        "ratePerStack": 1,
+        "ratePerStack": 0.08,
         "minCooldown": 0.05
       },
       "machineGun": {
@@ -571,7 +571,7 @@
         "maxVirusStacks": 3
       },
       "nuke": {
-        "cooldown": 30,
+        "cooldown": 45,
         "bossHPReduction": 0.25,
         "nukesPerStack": 1
       },
@@ -585,7 +585,7 @@
         "projectilesPerStack": 1
       },
       "luck": {
-        "dropChancePerStack": 0.2
+        "dropChancePerStack": 0.05
       },
       "extraLife": {
         "heartsPerStack": 1
@@ -599,7 +599,7 @@
       "enabled": true,
       "interval": 10,
       "baseHealth": 500,
-      "healthIncrease": 500,
+      "healthIncrease": 800,
       "bulletDamage": 20,
       "projectileSpeed": 80,
       "projectileSize": 20,
@@ -664,7 +664,7 @@
       },
       "enemy": {
         "speed": 15,
-        "fireRate": 0.001,
+        "fireRate": 0.002,
         "projectileSpeed": 30,
         "projectileSize": 25,
         "columns": 5,
@@ -753,7 +753,7 @@
       },
       "enemy": {
         "speed": 18,
-        "fireRate": 0.001,
+        "fireRate": 0.002,
         "projectileSpeed": 30,
         "projectileSize": 40,
         "columns": 5,
