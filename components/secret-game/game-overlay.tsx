@@ -12,6 +12,14 @@ export interface LeaderboardEntry {
   created_at: string;
 }
 
+export interface RunStats {
+  totalDamage: number;
+  powerUpCount: number;
+  damageMultiplier: number;
+  fireRate: number;
+  projectileCount: number;
+}
+
 export interface OverlayProps {
   phase: OverlayPhase;
   score: number;
@@ -29,6 +37,7 @@ export interface OverlayProps {
   onResume: () => void;
   onRestart: () => void;
   onClose: () => void;
+  runStats?: RunStats;
 }
 
 export function GameOverlay({
@@ -48,6 +57,7 @@ export function GameOverlay({
   onResume,
   onRestart,
   onClose,
+  runStats,
 }: OverlayProps) {
   const [isMobile, setIsMobile] = useState(false);
   const [playerName, setPlayerName] = useState("");
@@ -244,6 +254,34 @@ export function GameOverlay({
                 </div>
               )}
             </div>
+            {/* Run stats */}
+            {runStats && (
+              <div className="w-full max-w-xs bg-white/5 border border-white/10 rounded-sm px-4 py-3 flex flex-col gap-2 text-left">
+                <div className="text-white/50 text-xs font-mono uppercase tracking-widest text-center mb-1">Run Summary</div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-white/60">Total Damage</span>
+                  <span className="text-[#ff006e] font-bold">{runStats.totalDamage.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-white/60">Power-Ups Collected</span>
+                  <span className="text-[#fcee0a] font-bold">{runStats.powerUpCount}</span>
+                </div>
+                <div className="border-t border-white/10 my-1" />
+                <div className="text-white/40 text-xs font-mono uppercase tracking-widest text-center mb-1">Final Stats</div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-white/60">Damage ×</span>
+                  <span className="text-white font-bold">{runStats.damageMultiplier.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-white/60">Fire Rate</span>
+                  <span className="text-white font-bold">{runStats.fireRate.toFixed(1)}/s</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-white/60">Projectiles / Shot</span>
+                  <span className="text-white font-bold">{runStats.projectileCount}</span>
+                </div>
+              </div>
+            )}
             {/* Name input */}
             {saveStatus !== "saved" && (
               <div className="flex flex-col items-center gap-2 w-full max-w-xs">

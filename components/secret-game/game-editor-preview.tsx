@@ -306,6 +306,10 @@ export function GameEditorPreview({
           next.bossHealthBar = { ...next.bossHealthBar, x: Math.round(d.origX + dx), y: Math.round(d.origY + dy) };
           changed = true;
           break;
+        case "controls":
+          next.controls = { ...(next.controls ?? { x: 152, y: 4, size: 24 }), x: Math.round(d.origX + dx), y: Math.round(d.origY + dy) };
+          changed = true;
+          break;
         case "boss": {
           const next = { ...settings };
           next.boss = { x: Math.round(d.origX + dx), y: Math.round(d.origY + dy) };
@@ -625,6 +629,25 @@ export function GameEditorPreview({
           visible={settings.bossHealthBar.visible}
           color="#ff006e"
         />
+
+        {/* HUD Controls overlay (Pause / Mute / Fullscreen) */}
+        {(() => {
+          const ctrl = settings.controls ?? { x: 152, y: 4, size: 24 };
+          const btnSz = ctrl.size * scaleY;
+          const gap = btnSz * 0.1;
+          return (
+            <DraggableOverlay
+              label="Controls"
+              itemKey="controls"
+              left={ctrl.x * scaleX}
+              top={ctrl.y * scaleY}
+              width={btnSz * 3 + gap * 2}
+              height={btnSz}
+              visible={true}
+              color="#fcee0a"
+            />
+          );
+        })()}
 
         {/* Shield overlay — circular, matches the actual rendered shield exactly */}
         <ShieldOverlay

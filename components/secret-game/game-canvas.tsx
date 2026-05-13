@@ -77,6 +77,8 @@ interface GameCanvasProps {
   onLivesChange: (l: number) => void;
   onWaveChange: (w: number) => void;
   onPowerUpChange?: (p: ActivePowerUp[]) => void;
+  /** Called when the run ends — delivers run summary stats (total damage dealt). */
+  onRunStatsChange?: (damage: number) => void;
   /** Called whenever health (slices) changes — drives the sliced-heart HUD */
   onHealthDetailChange?: (currentSlices: number, maxSlices: number, slicesPerHeart: number) => void;
   score: number;
@@ -96,6 +98,7 @@ export function GameCanvas({
   onLivesChange,
   onWaveChange,
   onPowerUpChange,
+  onRunStatsChange,
   onHealthDetailChange,
   score,
   lives,
@@ -265,6 +268,8 @@ export function GameCanvas({
     orbitalBaseAngle: 0,   // rotating base angle (radians)
     // ── Seeker Missile ────────────────────────────────────────────────
     seekerMissileAccum: 0, // cooldown accumulator
+    // ── Run stats ────────────────────────────────────────────────────
+    totalDamageDealt: 0,   // accumulated player damage this run
   });
 
   // Resize canvas to fill viewport
@@ -433,6 +438,7 @@ export function GameCanvas({
     s.screenShake = 0;
     s.frame = 0;
     s.score = 0;
+    s.totalDamageDealt = 0;
     // Reset health slicing to starting defaults
     s.maxHearts = startH;
     s.slicesPerHeart = 1;
@@ -990,6 +996,7 @@ export function GameCanvas({
               if (dist2 <= oR && (e.orbitalHitCooldown ?? 0) <= 0) {
                 const dmg = playerStats.orbitalDamage;
                 e.hp = (e.hp ?? 1) - dmg;
+                s.totalDamageDealt += dmg;
                 e.animState = "hurt"; e.animAccum = 0;
                 e.orbitalHitCooldown = 0.25; // rate-limit: only hit every 250ms per enemy
                 spawnParticles(e.x + ew / 2, e.y + eh / 2, "#00f0ff", 3);
@@ -1016,6 +1023,7 @@ export function GameCanvas({
               if (Math.hypot(ox - nearBX, oy - nearBY) <= oR && (s.boss.orbitalHitCooldown ?? 0) <= 0) {
                 const dmg = playerStats.orbitalDamage;
                 s.boss.health -= dmg;
+                s.totalDamageDealt += dmg;
                 s.boss.hitFlash = 0.08;
                 s.boss.orbitalHitCooldown = 0.25; // rate-limit boss hits too
                 if (s.damageNumbers.length < 40) {
@@ -1442,6 +1450,7 @@ export function GameCanvas({
                   : b.isSuperBullet ? (b.superBulletTier === 3 ? "#ffd700" : b.superBulletTier === 2 ? "#cc44ff" : "#ff2222")
                   : (dnCfg?.playerBulletColor ?? "#ffffff");
               e.hp = (e.hp ?? 1) - bulletDmg;
+              s.totalDamageDealt += bulletDmg;
               s.bullets.splice(bi, 1);
               // Spawn damage number
               const dnX = impactX + (Math.random() - 0.5) * 8;
@@ -1548,6 +1557,7 @@ export function GameCanvas({
                 ? baseDmg * playerStats.damageMultiplier * playerStats.superBulletDamageMultiplier
                 : baseDmg * playerStats.damageMultiplier;
             s.boss.health -= damage;
+            s.totalDamageDealt += damage;
             s.boss.hitFlash = 0.1;
             if (s.boss.animState === "walking") { s.boss.animState = "hurt"; s.boss.animAccum = 0; }
             spawnEffect(s.activeEffects, "bullet", b.x, b.y, playerBulletImpact);
@@ -1670,6 +1680,7 @@ export function GameCanvas({
           s.damageNumbers.push({ x: px + pw / 2 + (Math.random() - 0.5) * 10, y: py, value: String(waveEnemyBulletDmg), timer: 1.0, maxTimer: 1.0, color: siteDataRef.current.secretGame?.damageNumbers?.playerHitColor ?? "#ff4444" });
           if (s.currentSlices <= 0) {
             play("gameOver");
+            onRunStatsChange?.(Math.round(s.totalDamageDealt));
             onPhaseChange("gameover");
             try {
               const currentHigh = parseInt(localStorage.getItem("abch-guitar-invaders-highscore") || "0", 10);
@@ -1703,6 +1714,7 @@ export function GameCanvas({
             s.damageNumbers.push({ x: px + pw / 2, y: py - 5, value: String(waveEnemyCollisionDmg), timer: 1.0, maxTimer: 1.0, color: siteDataRef.current.secretGame?.damageNumbers?.playerHitColor ?? "#ff4444" });
             if (s.currentSlices <= 0) {
               play("gameOver");
+              onRunStatsChange?.(Math.round(s.totalDamageDealt));
               onPhaseChange("gameover");
               return;
             }
@@ -1735,6 +1747,7 @@ export function GameCanvas({
             s.playerBodyHitTimer = 1.0; // 1-second invincibility window after collision
             if (s.currentSlices <= 0) {
               play("gameOver");
+              onRunStatsChange?.(Math.round(s.totalDamageDealt));
               onPhaseChange("gameover");
               try {
                 const currentHigh = parseInt(localStorage.getItem("abch-guitar-invaders-highscore") || "0", 10);

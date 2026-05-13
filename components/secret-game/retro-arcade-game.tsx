@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { GameCanvas, GamePhase } from "./game-canvas";
 import { GameHUD } from "./game-hud";
-import { GameOverlay } from "./game-overlay";
+import { GameOverlay, type RunStats } from "./game-overlay";
 import { MobileControls } from "./mobile-controls";
 import { PowerUpSelection } from "./power-up-selection";
 import { sharedKeys, sharedAim } from "./use-keyboard-controls";
@@ -51,6 +51,8 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
   const [healthDetail, setHealthDetail] = useState({ current: startingHearts, max: startingHearts, slicesPerHeart: 1 });
   // Trigger for the HealthRefill power-up (canvas watches this)
   const [healthRefillTrigger, setHealthRefillTrigger] = useState(0);
+  // Run stats (populated when the player dies)
+  const [runStats, setRunStats] = useState<RunStats | undefined>(undefined);
 
   // Compute all player stats from chosen power-ups (memoised), merging in data.json overrides
   const playerStats = useMemo(() => computePlayerStats(chosenPowerUps, roguelikeOverride), [chosenPowerUps, roguelikeOverride]);
@@ -136,6 +138,7 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
     setLives(startingHearts);
     setWave(1);
     setActivePowerUps([]);
+    setRunStats(undefined);
     resetRoguelikeState();
     setResetKey((k) => k + 1);
     setPhase("playing");
@@ -218,6 +221,16 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
     [],
   );
 
+  const handleRunStatsChange = useCallback((damage: number) => {
+    setRunStats({
+      totalDamage: damage,
+      powerUpCount: Object.keys(chosenPowerUps).length,
+      damageMultiplier: playerStats.damageMultiplier,
+      fireRate: playerStats.reloadTime > 0 ? 1 / playerStats.reloadTime : 0,
+      projectileCount: playerStats.projectileCount,
+    });
+  }, [chosenPowerUps, playerStats]);
+
   const handleToggleMute = useCallback(() => {
     const next = !muted;
     setMuted(next);
@@ -253,6 +266,7 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
         onLivesChange={setLives}
         onWaveChange={setWave}
         onPowerUpChange={setActivePowerUps}
+        onRunStatsChange={handleRunStatsChange}
         onHealthDetailChange={handleHealthDetailChange}
         score={score}
         lives={lives}
@@ -296,6 +310,7 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
         onResume={() => setPhase("playing")}
         onRestart={handleRestart}
         onClose={onClose}
+        runStats={runStats}
       />
 
       {/* Roguelike power-up selection — after boss kill, wave clear, or choice pickup */}
