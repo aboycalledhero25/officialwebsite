@@ -92,7 +92,7 @@ export function GameEditorPreview({
 
     drawStarfield(ctx, logW, BASE_H);
 
-    // Draw enemies
+    // Draw enemies — mirror game logic exactly, including spriteScale
     const { enemy } = settings;
     const colUnit = enemy.width + enemy.paddingX;
     const rowUnit = enemy.height + enemy.paddingY;
@@ -101,9 +101,18 @@ export function GameEditorPreview({
     // Cap rows so enemies never drop below 55% of screen height (matches game logic)
     const maxRows = Math.floor((BASE_H * 0.55 - enemy.startY) / rowUnit) + 1;
     const rows = Math.min(maxRows, enemy.rows);
+    // spriteScale: visual size only — grid cell / collision stays at width×height
+    const ss = enemy.spriteScale ?? 1;
+    const sprW = enemy.width * ss;
+    const sprH = enemy.height * ss;
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < enemy.columns; c++) {
-        drawEnemy(ctx, startX + c * colUnit, enemy.startY + r * rowUnit, ((r + c) % 3) as 0 | 1 | 2, 0, false, enemy.width, enemy.height);
+        const ex = startX + c * colUnit;
+        const ey = enemy.startY + r * rowUnit;
+        // Center scaled sprite on the grid cell (same offset calculation as game-canvas.tsx)
+        const sprX = ex - (sprW - enemy.width) / 2;
+        const sprY = ey - (sprH - enemy.height) / 2;
+        drawEnemy(ctx, sprX, sprY, ((r + c) % 3) as 0 | 1 | 2, 0, false, sprW, sprH);
       }
     }
 
@@ -391,9 +400,13 @@ export function GameEditorPreview({
   }
 
   const isMobile = platform === "mobile";
+  // Mobile: portrait phone (375×750 ≈ 1:2, fits in 520px sidebar).
+  // Desktop: landscape – the game fills the full viewport height-scaled, so a
+  // wide-short frame represents a typical monitor. Use full container width so
+  // it doesn't overflow the 520px admin sidebar.
   const frameClass = isMobile
     ? "w-[375px] h-[750px]"
-    : "w-[640px] h-[360px]";
+    : "w-full h-[260px]";
 
   return (
     <div className="flex flex-col items-center gap-3">
