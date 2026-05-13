@@ -1,29 +1,52 @@
 /**
- * Impact / effect system.
+ * Spritesheet-based impact / effect system.
  *
- * Every effect is drawn with a guaranteed canvas-based procedural animation
- * so it ALWAYS appears regardless of GIF load state.  GIFs are drawn on top
- * when they are ready, giving a richer look without blocking the fallback.
+ * Each effect is a PNG spritesheet — a single horizontal row of frames.
+ * We manually step through frames using ctx.drawImage with a source rect,
+ * giving us full control and guaranteed rendering on every browser.
  *
- * Files live in public/effects/spritesheets/<category>/<file>.gif
+ * Procedural canvas animations serve as an instant fallback while the PNG
+ * loads (typically only on the very first play).
+ *
+ * Files live in public/effects/spritesheets/<category>/<file>.png
  */
 
 export type EffectKey =
-  | "lightning"   // /effects/spritesheets/lightning/Lightning_1.gif
-  | "bomb"        // /effects/spritesheets/bomb/Explosion_8.gif
-  | "bullet"      // /effects/spritesheets/bullet/Explosion_1.gif
-  | "boss"        // /effects/spritesheets/boss/Explosion_6.gif
-  | "nuke"        // /effects/spritesheets/nuke/Explosion_3.gif
-  | "virus";      // /effects/spritesheets/virus/Explosion_9.gif
+  | "lightning"   // 8 frames  130×660 each  (1040×660 total)
+  | "bomb"        // 10 frames 700×700 each  (7000×700 total)
+  | "bullet"      // 10 frames 550×550 each  (5500×550 total)
+  | "boss"        // 10 frames 760×760 each  (7600×760 total)
+  | "nuke"        // 10 frames 680×680 each  (6800×680 total)
+  | "virus";      // 10 frames 800×800 each  (8000×800 total)
 
-/** Public paths for each effect GIF */
+/** PNG spritesheet paths */
 const EFFECT_PATHS: Record<EffectKey, string> = {
-  lightning: "/effects/spritesheets/lightning/Lightning_1.gif",
-  bomb:      "/effects/spritesheets/bomb/Explosion_8.gif",
-  bullet:    "/effects/spritesheets/bullet/Explosion_1.gif",
-  boss:      "/effects/spritesheets/boss/Explosion_6.gif",
-  nuke:      "/effects/spritesheets/nuke/Explosion_3.gif",
-  virus:     "/effects/spritesheets/virus/Explosion_9.gif",
+  lightning: "/effects/spritesheets/lightning/lightning.png",
+  bomb:      "/effects/spritesheets/bomb/bomb.png",
+  bullet:    "/effects/spritesheets/bullet/bullet.png",
+  boss:      "/effects/spritesheets/boss/boss.png",
+  nuke:      "/effects/spritesheets/nuke/nuke.png",
+  virus:     "/effects/spritesheets/virus/virus.png",
+};
+
+/** Number of frames in each spritesheet (single horizontal row) */
+const FRAME_COUNT: Record<EffectKey, number> = {
+  lightning: 8,
+  bomb:      10,
+  bullet:    10,
+  boss:      10,
+  nuke:      10,
+  virus:     10,
+};
+
+/** Pixel dimensions of a single frame in the spritesheet */
+const FRAME_SIZE: Record<EffectKey, { w: number; h: number }> = {
+  lightning: { w: 130, h: 660 },
+  bomb:      { w: 700, h: 700 },
+  bullet:    { w: 550, h: 550 },
+  boss:      { w: 760, h: 760 },
+  nuke:      { w: 680, h: 680 },
+  virus:     { w: 800, h: 800 },
 };
 
 /**
@@ -247,8 +270,9 @@ function drawProceduralEffect(
 }
 
 /**
- * Draw all active effects. Procedural canvas animation always renders;
- * GIF is layered on top when available.
+ * Draw all active effects.
+ * - PNG spritesheet: primary render — exact frame sliced from the sheet.
+ * - Procedural canvas: instant fallback while the PNG is still loading.
  */
 export function drawEffects(
   ctx: CanvasRenderingContext2D,
@@ -256,26 +280,39 @@ export function drawEffects(
 ): void {
   for (const ef of effects) {
     const defaultSize = EFFECT_SIZE[ef.key];
-    const w = ef.w ?? defaultSize.w;
-    const h = ef.h ?? defaultSize.h;
+    const drawW = ef.w ?? defaultSize.w;
+    const drawH = ef.h ?? defaultSize.h;
     const t = 1 - ef.timer / ef.duration; // 0 = just spawned, 1 = expiring
     const fadeRatio = ef.timer / ef.duration;
     const alpha = fadeRatio < 0.25 ? fadeRatio / 0.25 : 1;
 
-    // ── Guaranteed procedural effect ──────────────────────────────────
-    drawProceduralEffect(ctx, ef.key, ef.cx, ef.cy, w, h, t, alpha);
-
-    // ── Optional GIF overlay (drawn on top when loaded) ───────────────
     const img = imageCache[ef.key];
-    if (img && img.complete && img.naturalWidth > 0) {
+    const spriteReady = img && img.complete && img.naturalWidth > 0;
+
+    if (spriteReady) {
+      // ── Spritesheet slice ────────────────────────────────────────────
+      const frameCount = FRAME_COUNT[ef.key];
+      const fs = FRAME_SIZE[ef.key];
+      const elapsed = ef.duration - ef.timer;
+      const frameDuration = ef.duration / frameCount;
+      // Clamp to last frame — effect is removed before timer wraps
+      const frameIndex = Math.min(frameCount - 1, Math.floor(elapsed / frameDuration));
       ctx.save();
-      ctx.globalAlpha = alpha * 0.85; // slightly transparent so procedural shows through
+      ctx.globalAlpha = alpha;
       try {
-        ctx.drawImage(img, ef.cx - w / 2, ef.cy - h / 2, w, h);
+        ctx.drawImage(
+          img,
+          frameIndex * fs.w, 0, fs.w, fs.h,   // source rect
+          ef.cx - drawW / 2, ef.cy - drawH / 2, drawW, drawH, // dest rect
+        );
       } catch {
-        // not yet decodable — skip silently
+        // image decode not yet complete — fall through to procedural
+        drawProceduralEffect(ctx, ef.key, ef.cx, ef.cy, drawW, drawH, t, alpha);
       }
       ctx.restore();
+    } else {
+      // ── Procedural fallback (PNG still loading) ───────────────────────
+      drawProceduralEffect(ctx, ef.key, ef.cx, ef.cy, drawW, drawH, t, alpha);
     }
   }
 }
