@@ -86,7 +86,9 @@ export default function SecretGameAdminPage() {
             scoreReward: 500,
           },
           roguelikeConfig: sg.roguelikeConfig ?? {},
-          playerHitbox: sg.playerHitbox ?? { offsetX: 0, offsetY: 0, width: 10, height: 20 },
+          playerHitbox: sg.playerHitbox ?? {},
+          bulletSpawnOffsetX: sg.bulletSpawnOffsetX,
+          bulletSpawnOffsetY: sg.bulletSpawnOffsetY,
           desktop: {
             ...DEFAULT_PLATFORM,
             ...sg.desktop,
@@ -803,41 +805,17 @@ export default function SecretGameAdminPage() {
             </div>
           </Section>
 
-          {/* Player Hitbox */}
+          {/* Player Hitbox — drawn visually in the editor preview */}
           <Section title="Player Hitbox">
-            <p className="text-xs text-neutral-500 mb-3">
-              Collision box used for enemy-bullet and boss detection. Offset is relative to the player&apos;s game position (playerX / playerY). Shrink or shift to match the visual shape of your sprite — a tighter hitbox feels fairer to the player.
+            <p className="text-xs text-neutral-500 mb-2">
+              Draw a custom polygon hitbox directly in the preview above. Click <strong className="text-white/70">✏ Edit Hitbox</strong> below the preview to enter drawing mode, then click to add points and drag them to shape the hitbox around the guitar sprite. Right-click a point to remove it.
             </p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <NumberField
-                label="Offset X"
-                value={settings.playerHitbox?.offsetX ?? 0}
-                onChange={(v) => updateField("playerHitbox.offsetX", v)}
-                step={1}
-              />
-              <NumberField
-                label="Offset Y"
-                value={settings.playerHitbox?.offsetY ?? 0}
-                onChange={(v) => updateField("playerHitbox.offsetY", v)}
-                step={1}
-              />
-              <NumberField
-                label="Width"
-                value={settings.playerHitbox?.width ?? 10}
-                onChange={(v) => updateField("playerHitbox.width", v)}
-                min={2}
-                max={120}
-                step={1}
-              />
-              <NumberField
-                label="Height"
-                value={settings.playerHitbox?.height ?? 20}
-                onChange={(v) => updateField("playerHitbox.height", v)}
-                min={2}
-                max={160}
-                step={1}
-              />
-            </div>
+            <p className="text-xs text-neutral-500">
+              Point count: <span className="text-white/70 font-mono">{settings.playerHitbox?.points?.length ?? 0}</span>
+              {(settings.playerHitbox?.points?.length ?? 0) < 3 && (
+                <span className="text-yellow-400 ml-2">⚠ Need ≥ 3 points for polygon collision — rectangle fallback is active</span>
+              )}
+            </p>
           </Section>
 
           {/* High Scores */}
@@ -963,8 +941,13 @@ export default function SecretGameAdminPage() {
               playerSprite={settings.playerSprite}
               bossSettings={settings.boss}
               platform={platform}
+              hitboxPoints={settings.playerHitbox?.points}
+              bulletSpawnOffsetX={settings.bulletSpawnOffsetX}
+              bulletSpawnOffsetY={settings.bulletSpawnOffsetY}
               onChange={updatePlatform}
               onBossChange={(next) => setSettings((prev) => prev ? { ...prev, boss: next } : prev)}
+              onHitboxChange={(points) => setSettings((prev) => prev ? { ...prev, playerHitbox: { ...(prev.playerHitbox ?? {}), points } } : prev)}
+              onBulletSpawnChange={(ox, oy) => setSettings((prev) => prev ? { ...prev, bulletSpawnOffsetX: ox, bulletSpawnOffsetY: oy } : prev)}
             />
           </div>
         </div>

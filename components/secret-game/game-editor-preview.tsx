@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useState, useCallback, useLayoutEffect } from "react";
-import type { GamePlatformSettings, PlayerSprite, BossSettings } from "@/lib/data";
+import type { GamePlatformSettings, PlayerSprite, BossSettings, HitboxPoint } from "@/lib/data";
 import { drawEnemy, drawBoss } from "./draw-sprites";
 
 const BASE_W = 240;
@@ -9,13 +9,25 @@ const BASE_H = 320;
 const PLAYER_W_BASE = 10;
 const PLAYER_H_BASE = 20;
 
+type EditMode = "none" | "hitbox" | "bullet";
+
 interface GameEditorPreviewProps {
   settings: GamePlatformSettings;
   playerSprite: PlayerSprite;
   bossSettings: BossSettings;
   platform: "desktop" | "mobile";
+  /** Polygon hitbox points (relative to playerX/Y in game-logical units). */
+  hitboxPoints?: HitboxPoint[];
+  /** Bullet spawn offset from playerX (game-logical units). Default: PLAYER_W_BASE/2. */
+  bulletSpawnOffsetX?: number;
+  /** Bullet spawn offset from playerY (game-logical units). Default: PLAYER_H_BASE/2. */
+  bulletSpawnOffsetY?: number;
   onChange: (next: GamePlatformSettings) => void;
   onBossChange?: (next: BossSettings) => void;
+  /** Called when polygon hitbox points are updated via the visual editor. */
+  onHitboxChange?: (points: HitboxPoint[]) => void;
+  /** Called when bullet spawn offset is dragged. */
+  onBulletSpawnChange?: (offsetX: number, offsetY: number) => void;
 }
 
 function drawStarfield(ctx: CanvasRenderingContext2D, logW: number, h: number) {
@@ -39,13 +51,19 @@ export function GameEditorPreview({
   playerSprite,
   bossSettings,
   platform,
+  hitboxPoints,
+  bulletSpawnOffsetX,
+  bulletSpawnOffsetY,
   onChange,
   onBossChange,
+  onHitboxChange,
+  onBulletSpawnChange,
 }: GameEditorPreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
   const [dims, setDims] = useState({ w: 280, h: 560 });
+  const [editMode, setEditMode] = useState<EditMode>("none");
 
   // Measure container size in pixels
   useLayoutEffect(() => {
@@ -157,8 +175,52 @@ export function GameEditorPreview({
       ctx.setLineDash([]);
     }
 
+    // ── Draw hitbox polygon ───────────────────────────────────────────
+    if (hitboxPoints && hitboxPoints.length >= 2) {
+      ctx.save();
+      ctx.lineWidth = 1 / sc;
+      ctx.setLineDash([2 / sc, 2 / sc]);
+      if (hitboxPoints.length >= 3) {
+        ctx.fillStyle = "rgba(255,0,110,0.15)";
+        ctx.beginPath();
+        ctx.moveTo(playerX + hitboxPoints[0].x, playerY + hitboxPoints[0].y);
+        for (const p of hitboxPoints.slice(1)) ctx.lineTo(playerX + p.x, playerY + p.y);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.strokeStyle = "#ff006e";
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      ctx.moveTo(playerX + hitboxPoints[0].x, playerY + hitboxPoints[0].y);
+      for (const p of hitboxPoints.slice(1)) ctx.lineTo(playerX + p.x, playerY + p.y);
+      if (hitboxPoints.length >= 3) ctx.closePath();
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
+    // ── Draw bullet spawn crosshair ───────────────────────────────────
+    const bsoX = bulletSpawnOffsetX ?? PLAYER_W_BASE / 2;
+    const bsoY = bulletSpawnOffsetY ?? PLAYER_H_BASE / 2;
+    const bspX = playerX + bsoX;
+    const bspY = playerY + bsoY;
+    const cr = 3 / sc;
+    ctx.save();
+    ctx.strokeStyle = "#00f0ff";
+    ctx.lineWidth = 1 / sc;
+    ctx.globalAlpha = 0.9;
+    ctx.beginPath();
+    ctx.moveTo(bspX - cr, bspY); ctx.lineTo(bspX + cr, bspY);
+    ctx.moveTo(bspX, bspY - cr); ctx.lineTo(bspX, bspY + cr);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(bspX, bspY, cr * 0.6, 0, Math.PI * 2);
+    ctx.strokeStyle = "#00f0ff";
+    ctx.stroke();
     ctx.restore();
-  }, [settings, playerSprite, bossSettings, dims.w, dims.h]);
+
+    ctx.restore();
+  }, [settings, playerSprite, bossSettings, hitboxPoints, bulletSpawnOffsetX, bulletSpawnOffsetY, dims.w, dims.h]);
 
   useEffect(() => {
     draw();
@@ -194,7 +256,8 @@ export function GameEditorPreview({
       const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
       const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
       const d = dragRef.current;
-      const dx = (clientX - d.startX) / scaleX;
+      // dx/dy in game-logical units (scaleY for both axes — game units scale uniformly)
+      const dx = (clientX - d.startX) / scaleY;
       const dy = (clientY - d.startY) / scaleY;
 
       const next = { ...settings };
@@ -256,11 +319,29 @@ export function GameEditorPreview({
         case "shield": {
           next.shield = {
             ...next.shield,
-            offsetX: Math.round(d.origX + dx * (scaleX / scaleY)),
-            offsetY: Math.round(d.origY + dy * (scaleX / scaleY)),
+            offsetX: Math.round(d.origX + dx),
+            offsetY: Math.round(d.origY + dy),
           };
           changed = true;
           break;
+        }
+        case "bulletSpawn": {
+          if (onBulletSpawnChange) {
+            onBulletSpawnChange(Math.round(d.origX + dx), Math.round(d.origY + dy));
+          }
+          changed = false;
+          break;
+        }
+        default: {
+          // Hitbox polygon point: key = "hbpt_N"
+          if (d.key.startsWith("hbpt_") && onHitboxChange && hitboxPoints) {
+            const idx = parseInt(d.key.slice(5), 10);
+            const newPts = hitboxPoints.map((p, i) =>
+              i === idx ? { x: Math.round(d.origX + dx), y: Math.round(d.origY + dy) } : p
+            );
+            onHitboxChange(newPts);
+          }
+          changed = false;
         }
       }
       if (changed) {
@@ -282,7 +363,19 @@ export function GameEditorPreview({
       window.removeEventListener("touchmove", handleMove);
       window.removeEventListener("touchend", handleUp);
     };
-  }, [scaleX, scaleY, settings, onChange, onBossChange, bossSettings, playerSprite.offsetX, playerSprite.offsetY]);
+  }, [scaleX, scaleY, settings, onChange, onBossChange, bossSettings, playerSprite.offsetX, playerSprite.offsetY, hitboxPoints, onHitboxChange, onBulletSpawnChange]);
+
+  // Click on canvas to add a new hitbox point
+  const handleCanvasClick = useCallback((e: React.MouseEvent) => {
+    if (editMode !== "hitbox" || !onHitboxChange) return;
+    // Ignore if we just finished dragging a point
+    if (dragRef.current) return;
+    const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+    // Convert click to game-logical offset from player position
+    const ptX = Math.round((e.clientX - rect.left - settings.player.x * scaleX) / scaleY);
+    const ptY = Math.round((e.clientY - rect.top  - settings.player.y * scaleY) / scaleY);
+    onHitboxChange([...(hitboxPoints ?? []), { x: ptX, y: ptY }]);
+  }, [editMode, onHitboxChange, hitboxPoints, settings.player.x, settings.player.y, scaleX, scaleY]);
 
   // Overlay renderer for draggable items
   function DraggableOverlay({
@@ -551,7 +644,99 @@ export function GameEditorPreview({
             onDragStart={startDrag}
           />
         )}
+
+        {/* Hitbox polygon point handles */}
+        {hitboxPoints && hitboxPoints.map((pt, i) => (
+          <div
+            key={`hbpt-${i}`}
+            className="absolute select-none"
+            style={{
+              left: settings.player.x * scaleX + pt.x * scaleY - 6,
+              top: settings.player.y * scaleY + pt.y * scaleY - 6,
+              width: 12, height: 12,
+              borderRadius: "50%",
+              background: "#ff006e",
+              border: "2px solid #fff",
+              cursor: editMode === "hitbox" ? "grab" : "default",
+              zIndex: 20,
+            }}
+            onMouseDown={(e) => { e.stopPropagation(); startDrag(`hbpt_${i}`, pt.x, pt.y, e); }}
+            onTouchStart={(e) => { e.stopPropagation(); startDrag(`hbpt_${i}`, pt.x, pt.y, e); }}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              if (onHitboxChange) onHitboxChange(hitboxPoints.filter((_, j) => j !== i));
+            }}
+          />
+        ))}
+
+        {/* Bullet spawn point handle */}
+        {(() => {
+          const bsoX = bulletSpawnOffsetX ?? PLAYER_W_BASE / 2;
+          const bsoY = bulletSpawnOffsetY ?? PLAYER_H_BASE / 2;
+          const bsl = settings.player.x * scaleX + bsoX * scaleY - 7;
+          const bst = settings.player.y * scaleY + bsoY * scaleY - 7;
+          return (
+            <div
+              className="absolute select-none"
+              style={{
+                left: bsl, top: bst,
+                width: 14, height: 14,
+                borderRadius: "50%",
+                background: editMode === "bullet" ? "#00f0ff" : "rgba(0,240,255,0.5)",
+                border: "2px solid #00f0ff",
+                cursor: editMode === "bullet" ? "grab" : "default",
+                zIndex: 20,
+                boxShadow: editMode === "bullet" ? "0 0 8px #00f0ff" : "none",
+              }}
+              onMouseDown={(e) => { e.stopPropagation(); if (editMode === "bullet") startDrag("bulletSpawn", bsoX, bsoY, e); }}
+              onTouchStart={(e) => { e.stopPropagation(); if (editMode === "bullet") startDrag("bulletSpawn", bsoX, bsoY, e); }}
+            />
+          );
+        })()}
+
+        {/* Invisible click-catcher for adding hitbox points */}
+        {editMode === "hitbox" && (
+          <div
+            className="absolute inset-0 z-10"
+            style={{ cursor: "crosshair" }}
+            onClick={handleCanvasClick}
+          />
+        )}
       </div>
+
+      {/* Mode toggle buttons */}
+      <div className="flex gap-2 flex-wrap justify-center">
+        <button
+          onClick={() => setEditMode(editMode === "hitbox" ? "none" : "hitbox")}
+          className={`px-3 py-1.5 text-xs font-mono rounded transition-all ${editMode === "hitbox" ? "bg-[#ff006e] text-white" : "bg-white/10 text-white/60 hover:bg-white/20"}`}
+        >
+          {editMode === "hitbox" ? "✓ Drawing Hitbox" : "✏ Edit Hitbox"}
+        </button>
+        <button
+          onClick={() => setEditMode(editMode === "bullet" ? "none" : "bullet")}
+          className={`px-3 py-1.5 text-xs font-mono rounded transition-all ${editMode === "bullet" ? "bg-[#00f0ff] text-black" : "bg-white/10 text-white/60 hover:bg-white/20"}`}
+        >
+          {editMode === "bullet" ? "✓ Moving Bullet Spawn" : "🔫 Edit Bullet Spawn"}
+        </button>
+        {editMode === "hitbox" && (
+          <button
+            onClick={() => { if (onHitboxChange) onHitboxChange([]); }}
+            className="px-3 py-1.5 text-xs font-mono rounded bg-white/10 text-white/60 hover:bg-white/20 transition-all"
+          >
+            🗑 Clear Hitbox
+          </button>
+        )}
+      </div>
+      {editMode === "hitbox" && (
+        <p className="text-[11px] text-neutral-500 text-center max-w-xs">
+          Click canvas to add points · Drag points to reshape · Right-click a point to remove
+        </p>
+      )}
+      {editMode === "bullet" && (
+        <p className="text-[11px] text-neutral-500 text-center max-w-xs">
+          Drag the cyan dot to set where bullets fire from
+        </p>
+      )}
     </div>
   );
 }

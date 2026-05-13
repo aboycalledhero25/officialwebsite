@@ -724,8 +724,8 @@ export function GameCanvas({
         if (s.frenzyAccum >= playerStats.frenzyCooldown) {
           s.frenzyAccum -= playerStats.frenzyCooldown;
           const count = playerStats.frenzyProjectiles;
-          const px = s.playerX + PLAYER_W_BASE / 2;
-          const py = s.playerY + PLAYER_H_BASE / 2;
+          const px = s.playerX + (siteData.secretGame?.bulletSpawnOffsetX ?? PLAYER_W_BASE / 2);
+          const py = s.playerY + (siteData.secretGame?.bulletSpawnOffsetY ?? PLAYER_H_BASE / 2);
           for (let i = 0; i < count; i++) {
             const angle = (i / count) * Math.PI * 2;
             s.bullets.push({
@@ -744,8 +744,15 @@ export function GameCanvas({
         s.nukeAccum += dt;
         if (s.nukeAccum >= playerStats.nukeCooldown) {
           s.nukeAccum -= playerStats.nukeCooldown;
-          // One large nuke effect centered on the play area
-          spawnEffect(s.activeEffects, "nuke", playAreaW / 2, BASE_H / 2, siteData.secretGame?.impacts?.nuke ?? { w: 100, h: 100 });
+          // Center nuke on the average position of all alive enemies (or screen centre if none)
+          const aliveForNuke = s.enemies.filter((e) => e.alive);
+          const nukeCx = aliveForNuke.length > 0
+            ? aliveForNuke.reduce((sum, e) => sum + e.x + settingsRef.current.enemy.width / 2, 0) / aliveForNuke.length
+            : playAreaW / 2;
+          const nukeCy = aliveForNuke.length > 0
+            ? aliveForNuke.reduce((sum, e) => sum + e.y + settingsRef.current.enemy.height / 2, 0) / aliveForNuke.length
+            : BASE_H / 3;
+          spawnEffect(s.activeEffects, "nuke", nukeCx, nukeCy, siteData.secretGame?.impacts?.nuke ?? { w: 100, h: 100 });
           // Clear all regular enemies
           for (const e of s.enemies) {
             if (e.alive) {
@@ -846,8 +853,8 @@ export function GameCanvas({
         if (s.burstTimer <= 0) {
           s.burstTimer += ROGUELIKE_CONFIG.machineGun.burstDelay;
           s.bullets.push({
-            x: s.playerX + PLAYER_W_BASE / 2,
-            y: s.playerY + PLAYER_H_BASE / 2,
+            x: s.playerX + (siteData.secretGame?.bulletSpawnOffsetX ?? PLAYER_W_BASE / 2),
+            y: s.playerY + (siteData.secretGame?.bulletSpawnOffsetY ?? PLAYER_H_BASE / 2),
             vx: s.burstVx,
             vy: s.burstVy,
             isPlayer: true,
@@ -871,8 +878,8 @@ export function GameCanvas({
           ? Math.min(playerStats.reloadTime, Math.max(0.06, 0.12 - 0.02 * (rapidStacks - 1)))
           : playerStats.reloadTime;
 
-        const px = s.playerX + PLAYER_W_BASE / 2;
-        const py = s.playerY + PLAYER_H_BASE / 2;
+        const px = s.playerX + (siteData.secretGame?.bulletSpawnOffsetX ?? PLAYER_W_BASE / 2);
+        const py = s.playerY + (siteData.secretGame?.bulletSpawnOffsetY ?? PLAYER_H_BASE / 2);
         let aimX = px;
         let aimY = py - 10;
         if (sharedAim.aiming && sharedAim.x != null && sharedAim.y != null) {
@@ -1366,6 +1373,9 @@ export function GameCanvas({
       const enemyBulletImpact = siteData.secretGame?.impacts?.enemyBullet ?? { w: 20, h: 20 };
       // Use configurable hitbox from settings (falls back to hard-coded base values)
       const hbCfg = siteData.secretGame?.playerHitbox;
+      const hbPoints = hbCfg?.points;
+      const usePolygon = hbPoints && hbPoints.length >= 3;
+      // Rectangle fallback values (used when no polygon defined)
       const px = s.playerX + (hbCfg?.offsetX ?? 0);
       const py = s.playerY + (hbCfg?.offsetY ?? 0);
       const pw = hbCfg?.width  ?? PLAYER_W_BASE;
@@ -1376,12 +1386,31 @@ export function GameCanvas({
         const b = s.bullets[bi];
         if (b.isPlayer) continue;
         const hitbox = b.isBoss ? (bossCfg?.projectileSize ?? 10) / 2 : (enemyCfg.projectileSize ?? 10) / 2;
-        if (
-          b.x >= px - hitbox &&
-          b.x <= px + pw + hitbox &&
-          b.y >= py - hitbox &&
-          b.y <= py + ph + hitbox
-        ) {
+        // Determine if bullet hits the player
+        let playerHit: boolean;
+        if (usePolygon && hbPoints) {
+          // Polygon (ray-cast) test — check bullet centre inside polygon
+          const lx = b.x - s.playerX;
+          const ly = b.y - s.playerY;
+          let inside = false;
+          for (let i = 0, j = hbPoints.length - 1; i < hbPoints.length; j = i++) {
+            const xi = hbPoints[i].x, yi = hbPoints[i].y;
+            const xj = hbPoints[j].x, yj = hbPoints[j].y;
+            if (((yi > ly) !== (yj > ly)) && (lx < (xj - xi) * (ly - yi) / (yj - yi) + xi)) {
+              inside = !inside;
+            }
+          }
+          // Also run a loose AABB guard with hitbox radius for responsiveness
+          playerHit = inside;
+        } else {
+          playerHit = (
+            b.x >= px - hitbox &&
+            b.x <= px + pw + hitbox &&
+            b.y >= py - hitbox &&
+            b.y <= py + ph + hitbox
+          );
+        }
+        if (playerHit) {
           s.bullets.splice(bi, 1);
           if (isInvincible || s.permShieldActive) {
             // Invincible or perm-shield active — ignore hit, spawn small deflect effect

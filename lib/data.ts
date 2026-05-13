@@ -130,12 +130,28 @@ export interface PlayerSprite {
   height: number;
 }
 
-/** Configurable player collision hitbox (offset relative to playerX/Y). */
+/** A single point in the player's polygon hitbox, relative to playerX/Y in game-logical units. */
+export interface HitboxPoint {
+  x: number;
+  y: number;
+}
+
+/**
+ * Configurable player collision hitbox.
+ *
+ * When `points` contains ≥ 3 entries the game uses polygon (ray-cast) collision.
+ * Otherwise falls back to the legacy AABB rectangle (offsetX/Y + width/height).
+ * Points are in game-logical units, relative to playerX / playerY.
+ */
 export interface PlayerHitbox {
-  offsetX: number; // x offset from playerX (e.g. -2 to shift left)
-  offsetY: number; // y offset from playerY
-  width: number;   // hitbox width  in base game units
-  height: number;  // hitbox height in base game units
+  /** Legacy rectangle fields — used as fallback when no polygon is defined. */
+  offsetX?: number;
+  offsetY?: number;
+  width?: number;
+  height?: number;
+  /** Polygon vertices (relative to playerX, playerY). When ≥ 3 points are present,
+   *  polygon collision is used and the rectangle fields above are ignored. */
+  points?: HitboxPoint[];
 }
 
 export interface GameEnemySettings {
@@ -299,6 +315,12 @@ export interface SecretGameSettings {
    * Defaults to { offsetX: 0, offsetY: 0, width: 10, height: 20 }.
    */
   playerHitbox?: PlayerHitbox;
+  /**
+   * Where the player's bullets spawn, as an offset from playerX / playerY in game-logical units.
+   * Defaults to { x: PLAYER_W_BASE/2, y: PLAYER_H_BASE/2 } (centre of the hitbox).
+   */
+  bulletSpawnOffsetX?: number;
+  bulletSpawnOffsetY?: number;
   /**
    * Permanent shield bubble appearance. The offset is relative to the player sprite centre.
    * Defaults to { offsetX: 0, offsetY: 0, radius: 20 }.
