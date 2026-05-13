@@ -16,6 +16,8 @@ interface GameEditorPreviewProps {
   playerSprite: PlayerSprite;
   bossSettings: BossSettings;
   platform: "desktop" | "mobile";
+  /** Zoom multiplier for the preview (1 = 100%, 2 = 200%, etc.). */
+  zoom?: number;
   /** Polygon hitbox points (relative to playerX/Y in game-logical units). */
   hitboxPoints?: HitboxPoint[];
   /** Bullet spawn offset from playerX (game-logical units). Default: PLAYER_W_BASE/2. */
@@ -51,6 +53,7 @@ export function GameEditorPreview({
   playerSprite,
   bossSettings,
   platform,
+  zoom = 1,
   hitboxPoints,
   bulletSpawnOffsetX,
   bulletSpawnOffsetY,
@@ -65,7 +68,7 @@ export function GameEditorPreview({
   const [dims, setDims] = useState({ w: 280, h: 560 });
   const [editMode, setEditMode] = useState<EditMode>("none");
 
-  // Measure container size in pixels
+  // Measure container size in pixels — re-runs when platform or zoom changes
   useLayoutEffect(() => {
     const measure = () => {
       const container = containerRef.current;
@@ -76,7 +79,7 @@ export function GameEditorPreview({
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
-  }, [platform]);
+  }, [platform, zoom]);
 
   const scaleX = dims.w / BASE_W;
   const scaleY = dims.h / BASE_H;
@@ -493,22 +496,21 @@ export function GameEditorPreview({
   }
 
   const isMobile = platform === "mobile";
-  // Mobile: 390×844 = iPhone 14 viewport — the actual size the game renders at.
-  // Desktop: fill 100% of whatever width the parent gives (parent handles sizing),
-  // locked to 16:9 so it matches a typical desktop monitor aspect ratio.
-  const frameClass = isMobile
-    ? "w-[390px] h-[844px]"
-    : "w-full aspect-[16/9]";
+  // Mobile: 390×844 = iPhone 14 viewport, scaled by zoom.
+  // Desktop: fill 100% of parent width (parent drives width via minWidth), 16:9 aspect.
+  const frameStyle: React.CSSProperties = isMobile
+    ? { width: 390 * zoom, height: 844 * zoom }
+    : { width: `${100 * zoom}%`, aspectRatio: "16/9" };
 
   return (
     <div className="flex flex-col items-center gap-3">
       <div className="text-xs text-neutral-400 font-mono uppercase tracking-wider">
-        {platform} Preview · {isMobile ? "390 × 844 (iPhone 14)" : "16:9 desktop"} · {BASE_W} × {BASE_H} game units
+        {platform} Preview · {isMobile ? "390 × 844 (iPhone 14)" : "16:9 desktop"} · {BASE_W} × {BASE_H} game units · {Math.round(zoom * 100)}%
       </div>
       <div
         ref={containerRef}
-        className={`relative ${frameClass} rounded-2xl border-4 border-[#1e1e1e] bg-black overflow-hidden`}
-        style={{ boxShadow: "0 0 40px rgba(0,0,0,0.5)" }}
+        className="relative rounded-2xl border-4 border-[#1e1e1e] bg-black overflow-hidden"
+        style={{ ...frameStyle, boxShadow: "0 0 40px rgba(0,0,0,0.5)" }}
       >
         <canvas
           ref={canvasRef}

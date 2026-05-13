@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Save, Gamepad2, RotateCcw, Play, Smartphone, Monitor, Trophy } from "lucide-react";
+import { Save, Gamepad2, RotateCcw, Play, Smartphone, Monitor, Trophy, ZoomIn, ZoomOut } from "lucide-react";
 import { GameEditorPreview } from "@/components/secret-game/game-editor-preview";
 import { updateSecretGameSettings, resetLeaderboard, getLeaderboard, deleteScore, updateScore } from "@/lib/actions";
 import { useRouter } from "next/navigation";
@@ -42,6 +42,9 @@ export default function SecretGameAdminPage() {
   const [settings, setSettings] = useState<SecretGameSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveOk, setSaveOk] = useState(false);
+  const [previewZoom, setPreviewZoom] = useState(1);
   const [highScore, setHighScore] = useState(0);
   const [platform, setPlatform] = useState<"desktop" | "mobile">("desktop");
   const [resettingBoard, setResettingBoard] = useState(false);
@@ -125,23 +128,30 @@ export default function SecretGameAdminPage() {
   const handleSave = useCallback(async () => {
     if (!settings) return;
     setSaving(true);
-    await updateSecretGameSettings(settings);
-    // Bust the in-memory data cache in /api/admin/data so the game page and
-    // DataProvider immediately see the new settings on their next fetch.
-    // The server action writes to Supabase but doesn't update the route's memCache,
-    // so without this POST the cache can serve stale data for up to 60 seconds.
+    setSaveError(null);
+    setSaveOk(false);
     try {
-      const freshPayload = { ...(fullDataRef.current ?? {}), secretGame: settings };
-      await fetch("/api/admin/data", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(freshPayload),
-      });
-    } catch {
-      // Non-fatal — Supabase already has the correct data; this just speeds up propagation.
+      await updateSecretGameSettings(settings);
+      // Bust the in-memory data cache in /api/admin/data so the game page and
+      // DataProvider immediately see the new settings on their next fetch.
+      try {
+        const freshPayload = { ...(fullDataRef.current ?? {}), secretGame: settings };
+        await fetch("/api/admin/data", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(freshPayload),
+        });
+      } catch {
+        // Non-fatal — Supabase already has the correct data; this just speeds up propagation.
+      }
+      setSaveOk(true);
+      setTimeout(() => setSaveOk(false), 3000);
+      router.refresh();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
-    router.refresh();
   }, [settings, router]);
 
   const handleResetHighScore = useCallback(() => {
@@ -246,7 +256,13 @@ export default function SecretGameAdminPage() {
             Visually edit the game layout for desktop and mobile.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {saveOk && (
+            <span className="text-xs text-green-400 font-semibold">✓ Saved!</span>
+          )}
+          {saveError && (
+            <span className="text-xs text-red-400 font-semibold" title={saveError}>✗ Save failed</span>
+          )}
           <button
             onClick={handlePreview}
             className="flex items-center gap-2 rounded-lg border border-[#1e1e1e] bg-[#141414] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1a1a1a] transition-colors"
@@ -950,28 +966,72 @@ export default function SecretGameAdminPage() {
           </Section>
         </div>
 
-        {/* Right: Live Preview
-            Desktop platform → flex-1 (grows to fill remaining width, matching actual game size)
-            Mobile platform  → fixed 460px wide (fits the 390px phone with breathing room)  */}
-        <div className={platform === "desktop" ? "flex-1 min-w-0" : "lg:w-[460px] shrink-0"}>
-          <div className="sticky top-6 rounded-xl border border-[#1e1e1e] bg-[#141414] p-5 space-y-4">
-            <h3 className="font-semibold text-white">Live Preview</h3>
-            <p className="text-xs text-neutral-500">
-              Drag the dashed boxes to reposition elements. Pink = enemies (not draggable).
-            </p>
-            <GameEditorPreview
-              settings={plat}
-              playerSprite={settings.playerSprite}
-              bossSettings={settings.boss}
-              platform={platform}
-              hitboxPoints={settings.playerHitbox?.points}
-              bulletSpawnOffsetX={settings.bulletSpawnOffsetX}
-              bulletSpawnOffsetY={settings.bulletSpawnOffsetY}
-              onChange={updatePlatform}
-              onBossChange={(next) => setSettings((prev) => prev ? { ...prev, boss: next } : prev)}
-              onHitboxChange={(points) => setSettings((prev) => prev ? { ...prev, playerHitbox: { ...(prev.playerHitbox ?? {}), points } } : prev)}
-              onBulletSpawnChange={(ox, oy) => setSettings((prev) => prev ? { ...prev, bulletSpawnOffsetX: ox, bulletSpawnOffsetY: oy } : prev)}
-            />
+        {/* Right: Live Preview */}
+        <div className={platform === "desktop" ? "flex-1 min-w-0" : "w-auto shrink-0"}>
+          <div className="sticky top-6 rounded-xl border border-[#1e1e1e] bg-[#141414] p-5 space-y-3">
+            {/* Header row with zoom controls */}
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="font-semibold text-white">Live Preview</h3>
+                <p className="text-xs text-neutral-500 mt-0.5">
+                  Drag dashed boxes to reposition. Pink = enemies (not draggable).
+                </p>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  onClick={() => setPreviewZoom((z) => Math.max(0.25, parseFloat((z - 0.25).toFixed(2))))}
+                  className="p-1.5 rounded bg-[#1e1e1e] hover:bg-[#2a2a2a] text-neutral-300 transition-colors"
+                  title="Zoom out"
+                >
+                  <ZoomOut className="w-4 h-4" />
+                </button>
+                <span className="text-xs font-mono text-neutral-400 w-10 text-center">
+                  {Math.round(previewZoom * 100)}%
+                </span>
+                <button
+                  onClick={() => setPreviewZoom((z) => Math.min(4, parseFloat((z + 0.25).toFixed(2))))}
+                  className="p-1.5 rounded bg-[#1e1e1e] hover:bg-[#2a2a2a] text-neutral-300 transition-colors"
+                  title="Zoom in"
+                >
+                  <ZoomIn className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setPreviewZoom(1)}
+                  className="ml-1 px-2 py-1 rounded bg-[#1e1e1e] hover:bg-[#2a2a2a] text-neutral-400 text-xs transition-colors"
+                  title="Reset zoom"
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+            {/* Scrollable preview container */}
+            <div
+              className="overflow-auto rounded-xl"
+              style={{ maxHeight: "90vh" }}
+              onWheel={(e) => {
+                if (e.ctrlKey || e.metaKey) {
+                  e.preventDefault();
+                  setPreviewZoom((z) =>
+                    Math.min(4, Math.max(0.25, parseFloat((z + (e.deltaY < 0 ? 0.1 : -0.1)).toFixed(2))))
+                  );
+                }
+              }}
+            >
+              <GameEditorPreview
+                settings={plat}
+                playerSprite={settings.playerSprite}
+                bossSettings={settings.boss}
+                platform={platform}
+                zoom={previewZoom}
+                hitboxPoints={settings.playerHitbox?.points}
+                bulletSpawnOffsetX={settings.bulletSpawnOffsetX}
+                bulletSpawnOffsetY={settings.bulletSpawnOffsetY}
+                onChange={updatePlatform}
+                onBossChange={(next) => setSettings((prev) => prev ? { ...prev, boss: next } : prev)}
+                onHitboxChange={(points) => setSettings((prev) => prev ? { ...prev, playerHitbox: { ...(prev.playerHitbox ?? {}), points } } : prev)}
+                onBulletSpawnChange={(ox, oy) => setSettings((prev) => prev ? { ...prev, bulletSpawnOffsetX: ox, bulletSpawnOffsetY: oy } : prev)}
+              />
+            </div>
           </div>
         </div>
       </div>
