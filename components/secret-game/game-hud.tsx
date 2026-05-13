@@ -93,7 +93,10 @@ export function GameHUD({ score, lives, wave, muted, activePowerUps, onPause, on
 
   // Track fullscreen state changes (e.g. user presses Escape)
   useEffect(() => {
-    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+    const onChange = () => {
+      const doc = document as Document & { webkitFullscreenElement?: Element };
+      setIsFullscreen(!!(document.fullscreenElement || doc.webkitFullscreenElement));
+    };
     document.addEventListener("fullscreenchange", onChange);
     document.addEventListener("webkitfullscreenchange", onChange);
     return () => {
@@ -103,10 +106,22 @@ export function GameHUD({ score, lives, wave, muted, activePowerUps, onPause, on
   }, []);
 
   const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen?.().catch(() => {});
+    const doc = document as Document & { webkitFullscreenElement?: Element; webkitExitFullscreen?: () => void };
+    const el = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => void };
+    const isFs = !!(document.fullscreenElement || doc.webkitFullscreenElement);
+    if (!isFs) {
+      // Standard API first, then webkit fallback (Safari / older Chrome on iOS)
+      if (typeof el.requestFullscreen === "function") {
+        el.requestFullscreen().catch(() => {});
+      } else if (typeof el.webkitRequestFullscreen === "function") {
+        el.webkitRequestFullscreen();
+      }
     } else {
-      document.exitFullscreen?.().catch(() => {});
+      if (typeof document.exitFullscreen === "function") {
+        document.exitFullscreen().catch(() => {});
+      } else if (typeof doc.webkitExitFullscreen === "function") {
+        doc.webkitExitFullscreen();
+      }
     }
   };
 
