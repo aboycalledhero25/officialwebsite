@@ -75,6 +75,7 @@ function revalidateAll() {
   revalidatePath("/press");
   revalidatePath("/contact");
   revalidatePath("/live");
+  revalidatePath("/secret-game");
 }
 
 // ═══════════════════════════════════════════════════════════

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Save, Gamepad2, RotateCcw, Play, Smartphone, Monitor, Trophy } from "lucide-react";
 import { GameEditorPreview } from "@/components/secret-game/game-editor-preview";
 import { updateSecretGameSettings, resetLeaderboard, getLeaderboard, deleteScore, updateScore } from "@/lib/actions";
@@ -48,11 +48,15 @@ export default function SecretGameAdminPage() {
   const [leaderboard, setLeaderboard] = useState<{ id: string; name: string; score: number; wave: number; created_at: string }[]>([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(true);
   const [editingScore, setEditingScore] = useState<{ id: string; name: string; score: number; wave: number } | null>(null);
+  // Stores the full data.json payload so we can POST it back to bust the in-memory cache
+  // after a save (the server action writes to Supabase but doesn't update the route's memCache).
+  const fullDataRef = useRef<Record<string, unknown> | null>(null);
 
   useEffect(() => {
     fetch("/api/admin/data")
       .then((r) => r.json())
       .then((data) => {
+        fullDataRef.current = data;
         const sg = data.secretGame || {};
         // Ensure new fields exist with defaults
         const merged: SecretGameSettings = {
@@ -122,6 +126,20 @@ export default function SecretGameAdminPage() {
     if (!settings) return;
     setSaving(true);
     await updateSecretGameSettings(settings);
+    // Bust the in-memory data cache in /api/admin/data so the game page and
+    // DataProvider immediately see the new settings on their next fetch.
+    // The server action writes to Supabase but doesn't update the route's memCache,
+    // so without this POST the cache can serve stale data for up to 60 seconds.
+    try {
+      const freshPayload = { ...(fullDataRef.current ?? {}), secretGame: settings };
+      await fetch("/api/admin/data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(freshPayload),
+      });
+    } catch {
+      // Non-fatal — Supabase already has the correct data; this just speeds up propagation.
+    }
     setSaving(false);
     router.refresh();
   }, [settings, router]);
