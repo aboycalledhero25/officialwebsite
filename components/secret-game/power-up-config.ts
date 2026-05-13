@@ -31,7 +31,6 @@ export interface RoguelikeConfig {
   lightning:   { cooldown: number; damage: number; baseStrikes: number; strikesPerStack: number };
   connect:     { damage: number; damagePerStack: number };
   extraLife:   { heartsPerStack: number };
-  fastReload:  { reductionPerStack: number; minReloadTime: number };
   frenzy:      { cooldown: number; damage: number; baseProjectiles: number; projectilesPerStack: number };
   health: {
     /**
@@ -44,8 +43,6 @@ export interface RoguelikeConfig {
   };
   luck:        { dropChancePerStack: number };
   machineGun:  { baseBurst: number; burstPerStack: number; burstSpread: number; burstDelay: number };
-  /** Clip-reload mechanic: player must pause after maxShots for reloadDuration seconds. */
-  reload:      { maxShots: number; reloadDuration: number };
   nuke:        { cooldown: number; bossHPReduction: number; nukesPerStack: number };
   projectile:  { projectilesPerStack: number };
   rapidFire:   { ratePerStack: number; minCooldown: number };
@@ -106,12 +103,10 @@ export const ROGUELIKE_CONFIG: RoguelikeConfig = {
   lightning:  { cooldown: 30, damage: 50, baseStrikes: 3, strikesPerStack: 1 },
   connect:    { damage: 50, damagePerStack: 25 },
   extraLife:  { heartsPerStack: 1 },
-  fastReload: { reductionPerStack: 0.01, minReloadTime: 0.05 },
   frenzy:     { cooldown: 30, damage: 20, baseProjectiles: 8, projectilesPerStack: 2 },
   health:     { slicesProgression: [1, 2, 3, 4] },
   luck:       { dropChancePerStack: 0.01 },
   machineGun: { baseBurst: 3, burstPerStack: 1, burstSpread: 0.1, burstDelay: 0.07 },
-  reload:     { maxShots: 10, reloadDuration: 3 },
   nuke:       { cooldown: 30, bossHPReduction: 0.25, nukesPerStack: 1 },
   projectile: { projectilesPerStack: 1 },
   rapidFire:  { ratePerStack: 0.02, minCooldown: 0.05 },

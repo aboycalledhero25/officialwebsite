@@ -81,15 +81,6 @@ export const POWER_UP_REGISTRY: PowerUpDefinition[] = [
     getNextStat:    (c) => `Hearts: ${ROGUELIKE_CONFIG.startingHearts + ((c["extraLife"] ?? 0) + 1) * ROGUELIKE_CONFIG.extraLife.heartsPerStack}`,
   },
   {
-    id: "fastReload",
-    name: "Fast Reload",
-    description: "Reduces reload time by 1% of base per pick.",
-    icon: "/powerups/icons/fast_reload.png",
-    canStack: true, maxStacks: -1, removeFromPoolAfterMaxed: false,
-    getCurrentStat: (c) => `Reload: ${computePlayerStats(c).reloadTime.toFixed(2)}s`,
-    getNextStat:    (c) => `Reload: ${computePlayerStats({ ...c, fastReload: (c["fastReload"] ?? 0) + 1 }).reloadTime.toFixed(2)}s`,
-  },
-  {
     id: "frenzy",
     name: "Frenzy",
     description: "Every 30s fires projectiles outward in a full circle.",

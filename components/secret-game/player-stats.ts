@@ -18,8 +18,6 @@ export type RoguelikeConfigOverride = Partial<{
   baseMovementSpeed: number;
   baseBulletDamage: number;
   baseEnemyDropChance: number;
-  reload: Partial<RoguelikeConfig['reload']>;
-  fastReload: Partial<RoguelikeConfig['fastReload']>;
   rapidFire: Partial<RoguelikeConfig['rapidFire']>;
   machineGun: Partial<RoguelikeConfig['machineGun']>;
   frenzy: Partial<RoguelikeConfig['frenzy']>;
@@ -50,8 +48,6 @@ function mergeConfig(override?: RoguelikeConfigOverride): RoguelikeConfig {
     baseMovementSpeed:   override.baseMovementSpeed    ?? ROGUELIKE_CONFIG.baseMovementSpeed,
     baseBulletDamage:    override.baseBulletDamage     ?? ROGUELIKE_CONFIG.baseBulletDamage,
     baseEnemyDropChance: override.baseEnemyDropChance  ?? ROGUELIKE_CONFIG.baseEnemyDropChance,
-    reload:      { ...ROGUELIKE_CONFIG.reload,      ...(override.reload      ?? {}) },
-    fastReload:  { ...ROGUELIKE_CONFIG.fastReload,  ...(override.fastReload  ?? {}) },
     rapidFire:   { ...ROGUELIKE_CONFIG.rapidFire,   ...(override.rapidFire   ?? {}) },
     machineGun:  { ...ROGUELIKE_CONFIG.machineGun,  ...(override.machineGun  ?? {}) },
     frenzy:      { ...ROGUELIKE_CONFIG.frenzy,      ...(override.frenzy      ?? {}) },
@@ -139,8 +135,8 @@ export interface PlayerStats {
 
 /**
  * Derives all PlayerStats from the current set of chosen power-ups.
- * FastReload and RapidFire both reduce the reload cooldown from base,
- * stacked multiplicatively, floored at the configured minimum.
+ * RapidFire reduces the reload cooldown from base,
+ * floored at the configured minimum.
  *
  * @param override  Optional values from siteData.secretGame.roguelikeConfig —
  *                  any provided field overrides the hardcoded ROGUELIKE_CONFIG default.
@@ -152,9 +148,8 @@ export function computePlayerStats(chosen: PermPowerUpState, override?: Roguelik
   const slicesIdx = Math.min(get("health"), cfg.health.slicesProgression.length - 1);
 
   const reloadTime = Math.max(
-    Math.min(cfg.fastReload.minReloadTime, cfg.rapidFire.minCooldown),
+    cfg.rapidFire.minCooldown,
     cfg.baseReloadTime
-      * Math.max(0, 1 - get("fastReload") * cfg.fastReload.reductionPerStack)
       * Math.max(0, 1 - get("rapidFire") * cfg.rapidFire.ratePerStack),
   );
 

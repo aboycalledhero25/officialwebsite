@@ -597,8 +597,6 @@ export default function SecretGameAdminPage() {
           {/* Roguelike Config */}
           {(() => {
             const rc = settings.roguelikeConfig ?? {};
-            const reload    = rc.reload      ?? { maxShots: 10, reloadDuration: 3 };
-            const fr        = rc.fastReload  ?? { reductionPerStack: 0.01, minReloadTime: 0.05 };
             const rf        = rc.rapidFire   ?? { ratePerStack: 0.02, minCooldown: 0.05 };
             const mg        = rc.machineGun  ?? { baseBurst: 3, burstPerStack: 1, burstSpread: 0.1, burstDelay: 0.07 };
             const frenzy    = rc.frenzy      ?? { cooldown: 30, damage: 20, baseProjectiles: 8, projectilesPerStack: 2 };
@@ -623,29 +621,6 @@ export default function SecretGameAdminPage() {
                   <NumberField label="Base Reload (s)" value={rc.baseReloadTime ?? 0.35} onChange={(v) => updateField("roguelikeConfig.baseReloadTime", v)} min={0.05} max={2} step={0.01} />
                   <NumberField label="Move Speed" value={rc.baseMovementSpeed ?? 90} onChange={(v) => updateField("roguelikeConfig.baseMovementSpeed", v)} min={10} max={300} step={5} />
                   <NumberField label="Bullet Damage" value={rc.baseBulletDamage ?? 20} onChange={(v) => updateField("roguelikeConfig.baseBulletDamage", v)} min={1} max={500} step={5} />
-                </div>
-              </Section>
-              <Section title="Reload Mechanic">
-                <div className="mb-3 flex items-center gap-3">
-                  <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-white/80">
-                    <input
-                      type="checkbox"
-                      className="w-4 h-4 accent-cyan-400"
-                      checked={rc.reloadEnabled !== false}
-                      onChange={(e) => updateField("roguelikeConfig.reloadEnabled", e.target.checked)}
-                    />
-                    Reload mechanic enabled
-                  </label>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <NumberField label="Clip Size" value={reload.maxShots ?? 10} onChange={(v) => upRc("reload", { maxShots: v })} min={1} max={50} step={1} />
-                  <NumberField label="Reload Time (s)" value={reload.reloadDuration ?? 3} onChange={(v) => upRc("reload", { reloadDuration: v })} min={0.5} max={10} step={0.1} />
-                </div>
-              </Section>
-              <Section title="Fast Reload (perm upgrade)">
-                <div className="grid grid-cols-2 gap-4">
-                  <NumberField label="Reduction/Stack" value={fr.reductionPerStack ?? 0.01} onChange={(v) => upRc("fastReload", { reductionPerStack: v })} min={0} max={0.5} step={0.005} />
-                  <NumberField label="Min Reload (s)" value={fr.minReloadTime ?? 0.05} onChange={(v) => upRc("fastReload", { minReloadTime: v })} min={0.01} max={1} step={0.01} />
                 </div>
               </Section>
               <Section title="Rapid Fire (temp power-up)">
@@ -746,7 +721,6 @@ export default function SecretGameAdminPage() {
                 { id: "lightning",  label: "Lightning" },
                 { id: "connect",    label: "Connect Beam" },
                 { id: "extraLife",  label: "Extra Life" },
-                { id: "fastReload", label: "Fast Reload" },
                 { id: "frenzy",     label: "Frenzy" },
                 { id: "health",     label: "Health (Slices)" },
                 { id: "luck",       label: "Luck" },

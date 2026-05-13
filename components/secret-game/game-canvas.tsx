@@ -229,10 +229,6 @@ export function GameCanvas({
     lightningBeams: [] as { x1: number; y1: number; x2: number; y2: number; timer: number }[],
     // ── GIF impact effects ────────────────────────────────────────────
     activeEffects: [] as ActiveEffect[],
-    // ── Reload mechanic ───────────────────────────────────────────────
-    shotsRemaining: ROGUELIKE_CONFIG.reload.maxShots,
-    isReloading: false,
-    reloadTimer: 0,
     // ── Shield animation ──────────────────────────────────────────────
     shieldDuration: 4, // stores the initial duration of the last temp-shield activation
     // ── Machine-gun sequential burst ──────────────────────────────────
@@ -410,9 +406,6 @@ export function GameCanvas({
     s.permShieldTimer = 0;
     s.lightningBeams = [];
     s.activeEffects = [];
-    s.shotsRemaining = siteDataRef.current.secretGame?.roguelikeConfig?.reload?.maxShots ?? ROGUELIKE_CONFIG.reload.maxShots;
-    s.isReloading = false;
-    s.reloadTimer = 0;
     s.burstRemaining = 0;
     s.burstTimer = 0;
     onScoreChange(0);
@@ -838,15 +831,6 @@ export function GameCanvas({
         if (onPowerUpChange) onPowerUpChange(s.activePowerUps);
       }
 
-      // ── Reload countdown ────────────────────────────────────────────
-      if (s.isReloading) {
-        s.reloadTimer -= dt;
-        if (s.reloadTimer <= 0) {
-          s.isReloading = false;
-          s.shotsRemaining = siteData.secretGame?.roguelikeConfig?.reload?.maxShots ?? ROGUELIKE_CONFIG.reload.maxShots;
-        }
-      }
-
       // ── Machine-gun sequential burst (auto-fires remaining burst bullets) ──
       if (s.burstRemaining > 0) {
         s.burstTimer -= dt;
@@ -868,7 +852,7 @@ export function GameCanvas({
       // ── Player shooting ─────────────────────────────────────────────
       s.playerCooldown -= dt;
       const firing = keys.shoot || sharedAim.firing;
-      if (firing && s.playerCooldown <= 0 && !s.isReloading) {
+      if (firing && s.playerCooldown <= 0) {
         // Temp power-ups still apply on top of perm stats
         const wideShot = s.activePowerUps.find((p) => p.type === "wideshot");
         const rapid = s.activePowerUps.find((p) => p.type === "rapid");
@@ -935,17 +919,6 @@ export function GameCanvas({
         }
 
         s.playerCooldown = baseCooldown;
-
-        // Clip reload: count this trigger pull as one shot (only when mechanic is enabled)
-        const reloadEnabled = siteData.secretGame?.roguelikeConfig?.reloadEnabled !== false;
-        if (reloadEnabled) {
-          s.shotsRemaining -= 1;
-          if (s.shotsRemaining <= 0) {
-            s.isReloading = true;
-            s.reloadTimer = siteData.secretGame?.roguelikeConfig?.reload?.reloadDuration ?? ROGUELIKE_CONFIG.reload.reloadDuration;
-            s.burstRemaining = 0; // cancel any in-progress burst
-          }
-        }
       }
 
       // ── Enemy movement ──
@@ -1628,44 +1601,6 @@ export function GameCanvas({
       );
     } else {
       drawPlayer(ctx, s.playerX, s.playerY, s.frame);
-    }
-
-    // ── Reload / ammo indicator (hidden when reload mechanic is disabled) ──
-    if (siteData.secretGame?.roguelikeConfig?.reloadEnabled !== false) {
-      const maxShots = siteData.secretGame?.roguelikeConfig?.reload?.maxShots ?? ROGUELIKE_CONFIG.reload.maxShots;
-      const barW = 22;
-      const barH = 3;
-      const barX = s.playerX + spriteConfig.offsetX + spriteConfig.width / 2 - barW / 2;
-      const barY = s.playerY + spriteConfig.offsetY + spriteConfig.height + 4;
-      if (s.isReloading) {
-        // Pulsing "RELOAD" text
-        const pulse = 0.6 + Math.sin(s.frame * 0.3) * 0.4;
-        ctx.save();
-        ctx.globalAlpha = pulse;
-        ctx.fillStyle = "#ff4400";
-        ctx.font = "bold 5px monospace";
-        ctx.textAlign = "center";
-        ctx.fillText("RELOAD", s.playerX + spriteConfig.offsetX + spriteConfig.width / 2, barY + 5);
-        // Reload progress bar (grey background → cyan fill)
-        const progress = 1 - (s.reloadTimer / (siteData.secretGame?.roguelikeConfig?.reload?.reloadDuration ?? ROGUELIKE_CONFIG.reload.reloadDuration));
-        ctx.globalAlpha = 0.4;
-        ctx.fillStyle = "#333";
-        ctx.fillRect(barX, barY, barW, barH);
-        ctx.globalAlpha = pulse;
-        ctx.fillStyle = "#00f0ff";
-        ctx.fillRect(barX, barY, barW * progress, barH);
-        ctx.restore();
-      } else {
-        // Ammo pips: one dot per shot remaining
-        const dotW = (barW - (maxShots - 1)) / maxShots;
-        ctx.save();
-        for (let i = 0; i < maxShots; i++) {
-          ctx.fillStyle = i < s.shotsRemaining ? "#00f0ff" : "#222";
-          ctx.globalAlpha = i < s.shotsRemaining ? 0.8 : 0.4;
-          ctx.fillRect(barX + i * (dotW + 1), barY, dotW, barH);
-        }
-        ctx.restore();
-      }
     }
 
     // Draw invincibility sparkles (Sonic-style) around the guitar
