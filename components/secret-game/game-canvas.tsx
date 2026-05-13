@@ -403,7 +403,7 @@ export function GameCanvas({
     }
 
     // Scale difficulty with wave (capped for infinite playability)
-    s.enemySpeed = Math.min(cfg.speed + (w - 1) * 1.2, 60);
+    s.enemySpeed = Math.min(cfg.speed + (w - 1) * 1.2, 90);
     s.enemyFireChance = Math.min(cfg.fireRate * (1 + (w - 1) * 0.025), 0.012);
     s.wave = w;
     s.spawnAnim = 0;

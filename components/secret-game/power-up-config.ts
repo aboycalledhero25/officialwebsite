@@ -115,7 +115,7 @@ export const ROGUELIKE_CONFIG: RoguelikeConfig = {
   rapidFire:  { ratePerStack: 0.02, minCooldown: 0.05 },
   seeker:     { missileDamage: 150, missileCooldown: 15, missilesPerStack: 1 },
   shield:     { duration: 10, cooldown: 30 },
-  orbital:    { damage: 30, orbitSpeed: 2.5, orbSize: 8, cooldown: 10, orbitRadius: 35, duration: 10 },
+  orbital:    { damage: 30, orbitSpeed: 2.5, orbSize: 8, cooldown: 15, orbitRadius: 35, duration: 10 },
   speed:      { speedPerStack: 0.01 },
   strength:   { damagePerStack: 0.5 },
   virus: {

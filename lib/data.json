@@ -495,7 +495,7 @@
       "shield": 0
     },
     "waveRewardEnabled": true,
-    "enemyChoiceDropChance": 0.2,
+    "enemyChoiceDropChance": 0.03,
     "disabledPowerUps": [
       "seeker"
     ],
