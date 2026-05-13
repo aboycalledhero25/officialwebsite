@@ -919,12 +919,15 @@ export function GameCanvas({
 
         s.playerCooldown = baseCooldown;
 
-        // Clip reload: count this trigger pull as one shot
-        s.shotsRemaining -= 1;
-        if (s.shotsRemaining <= 0) {
-          s.isReloading = true;
-          s.reloadTimer = siteData.secretGame?.roguelikeConfig?.reload?.reloadDuration ?? ROGUELIKE_CONFIG.reload.reloadDuration;
-          s.burstRemaining = 0; // cancel any in-progress burst
+        // Clip reload: count this trigger pull as one shot (only when mechanic is enabled)
+        const reloadEnabled = siteData.secretGame?.roguelikeConfig?.reloadEnabled !== false;
+        if (reloadEnabled) {
+          s.shotsRemaining -= 1;
+          if (s.shotsRemaining <= 0) {
+            s.isReloading = true;
+            s.reloadTimer = siteData.secretGame?.roguelikeConfig?.reload?.reloadDuration ?? ROGUELIKE_CONFIG.reload.reloadDuration;
+            s.burstRemaining = 0; // cancel any in-progress burst
+          }
         }
       }
 
@@ -1370,8 +1373,8 @@ export function GameCanvas({
           b.y <= py + ph + hitbox
         ) {
           s.bullets.splice(bi, 1);
-          if (isInvincible) {
-            // Invincible — ignore hit, spawn small deflect effect
+          if (isInvincible || s.permShieldActive) {
+            // Invincible or perm-shield active — ignore hit, spawn small deflect effect
             spawnEffect(s.activeEffects, "bullet", b.x, b.y, enemyBulletImpact);
             continue;
           }
@@ -1420,7 +1423,7 @@ export function GameCanvas({
           s.boss.y < py + ph &&
           s.boss.y + bh > py
         ) {
-          if (!isInvincible) {
+          if (!isInvincible && !s.permShieldActive) {
             s.currentSlices = Math.max(0, s.currentSlices - 1);
             s.lives = Math.ceil(s.currentSlices / s.slicesPerHeart);
             onLivesChange(s.lives);
@@ -1588,8 +1591,8 @@ export function GameCanvas({
       drawPlayer(ctx, s.playerX, s.playerY, s.frame);
     }
 
-    // ── Reload / ammo indicator ──────────────────────────────────────
-    {
+    // ── Reload / ammo indicator (hidden when reload mechanic is disabled) ──
+    if (siteData.secretGame?.roguelikeConfig?.reloadEnabled !== false) {
       const maxShots = siteData.secretGame?.roguelikeConfig?.reload?.maxShots ?? ROGUELIKE_CONFIG.reload.maxShots;
       const barW = 22;
       const barH = 3;

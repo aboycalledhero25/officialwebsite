@@ -516,6 +516,7 @@
       "baseMovementSpeed": 90,
       "baseBulletDamage": 20,
       "baseEnemyDropChance": 0.12,
+      "reloadEnabled": true,
       "reload": {
         "maxShots": 20,
         "reloadDuration": 2

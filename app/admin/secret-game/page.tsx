@@ -586,6 +586,17 @@ export default function SecretGameAdminPage() {
                 </div>
               </Section>
               <Section title="Reload Mechanic">
+                <div className="mb-3 flex items-center gap-3">
+                  <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-white/80">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 accent-cyan-400"
+                      checked={rc.reloadEnabled !== false}
+                      onChange={(e) => updateField("roguelikeConfig.reloadEnabled", e.target.checked)}
+                    />
+                    Reload mechanic enabled
+                  </label>
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <NumberField label="Clip Size" value={reload.maxShots ?? 10} onChange={(v) => upRc("reload", { maxShots: v })} min={1} max={50} step={1} />
                   <NumberField label="Reload Time (s)" value={reload.reloadDuration ?? 3} onChange={(v) => upRc("reload", { reloadDuration: v })} min={0.5} max={10} step={0.1} />

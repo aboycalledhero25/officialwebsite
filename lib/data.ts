@@ -315,6 +315,7 @@ export interface SecretGameSettings {
     baseMovementSpeed?: number;
     baseBulletDamage?: number;
     baseEnemyDropChance?: number;
+    reloadEnabled?: boolean;
     reload?: { maxShots?: number; reloadDuration?: number };
     fastReload?: { reductionPerStack?: number; minReloadTime?: number };
     rapidFire?: { ratePerStack?: number; minCooldown?: number };
