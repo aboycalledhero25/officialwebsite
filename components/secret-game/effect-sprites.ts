@@ -121,7 +121,9 @@ export function drawEffects(
 ): void {
   for (const ef of effects) {
     const img = imageCache[ef.key];
-    if (!img || !img.complete || img.naturalWidth === 0) continue;
+    // Some browsers (especially with animated GIFs) may report naturalWidth === 0
+    // even after the image has loaded. Only skip if the element is missing entirely.
+    if (!img || !img.complete) continue;
 
     const defaultSize = EFFECT_SIZE[ef.key];
     const w = ef.w ?? defaultSize.w;
@@ -131,7 +133,11 @@ export function drawEffects(
 
     ctx.save();
     ctx.globalAlpha = alpha;
-    ctx.drawImage(img, ef.cx - w / 2, ef.cy - h / 2, w, h);
+    try {
+      ctx.drawImage(img, ef.cx - w / 2, ef.cy - h / 2, w, h);
+    } catch {
+      // Image not ready to draw yet — skip this frame silently
+    }
     ctx.restore();
   }
 }
