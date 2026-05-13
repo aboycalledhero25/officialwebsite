@@ -363,10 +363,12 @@ export function GameCanvas({
       const colUnit = cfg.width + cfg.paddingX;
       const rowUnit = cfg.height + cfg.paddingY;
       const maxCols = Math.max(1, Math.floor((maxW + cfg.paddingX) / colUnit));
-      const cols = Math.min(maxCols, cfg.columns + Math.floor((w - 1) / 2));
+      // Grow columns slowly: +1 col every 5 waves (smooth scaling, avoids 70-enemy grids early)
+      const cols = Math.min(maxCols, cfg.columns + Math.floor((w - 1) / 5));
       // Cap rows so enemies never drop below 55% of screen height (above player area)
       const maxRows = Math.floor((BASE_H * 0.55 - cfg.startY) / rowUnit) + 1;
-      const rows = Math.min(maxRows, cfg.rows + Math.floor((w - 1) / 3));
+      // Grow rows slowly: +1 row every 8 waves
+      const rows = Math.min(maxRows, cfg.rows + Math.floor((w - 1) / 8));
       const totalW = cols * colUnit - cfg.paddingX;
       const startX = Math.max(edgeMargin, (logW - totalW) / 2) + (cfg.offsetX ?? 0);
       const startY = Math.max(3, cfg.startY); // ensure enemy hair is visible
@@ -843,7 +845,8 @@ export function GameCanvas({
             }
           }
           onScoreChange(s.score);
-          play("levelComplete");
+          // Play a quick hit sound for nuke (NOT levelComplete — that only plays on wave/boss clear)
+          play("enemyHit");
         }
       }
 
@@ -1002,7 +1005,7 @@ export function GameCanvas({
                 spawnParticles(e.x + ew / 2, e.y + eh / 2, "#00f0ff", 3);
                 const dnX = e.x + ew / 2 + (Math.random() - 0.5) * 10;
                 const dnY = e.y;
-                if (s.damageNumbers.length < 40) {
+                if (s.damageNumbers.length < 100) {
                   const orbColor = siteDataRef.current.secretGame?.damageNumbers?.orbitalColor ?? "#00f0ff";
                   s.damageNumbers.push({ x: dnX, y: dnY, value: String(dmg), timer: 1.2, maxTimer: 1.2, color: orbColor });
                 }
@@ -1026,7 +1029,7 @@ export function GameCanvas({
                 s.totalDamageDealt += dmg;
                 s.boss.hitFlash = 0.08;
                 s.boss.orbitalHitCooldown = 0.25; // rate-limit boss hits too
-                if (s.damageNumbers.length < 40) {
+                if (s.damageNumbers.length < 100) {
                   const orbColor2 = siteDataRef.current.secretGame?.damageNumbers?.orbitalColor ?? "#00f0ff";
                   s.damageNumbers.push({ x: s.boss.x + bw2 / 2, y: s.boss.y, value: String(dmg), timer: 1.2, maxTimer: 1.2, color: orbColor2 });
                 }
@@ -1375,6 +1378,28 @@ export function GameCanvas({
         }
       }
 
+      // ── Bullet overflow guard ──────────────────────────────────────────
+      // At high wave numbers with many power-ups, bullets can accumulate faster
+      // than they expire. Silently cull the oldest enemy bullets first (never
+      // player bullets) to keep collision-detection O(n) cost manageable.
+      const MAX_BULLETS = 350;
+      if (s.bullets.length > MAX_BULLETS) {
+        // Remove oldest enemy bullets from the front until we're within limit
+        let removed = 0;
+        for (let i = 0; i < s.bullets.length && s.bullets.length > MAX_BULLETS; ) {
+          if (!s.bullets[i].isPlayer) {
+            s.bullets.splice(i, 1);
+            removed++;
+          } else {
+            i++;
+          }
+        }
+        // If still over limit after removing all enemy bullets, cull oldest player bullets
+        while (s.bullets.length > MAX_BULLETS) {
+          s.bullets.shift();
+        }
+      }
+
       // ── Collision: player bullets vs enemies ──
       // Pre-compute weighted powerup type selector from per-type drop rates
       const dropRates = siteData.secretGame?.powerUpDropRates;
@@ -1454,7 +1479,7 @@ export function GameCanvas({
               s.bullets.splice(bi, 1);
               // Spawn damage number
               const dnX = impactX + (Math.random() - 0.5) * 8;
-              if (s.damageNumbers.length < 40) s.damageNumbers.push({ x: dnX, y: e.y, value: String(Math.round(bulletDmg)), timer: 1.0, maxTimer: 1.0, color: dmgColor });
+              if (s.damageNumbers.length < 100) s.damageNumbers.push({ x: dnX, y: e.y, value: String(Math.round(bulletDmg)), timer: 1.0, maxTimer: 1.0, color: dmgColor });
               if (e.hp <= 0) {
                 e.alive = false; e.dying = true; e.animState = "dying"; e.animAccum = 0;
                 s.score += 10 * s.wave;
@@ -1572,7 +1597,7 @@ export function GameCanvas({
                 : b.superBulletDamage != null
                   ? "#ff4400"
                   : (dnCfg2?.playerBulletColor ?? "#ffffff");
-              if (s.damageNumbers.length < 40) s.damageNumbers.push({ x: b.x + (Math.random() - 0.5) * 10, y: s.boss.y - 2, value: String(Math.round(damage)), timer: 1.0, maxTimer: 1.0, color: bossDmgColor });
+              if (s.damageNumbers.length < 100) s.damageNumbers.push({ x: b.x + (Math.random() - 0.5) * 10, y: s.boss.y - 2, value: String(Math.round(damage)), timer: 1.0, maxTimer: 1.0, color: bossDmgColor });
             }
             // Virus infection on boss hit
             if (playerStats.hasVirus && s.boss.virusStacks < playerStats.virusMaxStacks) {
