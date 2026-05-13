@@ -595,7 +595,7 @@ export function GameCanvas({
             // Each bomb drops at a random x, centred vertically
             const bx = Math.random() * playAreaW;
             const by = BASE_H * 0.5;
-            spawnEffect(s.activeEffects, "bomb", bx, by);
+            spawnEffect(s.activeEffects, "bomb", bx, by, siteData.secretGame?.impacts?.bomb ?? { w: 60, h: 60 });
             spawnParticles(bx, by, "#ff8800", 12);
             spawnParticles(bx, by, "#ffdd00", 6);
             // Damage enemies in cross pattern
@@ -621,7 +621,7 @@ export function GameCanvas({
               if (s.boss.animState === "walking") { s.boss.animState = "hurt"; s.boss.animAccum = 0; }
               if (s.boss.health <= 0) {
                 s.score += (siteData.secretGame?.boss?.scoreReward ?? 500);
-                spawnEffect(s.activeEffects, "boss", s.boss.x + 20, s.boss.y + 15);
+                spawnEffect(s.activeEffects, "boss", s.boss.x + 20, s.boss.y + 15, siteData.secretGame?.impacts?.boss ?? { w: 80, h: 80 });
                 spawnParticles(s.boss.x + 20, s.boss.y + 15, "#ff8800", 20);
                 play("levelComplete");
                 s.boss = null;
@@ -651,7 +651,7 @@ export function GameCanvas({
               ly = target.y + ecfg.height / 2;
               target.alive = false; target.dying = true; target.animState = "dying"; target.animAccum = 0;
               s.score += 5 * s.wave;
-              spawnEffect(s.activeEffects, "lightning", lx, ly);
+              spawnEffect(s.activeEffects, "lightning", lx, ly, siteData.secretGame?.impacts?.lightning ?? { w: 40, h: 40 });
               spawnParticles(lx, ly, "#00f0ff", 8);
               spawnParticles(lx, ly, "#ffffff", 4);
             } else if (s.boss) {
@@ -660,7 +660,7 @@ export function GameCanvas({
               s.boss.health -= playerStats.lightningDamage;
               s.boss.hitFlash = 0.1;
               if (s.boss.animState === "walking") { s.boss.animState = "hurt"; s.boss.animAccum = 0; }
-              spawnEffect(s.activeEffects, "lightning", lx, ly);
+              spawnEffect(s.activeEffects, "lightning", lx, ly, siteData.secretGame?.impacts?.lightning ?? { w: 40, h: 40 });
               spawnParticles(lx, ly, "#00f0ff", 6);
             } else {
               lx = Math.random() * playAreaW;
@@ -688,7 +688,7 @@ export function GameCanvas({
                 if (Math.hypot(ex - nearX, ey - nearY) <= 12) {
                   e.alive = false; e.dying = true; e.animState = "dying"; e.animAccum = 0;
                   s.score += 5 * s.wave;
-                  spawnEffect(s.activeEffects, "lightning", ex, ey);
+                  spawnEffect(s.activeEffects, "lightning", ex, ey, siteData.secretGame?.impacts?.lightning ?? { w: 40, h: 40 });
                   spawnParticles(ex, ey, "#00f0ff", 5);
                 }
               }
@@ -735,7 +735,7 @@ export function GameCanvas({
         if (s.nukeAccum >= playerStats.nukeCooldown) {
           s.nukeAccum -= playerStats.nukeCooldown;
           // One large nuke effect centered on the play area
-          spawnEffect(s.activeEffects, "nuke", playAreaW / 2, BASE_H / 2);
+          spawnEffect(s.activeEffects, "nuke", playAreaW / 2, BASE_H / 2, siteData.secretGame?.impacts?.nuke ?? { w: 100, h: 100 });
           // Clear all regular enemies
           for (const e of s.enemies) {
             if (e.alive) {
@@ -751,12 +751,12 @@ export function GameCanvas({
             s.boss.health -= s.boss.maxHealth * totalReduction;
             s.boss.hitFlash = 0.2;
             if (s.boss.animState === "walking") { s.boss.animState = "hurt"; s.boss.animAccum = 0; }
-            spawnEffect(s.activeEffects, "nuke", s.boss.x + 20, s.boss.y + 15);
+            spawnEffect(s.activeEffects, "nuke", s.boss.x + 20, s.boss.y + 15, siteData.secretGame?.impacts?.nuke ?? { w: 100, h: 100 });
             spawnParticles(s.boss.x + 20, s.boss.y + 15, "#ffffff", 20);
             spawnParticles(s.boss.x + 20, s.boss.y + 15, "#00f0ff", 12);
             if (s.boss.health <= 0) {
               s.score += (siteData.secretGame?.boss?.scoreReward ?? 500);
-              spawnEffect(s.activeEffects, "boss", s.boss.x + 20, s.boss.y + 15);
+              spawnEffect(s.activeEffects, "boss", s.boss.x + 20, s.boss.y + 15, siteData.secretGame?.impacts?.boss ?? { w: 80, h: 80 });
               play("levelComplete");
               s.boss = null;
               onPhaseChange("bossreward");
@@ -779,7 +779,7 @@ export function GameCanvas({
             e.virusAccum -= playerStats.virusTickInterval;
             e.alive = false; e.dying = true; e.animState = "dying"; e.animAccum = 0;
             s.score += 5 * s.wave;
-            spawnEffect(s.activeEffects, "virus", e.x + settingsRef.current.enemy.width / 2, e.y + settingsRef.current.enemy.height / 2);
+            spawnEffect(s.activeEffects, "virus", e.x + settingsRef.current.enemy.width / 2, e.y + settingsRef.current.enemy.height / 2, siteData.secretGame?.impacts?.virus ?? { w: 30, h: 30 });
             spawnParticles(e.x + settingsRef.current.enemy.width / 2, e.y, "#39ff14", 5);
           }
           if (e.virusTimer <= 0) { e.virusStacks = 0; e.virusAccum = 0; }
@@ -793,7 +793,7 @@ export function GameCanvas({
             s.boss.health -= tickDmg;
             s.boss.hitFlash = 0.05;
             if (s.boss.animState === "walking") { s.boss.animState = "hurt"; s.boss.animAccum = 0; }
-            spawnEffect(s.activeEffects, "virus", s.boss.x + 20, s.boss.y + 10);
+            spawnEffect(s.activeEffects, "virus", s.boss.x + 20, s.boss.y + 10, siteData.secretGame?.impacts?.virus ?? { w: 30, h: 30 });
             spawnParticles(s.boss.x + 20, s.boss.y + 10, "#39ff14", 4);
             if (s.boss.health <= 0) {
               s.score += (siteData.secretGame?.boss?.scoreReward ?? 500);
@@ -1178,17 +1178,25 @@ export function GameCanvas({
       // Impact size config
       const playerBulletImpact = siteData.secretGame?.impacts?.playerBullet ?? { w: 28, h: 28 };
 
+      // Enemy collision hitbox — offset & size from config, falls back to full cell
+      const ehbOffX = enemyCfg.hitboxOffsetX ?? 0;
+      const ehbOffY = enemyCfg.hitboxOffsetY ?? 0;
+      const ehbW    = enemyCfg.hitboxWidth  ?? ew;
+      const ehbH    = enemyCfg.hitboxHeight ?? eh;
+
       for (let bi = s.bullets.length - 1; bi >= 0; bi--) {
         const b = s.bullets[bi];
         if (!b.isPlayer) continue;
         for (let ei = s.enemies.length - 1; ei >= 0; ei--) {
           const e = s.enemies[ei];
           if (!e.alive) continue;
+          const ehx = e.x + ehbOffX;
+          const ehy = e.y + ehbOffY;
           if (
-            b.x >= e.x - 1 &&
-            b.x <= e.x + ew + 1 &&
-            b.y >= e.y - 1 &&
-            b.y <= e.y + eh + 1
+            b.x >= ehx - 1 &&
+            b.x <= ehx + ehbW + 1 &&
+            b.y >= ehy - 1 &&
+            b.y <= ehy + ehbH + 1
           ) {
             const impactX = e.x + ew / 2;
             const impactY = e.y + eh / 2;
@@ -1201,7 +1209,7 @@ export function GameCanvas({
               // Show hurt animation while infected
               e.animState = "hurt"; e.animAccum = 0;
               s.bullets.splice(bi, 1);
-              spawnEffect(s.activeEffects, "virus", impactX, impactY);
+              spawnEffect(s.activeEffects, "virus", impactX, impactY, siteData.secretGame?.impacts?.virus ?? { w: 30, h: 30 });
               spawnParticles(impactX, impactY, "#39ff14", 5);
               play("enemyHit");
             } else {
@@ -1317,13 +1325,13 @@ export function GameCanvas({
               s.boss.virusStacks++;
               s.boss.virusTimer = playerStats.virusDuration;
               s.boss.virusAccum = 0;
-              spawnEffect(s.activeEffects, "virus", b.x, b.y);
+              spawnEffect(s.activeEffects, "virus", b.x, b.y, siteData.secretGame?.impacts?.virus ?? { w: 30, h: 30 });
               spawnParticles(b.x, b.y, "#39ff14", 3);
             }
             if (s.boss.health <= 0) {
               s.score += bossCfg?.scoreReward ?? 500;
               onScoreChange(s.score);
-              spawnEffect(s.activeEffects, "boss", s.boss.x + bw / 2, s.boss.y + bh / 2);
+              spawnEffect(s.activeEffects, "boss", s.boss.x + bw / 2, s.boss.y + bh / 2, siteData.secretGame?.impacts?.boss ?? { w: 80, h: 80 });
               spawnParticles(s.boss.x + bw / 2, s.boss.y + bh / 2, "#ff006e", 20);
               spawnParticles(s.boss.x + bw / 2, s.boss.y + bh / 2, "#fcee0a", 15);
               spawnParticles(s.boss.x + bw / 2, s.boss.y + bh / 2, "#00f0ff", 10);
@@ -1794,6 +1802,7 @@ export function GameCanvas({
       ref={canvasRef}
       className="fixed inset-0 w-screen h-screen"
       style={{ imageRendering: "pixelated" }}
+      onContextMenu={(e) => e.preventDefault()}
     />
   );
 }

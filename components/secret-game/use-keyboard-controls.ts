@@ -136,11 +136,23 @@ export function useKeyboardControls() {
       }
     };
 
+    // When the window loses focus (e.g. alt-tab, browser loses focus) the keyup
+    // event never fires, leaving movement keys stuck. Reset everything on blur.
+    const handleBlur = () => {
+      sharedKeys.left = false;
+      sharedKeys.right = false;
+      sharedKeys.up = false;
+      sharedKeys.down = false;
+      sharedKeys.shoot = false;
+    };
+
     window.addEventListener("keydown", handleDown);
     window.addEventListener("keyup", handleUp);
+    window.addEventListener("blur", handleBlur);
     return () => {
       window.removeEventListener("keydown", handleDown);
       window.removeEventListener("keyup", handleUp);
+      window.removeEventListener("blur", handleBlur);
     };
   }, []);
 

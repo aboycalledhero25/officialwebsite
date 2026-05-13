@@ -154,6 +154,15 @@ export interface GameEnemySettings {
   width: number;
   height: number;
   /**
+   * Optional hitbox adjustment for bullet-vs-enemy collision.
+   * The hitbox is centred on the grid cell by default (width × height).
+   * Use these to shrink the hitbox so large sprites don't feel unfair.
+   */
+  hitboxOffsetX?: number; // pixels from cell left edge (can be negative)
+  hitboxOffsetY?: number; // pixels from cell top  edge (can be negative)
+  hitboxWidth?: number;   // hitbox width  in game units; defaults to cell width
+  hitboxHeight?: number;  // hitbox height in game units; defaults to cell height
+  /**
    * Visual-only scale multiplier for the enemy sprite.
    * Does NOT affect the grid cell size or collision box.
    * 1 = sprite fills the cell, 2 = sprite is twice as large, etc.
@@ -231,6 +240,16 @@ export interface GameImpactSettings {
   playerBullet: { w: number; h: number };
   /** Size of the bullet GIF when an enemy bullet hits the player */
   enemyBullet: { w: number; h: number };
+  /** Size of the lightning strike GIF */
+  lightning?: { w: number; h: number };
+  /** Size of the bomb explosion GIF */
+  bomb?: { w: number; h: number };
+  /** Size of the boss death explosion GIF */
+  boss?: { w: number; h: number };
+  /** Size of the nuke explosion GIF */
+  nuke?: { w: number; h: number };
+  /** Size of the virus infection GIF */
+  virus?: { w: number; h: number };
 }
 
 /** Per-type drop-rate weights for standard temp power-ups.

@@ -309,6 +309,17 @@ export default function SecretGameAdminPage() {
             </div>
           </Section>
 
+          {/* Enemy Hitbox */}
+          <Section title={`Enemy Hitbox (${platform})`}>
+            <p className="text-xs text-neutral-500 mb-3">Collision box for player-bullet vs enemy detection. Offset is from the top-left of the grid cell. Defaults to the full cell size.</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <NumberField label="Offset X" value={(plat.enemy as {hitboxOffsetX?:number}).hitboxOffsetX ?? 0} onChange={(v) => updateField(`${platform}.enemy.hitboxOffsetX`, v)} min={-100} max={100} step={1} />
+              <NumberField label="Offset Y" value={(plat.enemy as {hitboxOffsetY?:number}).hitboxOffsetY ?? 0} onChange={(v) => updateField(`${platform}.enemy.hitboxOffsetY`, v)} min={-100} max={100} step={1} />
+              <NumberField label="Width" value={(plat.enemy as {hitboxWidth?:number}).hitboxWidth ?? plat.enemy.width} onChange={(v) => updateField(`${platform}.enemy.hitboxWidth`, v)} min={1} max={200} step={1} />
+              <NumberField label="Height" value={(plat.enemy as {hitboxHeight?:number}).hitboxHeight ?? plat.enemy.height} onChange={(v) => updateField(`${platform}.enemy.hitboxHeight`, v)} min={1} max={200} step={1} />
+            </div>
+          </Section>
+
           {/* Player Position */}
           <Section title="Player Position">
             <div className="grid grid-cols-2 gap-4">
@@ -524,12 +535,22 @@ export default function SecretGameAdminPage() {
 
           {/* Impact Effect Sizes */}
           <Section title="Impact Effect Sizes">
-            <p className="text-xs text-neutral-500 mb-3">Size of the GIF explosion when player bullets land (player) or enemy bullets hit the player (enemy).</p>
+            <p className="text-xs text-neutral-500 mb-3">Size of each GIF explosion effect in game units. Adjust per effect type independently.</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <NumberField label="Player Hit W" value={settings.impacts?.playerBullet?.w ?? 28} onChange={(v) => updateField("impacts.playerBullet.w", v)} min={4} max={200} step={1} />
-              <NumberField label="Player Hit H" value={settings.impacts?.playerBullet?.h ?? 28} onChange={(v) => updateField("impacts.playerBullet.h", v)} min={4} max={200} step={1} />
-              <NumberField label="Enemy Hit W" value={settings.impacts?.enemyBullet?.w ?? 20} onChange={(v) => updateField("impacts.enemyBullet.w", v)} min={4} max={200} step={1} />
-              <NumberField label="Enemy Hit H" value={settings.impacts?.enemyBullet?.h ?? 20} onChange={(v) => updateField("impacts.enemyBullet.h", v)} min={4} max={200} step={1} />
+              <NumberField label="Player Bullet W" value={settings.impacts?.playerBullet?.w ?? 50} onChange={(v) => updateField("impacts.playerBullet.w", v)} min={4} max={400} step={1} />
+              <NumberField label="Player Bullet H" value={settings.impacts?.playerBullet?.h ?? 50} onChange={(v) => updateField("impacts.playerBullet.h", v)} min={4} max={400} step={1} />
+              <NumberField label="Enemy Bullet W" value={settings.impacts?.enemyBullet?.w ?? 50} onChange={(v) => updateField("impacts.enemyBullet.w", v)} min={4} max={400} step={1} />
+              <NumberField label="Enemy Bullet H" value={settings.impacts?.enemyBullet?.h ?? 50} onChange={(v) => updateField("impacts.enemyBullet.h", v)} min={4} max={400} step={1} />
+              <NumberField label="Lightning W" value={(settings.impacts as {lightning?:{w:number;h:number}})?.lightning?.w ?? 40} onChange={(v) => updateField("impacts.lightning.w", v)} min={4} max={400} step={1} />
+              <NumberField label="Lightning H" value={(settings.impacts as {lightning?:{w:number;h:number}})?.lightning?.h ?? 40} onChange={(v) => updateField("impacts.lightning.h", v)} min={4} max={400} step={1} />
+              <NumberField label="Bomb W" value={(settings.impacts as {bomb?:{w:number;h:number}})?.bomb?.w ?? 60} onChange={(v) => updateField("impacts.bomb.w", v)} min={4} max={400} step={1} />
+              <NumberField label="Bomb H" value={(settings.impacts as {bomb?:{w:number;h:number}})?.bomb?.h ?? 60} onChange={(v) => updateField("impacts.bomb.h", v)} min={4} max={400} step={1} />
+              <NumberField label="Boss W" value={(settings.impacts as {boss?:{w:number;h:number}})?.boss?.w ?? 80} onChange={(v) => updateField("impacts.boss.w", v)} min={4} max={400} step={1} />
+              <NumberField label="Boss H" value={(settings.impacts as {boss?:{w:number;h:number}})?.boss?.h ?? 80} onChange={(v) => updateField("impacts.boss.h", v)} min={4} max={400} step={1} />
+              <NumberField label="Nuke W" value={(settings.impacts as {nuke?:{w:number;h:number}})?.nuke?.w ?? 100} onChange={(v) => updateField("impacts.nuke.w", v)} min={4} max={400} step={1} />
+              <NumberField label="Nuke H" value={(settings.impacts as {nuke?:{w:number;h:number}})?.nuke?.h ?? 100} onChange={(v) => updateField("impacts.nuke.h", v)} min={4} max={400} step={1} />
+              <NumberField label="Virus W" value={(settings.impacts as {virus?:{w:number;h:number}})?.virus?.w ?? 30} onChange={(v) => updateField("impacts.virus.w", v)} min={4} max={400} step={1} />
+              <NumberField label="Virus H" value={(settings.impacts as {virus?:{w:number;h:number}})?.virus?.h ?? 30} onChange={(v) => updateField("impacts.virus.h", v)} min={4} max={400} step={1} />
             </div>
           </Section>
 

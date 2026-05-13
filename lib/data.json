@@ -479,14 +479,13 @@
     "enemyBaseHp": 5,
     "enemyHpPerWave": 1,
     "impacts": {
-      "playerBullet": {
-        "w": 50,
-        "h": 50
-      },
-      "enemyBullet": {
-        "w": 50,
-        "h": 50
-      }
+      "playerBullet": { "w": 50, "h": 50 },
+      "enemyBullet":  { "w": 50, "h": 50 },
+      "lightning":    { "w": 40, "h": 40 },
+      "bomb":         { "w": 60, "h": 60 },
+      "boss":         { "w": 80, "h": 80 },
+      "nuke":         { "w": 100, "h": 100 },
+      "virus":        { "w": 30, "h": 30 }
     },
     "powerUpDropRates": {
       "rapid": 1,
@@ -676,7 +675,11 @@
         "dropDistance": 6,
         "width": 60,
         "height": 60,
-        "spriteScale": 1
+        "spriteScale": 1,
+        "hitboxOffsetX": 10,
+        "hitboxOffsetY": 10,
+        "hitboxWidth": 40,
+        "hitboxHeight": 40
       },
       "bossHealthBar": {
         "visible": true,
@@ -756,7 +759,11 @@
         "dropDistance": 6,
         "width": 60,
         "height": 60,
-        "spriteScale": 1
+        "spriteScale": 1,
+        "hitboxOffsetX": 10,
+        "hitboxOffsetY": 10,
+        "hitboxWidth": 40,
+        "hitboxHeight": 40
       },
       "bossHealthBar": {
         "visible": true,
