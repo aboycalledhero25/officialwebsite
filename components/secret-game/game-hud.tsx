@@ -89,6 +89,26 @@ export function GameHUD({ score, lives, wave, muted, activePowerUps, onPause, on
   const siteData = useSiteData();
   const [dims, setDims] = useState({ w: 1920, h: 1080 });
   const [scoreBump, setScoreBump] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Track fullscreen state changes (e.g. user presses Escape)
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onChange);
+    document.addEventListener("webkitfullscreenchange", onChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", onChange);
+      document.removeEventListener("webkitfullscreenchange", onChange);
+    };
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.().catch(() => {});
+    } else {
+      document.exitFullscreen?.().catch(() => {});
+    }
+  };
 
   useEffect(() => {
     const update = () => setDims({ w: window.innerWidth, h: window.innerHeight });
@@ -282,6 +302,22 @@ export function GameHUD({ score, lives, wave, muted, activePowerUps, onPause, on
 
       {/* Controls - top right (8-bit) */}
       <div className="absolute flex items-center gap-1 pointer-events-auto" style={{ right: screenX(8), top: screenY(8) }}>
+        {/* Fullscreen toggle — collapses browser chrome on mobile */}
+        <button
+          onClick={toggleFullscreen}
+          className="flex items-center justify-center text-neutral-300 hover:text-white transition-colors"
+          style={{
+            width: scaleSize(24),
+            height: scaleSize(24),
+            background: "#000000",
+            border: "2px solid #444444",
+            fontSize: scaleSize(10),
+            imageRendering: "pixelated",
+          }}
+          aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+        >
+          {isFullscreen ? "⊡" : "⛶"}
+        </button>
         <button
           onClick={onToggleMute}
           className="flex items-center justify-center text-neutral-300 hover:text-white transition-colors"
