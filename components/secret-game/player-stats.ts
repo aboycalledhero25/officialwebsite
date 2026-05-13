@@ -25,6 +25,7 @@ export type RoguelikeConfigOverride = Partial<{
   lightning: Partial<RoguelikeConfig['lightning']>;
   connect: Partial<RoguelikeConfig['connect']>;
   seeker: Partial<RoguelikeConfig['seeker']>;
+  orbital: Partial<RoguelikeConfig['orbital']>;
   virus: Partial<RoguelikeConfig['virus']>;
   nuke: Partial<RoguelikeConfig['nuke']>;
   speed: Partial<RoguelikeConfig['speed']>;
@@ -55,6 +56,7 @@ function mergeConfig(override?: RoguelikeConfigOverride): RoguelikeConfig {
     lightning:   { ...ROGUELIKE_CONFIG.lightning,   ...(override.lightning   ?? {}) },
     connect:     { ...ROGUELIKE_CONFIG.connect,     ...(override.connect     ?? {}) },
     seeker:      { ...ROGUELIKE_CONFIG.seeker,      ...(override.seeker      ?? {}) },
+    orbital:     { ...ROGUELIKE_CONFIG.orbital,     ...(override.orbital     ?? {}) },
     virus:       { ...ROGUELIKE_CONFIG.virus,       ...(override.virus       ?? {}) },
     nuke:        { ...ROGUELIKE_CONFIG.nuke,        ...(override.nuke        ?? {}) },
     speed:       { ...ROGUELIKE_CONFIG.speed,       ...(override.speed       ?? {}) },
@@ -85,10 +87,21 @@ export interface PlayerStats {
   machineGunBurst: number;  // bullets per firing action
   machineGunSpread: number; // angle spread between burst bullets (rad)
 
-  // ─── Seeker ──────────────────────────────────────────────────────────
-  isSeeker: boolean;
-  seekerStrength: number;   // steering force (higher = tighter homing)
-  seekerRange: number;      // px range to seek nearest enemy
+  // ─── Seeker Missile ──────────────────────────────────────────────────
+  hasSeekerMissile: boolean;
+  seekerMissileDamage: number;  // damage per missile hit
+  seekerMissileCooldown: number; // seconds between missile volleys
+  seekerMissileCount: number;   // number of missiles per volley
+
+  // ─── Orbital ─────────────────────────────────────────────────────────
+  hasOrbital: boolean;
+  orbitalDamage: number;
+  orbitalOrbitSpeed: number;   // radians per second
+  orbitalOrbSize: number;      // radius of each orb in game units
+  orbitalCooldown: number;     // seconds cooldown after duration expires
+  orbitalRadius: number;       // distance from player centre
+  orbitalDuration: number;     // seconds orbs are active
+  orbitalOrbCount: number;     // number of orbs (stacks)
 
   // ─── Virus ───────────────────────────────────────────────────────────
   hasVirus: boolean;
@@ -120,6 +133,13 @@ export interface PlayerStats {
   frenzyProjectiles: number;
   frenzyCooldown: number;
   frenzyDamage: number;
+
+  // ─── Projectile (including super bullet) ─────────────────────────────
+  totalProjectiles: number;          // raw count before super bullet conversion
+  superBulletTier: number;           // 0 = normal, 1 = red, 2 = purple, 3 = gold
+  effectiveProjectileCount: number;  // 1 if super bullet, else totalProjectiles
+  superBulletDamageMultiplier: number; // multiplied on top of damageMultiplier
+  superBulletSize: number;           // size of the super bullet relative to normal
 
   // ─── Nuke ────────────────────────────────────────────────────────────
   hasNuke: boolean;
@@ -155,6 +175,7 @@ export function computePlayerStats(chosen: PermPowerUpState, override?: Roguelik
 
   const mg = get("machineGun");
   const sk = get("seeker");
+  const orb = get("orbital");
   const vr = get("virus");
   const bm = get("bomb");
   const lt = get("lightning");
@@ -163,22 +184,47 @@ export function computePlayerStats(chosen: PermPowerUpState, override?: Roguelik
   const nk = get("nuke");
   const sh = get("shield");
 
+  // ── Super bullet tier calculation ────────────────────────────────────
+  const rawProjectileCount = 1 + get("projectile") * cfg.projectile.projectilesPerStack;
+  const superThreshold = cfg.projectile.superBulletThreshold ?? 10;
+  const superTier = rawProjectileCount >= superThreshold
+    ? Math.floor((rawProjectileCount - 1) / superThreshold)
+    : 0;
+  const effectiveProjCount = superTier > 0 ? 1 : rawProjectileCount;
+  const superDmgMult = superTier > 0 ? rawProjectileCount : 1;
+  const superSize = superTier > 0 ? (cfg.projectile.superBulletSizeMultiplier ?? 2.5) + (superTier - 1) * 0.5 : 1;
+
   return {
     maxHearts:       cfg.startingHearts + get("extraLife") * cfg.extraLife.heartsPerStack,
     slicesPerHeart:  cfg.health.slicesProgression[slicesIdx],
     reloadTime,
     movementSpeed:   cfg.baseMovementSpeed * (1 + get("speed") * cfg.speed.speedPerStack),
     damageMultiplier:1 + get("strength") * cfg.strength.damagePerStack,
-    projectileCount: 1 + get("projectile") * cfg.projectile.projectilesPerStack,
+    projectileCount: effectiveProjCount,
     luckBonus:       get("luck") * cfg.luck.dropChancePerStack,
+    totalProjectiles: rawProjectileCount,
+    superBulletTier: superTier,
+    effectiveProjectileCount: effectiveProjCount,
+    superBulletDamageMultiplier: superDmgMult,
+    superBulletSize: superSize,
 
     isMachineGun:    mg > 0,
     machineGunBurst: mg > 0 ? cfg.machineGun.baseBurst + (mg - 1) * cfg.machineGun.burstPerStack : 1,
     machineGunSpread:cfg.machineGun.burstSpread,
 
-    isSeeker:        sk > 0,
-    seekerStrength:  cfg.seeker.homingStrengthBase + Math.max(0, sk - 1) * cfg.seeker.homingPerStack,
-    seekerRange:     cfg.seeker.seekerRange,
+    hasSeekerMissile: sk > 0,
+    seekerMissileDamage: cfg.seeker.missileDamage,
+    seekerMissileCooldown: cfg.seeker.missileCooldown,
+    seekerMissileCount: sk * cfg.seeker.missilesPerStack,
+
+    hasOrbital:      orb > 0,
+    orbitalDamage:   cfg.orbital.damage,
+    orbitalOrbitSpeed: cfg.orbital.orbitSpeed,
+    orbitalOrbSize:  cfg.orbital.orbSize,
+    orbitalCooldown: cfg.orbital.cooldown,
+    orbitalRadius:   cfg.orbital.orbitRadius,
+    orbitalDuration: cfg.orbital.duration,
+    orbitalOrbCount: orb,
 
     hasVirus:        vr > 0,
     virusChance:     Math.min(1, cfg.virus.baseInfectionChance + Math.max(0, vr - 1) * cfg.virus.chancePerStack),

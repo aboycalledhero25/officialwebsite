@@ -346,16 +346,27 @@ export interface SecretGameSettings {
     bomb?: { cooldown?: number; damage?: number; bombsPerStack?: number; crossRadius?: number };
     lightning?: { cooldown?: number; damage?: number; baseStrikes?: number; strikesPerStack?: number };
     connect?: { damage?: number; damagePerStack?: number };
-    seeker?: { homingStrengthBase?: number; homingPerStack?: number; seekerRange?: number };
+    seeker?: { missileDamage?: number; missileCooldown?: number; missilesPerStack?: number };
+    orbital?: { damage?: number; orbitSpeed?: number; orbSize?: number; cooldown?: number; orbitRadius?: number; duration?: number };
     virus?: { baseInfectionChance?: number; chancePerStack?: number; baseDamagePerTick?: number; damagePerStack?: number; duration?: number; maxVirusStacks?: number };
     nuke?: { cooldown?: number; bossHPReduction?: number; nukesPerStack?: number };
     speed?: { speedPerStack?: number };
     strength?: { damagePerStack?: number };
-    projectile?: { projectilesPerStack?: number };
+    projectile?: { projectilesPerStack?: number; superBulletThreshold?: number; superBulletSizeMultiplier?: number };
     luck?: { dropChancePerStack?: number };
     extraLife?: { heartsPerStack?: number };
     shield?: { duration?: number; cooldown?: number };
   };
+  /**
+   * Per-wave enemy overrides. Specify custom projectile speed, projectile damage (enemy-to-player),
+   * and enemy body collision damage for specific waves.
+   */
+  waveOverrides?: Array<{
+    wave: number;
+    projSpeed?: number;
+    projDamage?: number;
+    enemyCollisionDamage?: number;
+  }>;
   boss: BossSettings;
   /**
    * Per-boss HP overrides. Index 0 = Boss 1 (first boss encounter), index 1 = Boss 2, etc.

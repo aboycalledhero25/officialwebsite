@@ -159,11 +159,29 @@ export const POWER_UP_REGISTRY: PowerUpDefinition[] = [
   {
     id: "projectile",
     name: "Projectile",
-    description: "Adds +1 projectile per shot.",
+    description: "Adds +1 projectile per shot. At 10 total, converts to a Super Bullet with massive damage!",
     icon: "/powerups/icons/projectile.png",
     canStack: true, maxStacks: -1, removeFromPoolAfterMaxed: false,
-    getCurrentStat: (c) => `Projectiles: ${1 + (c["projectile"] ?? 0) * ROGUELIKE_CONFIG.projectile.projectilesPerStack}`,
-    getNextStat:    (c) => `Projectiles: ${1 + ((c["projectile"] ?? 0) + 1) * ROGUELIKE_CONFIG.projectile.projectilesPerStack}`,
+    getCurrentStat: (c) => {
+      const total = 1 + (c["projectile"] ?? 0) * ROGUELIKE_CONFIG.projectile.projectilesPerStack;
+      const threshold = ROGUELIKE_CONFIG.projectile.superBulletThreshold ?? 10;
+      const tier = total >= threshold ? Math.floor((total - 1) / threshold) : 0;
+      if (tier > 0) {
+        const color = tier === 1 ? "Red" : tier === 2 ? "Purple" : "Gold";
+        return `Super Bullet Tier ${tier} (${color}), ${total}x Dmg`;
+      }
+      return `Projectiles: ${total} (Super at ${threshold})`;
+    },
+    getNextStat: (c) => {
+      const total = 1 + ((c["projectile"] ?? 0) + 1) * ROGUELIKE_CONFIG.projectile.projectilesPerStack;
+      const threshold = ROGUELIKE_CONFIG.projectile.superBulletThreshold ?? 10;
+      const tier = total >= threshold ? Math.floor((total - 1) / threshold) : 0;
+      if (tier > 0) {
+        const color = tier === 1 ? "Red" : tier === 2 ? "Purple" : "Gold";
+        return `Super Bullet Tier ${tier} (${color}), ${total}x Dmg`;
+      }
+      return `Projectiles: ${total}`;
+    },
   },
   {
     id: "rapidFire",
@@ -177,17 +195,33 @@ export const POWER_UP_REGISTRY: PowerUpDefinition[] = [
   {
     id: "seeker",
     name: "Seeker",
-    description: "Projectiles home in on the nearest enemy.",
+    description: `Fires a homing missile at the nearest enemy every ${ROGUELIKE_CONFIG.seeker.missileCooldown}s. Each pick adds another missile per volley.`,
     icon: "/powerups/icons/seeker.png",
-    canStack: true, maxStacks: 5, removeFromPoolAfterMaxed: true,
+    canStack: true, maxStacks: -1, removeFromPoolAfterMaxed: false,
     getCurrentStat: (c) => {
       const n = c["seeker"] ?? 0;
-      if (n === 0) return "Homing: Off";
-      return `Homing Strength: ${ROGUELIKE_CONFIG.seeker.homingStrengthBase + (n - 1) * ROGUELIKE_CONFIG.seeker.homingPerStack}`;
+      if (n === 0) return "Missiles: 0";
+      return `Missiles: ${n * ROGUELIKE_CONFIG.seeker.missilesPerStack} every ${ROGUELIKE_CONFIG.seeker.missileCooldown}s`;
     },
     getNextStat: (c) => {
-      const n = c["seeker"] ?? 0;
-      return `Homing Strength: ${ROGUELIKE_CONFIG.seeker.homingStrengthBase + n * ROGUELIKE_CONFIG.seeker.homingPerStack}`;
+      const n = (c["seeker"] ?? 0) + 1;
+      return `Missiles: ${n * ROGUELIKE_CONFIG.seeker.missilesPerStack} every ${ROGUELIKE_CONFIG.seeker.missileCooldown}s`;
+    },
+  },
+  {
+    id: "orbital",
+    name: "Orbital",
+    description: `Energy orbs orbit the player for ${ROGUELIKE_CONFIG.orbital.duration}s, damaging enemies on contact. Each pick adds another orb.`,
+    icon: "/powerups/icons/orbital.png",
+    canStack: true, maxStacks: -1, removeFromPoolAfterMaxed: false,
+    getCurrentStat: (c) => {
+      const n = c["orbital"] ?? 0;
+      if (n === 0) return "Orbs: 0";
+      return `Orbs: ${n}, Dmg: ${ROGUELIKE_CONFIG.orbital.damage}`;
+    },
+    getNextStat: (c) => {
+      const n = (c["orbital"] ?? 0) + 1;
+      return `Orbs: ${n}, Dmg: ${ROGUELIKE_CONFIG.orbital.damage}`;
     },
   },
   {

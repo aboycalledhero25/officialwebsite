@@ -609,13 +609,14 @@ export default function SecretGameAdminPage() {
             const bomb      = rc.bomb        ?? { cooldown: 30, damage: 20, bombsPerStack: 1, crossRadius: 30 };
             const lightning = rc.lightning   ?? { cooldown: 30, damage: 50, baseStrikes: 3, strikesPerStack: 1 };
             const connect   = rc.connect     ?? { damage: 50, damagePerStack: 25 };
-            const seeker    = rc.seeker      ?? { homingStrengthBase: 2, homingPerStack: 1, seekerRange: 200 };
+            const seeker    = rc.seeker      ?? { missileDamage: 150, missileCooldown: 15, missilesPerStack: 1 };
+            const orbital   = rc.orbital     ?? { damage: 30, orbitSpeed: 2.5, orbSize: 8, cooldown: 10, orbitRadius: 35, duration: 10 };
             const virus     = rc.virus       ?? { baseInfectionChance: 0.2, chancePerStack: 0.05, baseDamagePerTick: 10, damagePerStack: 5, duration: 3, maxVirusStacks: 3 };
             const nuke      = rc.nuke        ?? { cooldown: 30, bossHPReduction: 0.25, nukesPerStack: 1 };
             const shield    = rc.shield      ?? { duration: 10, cooldown: 30 };
             const speed     = rc.speed       ?? { speedPerStack: 0.01 };
             const strength  = rc.strength    ?? { damagePerStack: 0.02 };
-            const proj      = rc.projectile  ?? { projectilesPerStack: 1 };
+            const proj      = rc.projectile  ?? { projectilesPerStack: 1, superBulletThreshold: 10, superBulletSizeMultiplier: 2.5 };
             const luck      = rc.luck        ?? { dropChancePerStack: 0.01 };
             const extraLife = rc.extraLife   ?? { heartsPerStack: 1 };
             const upRc = (key: string, val: object) =>
@@ -673,11 +674,30 @@ export default function SecretGameAdminPage() {
                   <NumberField label="Damage/Stack" value={connect.damagePerStack ?? 25} onChange={(v) => upRc("connect", { damagePerStack: v })} min={0} max={500} step={5} />
                 </div>
               </Section>
-              <Section title="Seeker (perm upgrade)">
+              <Section title="Seeker Missile (perm upgrade)">
+                <p className="text-xs text-neutral-500 mb-3">Auto-fires homing missiles at the nearest enemy. Each stack adds another missile per volley.</p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  <NumberField label="Homing Strength" value={seeker.homingStrengthBase ?? 2} onChange={(v) => upRc("seeker", { homingStrengthBase: v })} min={0.1} max={20} step={0.1} />
-                  <NumberField label="Strength/Stack" value={seeker.homingPerStack ?? 1} onChange={(v) => upRc("seeker", { homingPerStack: v })} min={0} max={10} step={0.5} />
-                  <NumberField label="Range" value={seeker.seekerRange ?? 200} onChange={(v) => upRc("seeker", { seekerRange: v })} min={10} max={500} step={10} />
+                  <NumberField label="Missile Damage" value={seeker.missileDamage ?? 150} onChange={(v) => upRc("seeker", { missileDamage: v })} min={1} max={1000} step={5} />
+                  <NumberField label="Cooldown (s)" value={seeker.missileCooldown ?? 15} onChange={(v) => upRc("seeker", { missileCooldown: v })} min={1} max={60} step={1} />
+                  <NumberField label="Missiles/Stack" value={seeker.missilesPerStack ?? 1} onChange={(v) => upRc("seeker", { missilesPerStack: v })} min={1} max={5} step={1} />
+                </div>
+              </Section>
+              <Section title="Orbital (perm upgrade)">
+                <p className="text-xs text-neutral-500 mb-3">Energy orbs orbit the player, damaging enemies on contact. Each stack adds another orb.</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  <NumberField label="Orb Damage" value={orbital.damage ?? 30} onChange={(v) => upRc("orbital", { damage: v })} min={1} max={500} step={5} />
+                  <NumberField label="Orbit Speed (rad/s)" value={orbital.orbitSpeed ?? 2.5} onChange={(v) => upRc("orbital", { orbitSpeed: v })} min={0.1} max={20} step={0.1} />
+                  <NumberField label="Orb Size (px)" value={orbital.orbSize ?? 8} onChange={(v) => upRc("orbital", { orbSize: v })} min={2} max={30} step={1} />
+                  <NumberField label="Orbit Radius (px)" value={orbital.orbitRadius ?? 35} onChange={(v) => upRc("orbital", { orbitRadius: v })} min={10} max={100} step={1} />
+                  <NumberField label="Active Duration (s)" value={orbital.duration ?? 10} onChange={(v) => upRc("orbital", { duration: v })} min={1} max={60} step={1} />
+                  <NumberField label="Cooldown (s)" value={orbital.cooldown ?? 10} onChange={(v) => upRc("orbital", { cooldown: v })} min={1} max={60} step={1} />
+                </div>
+              </Section>
+              <Section title="Super Bullet (perm upgrade — Projectile stacking)">
+                <p className="text-xs text-neutral-500 mb-3">When projectiles reach the threshold, they merge into a single super bullet. Tier 1 (Red) at threshold, Tier 2 (Purple) at 2×, Tier 3 (Gold) at 3×.</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <NumberField label="Super Bullet Threshold" value={proj.superBulletThreshold ?? 10} onChange={(v) => upRc("projectile", { superBulletThreshold: v })} min={2} max={50} step={1} />
+                  <NumberField label="Size Multiplier" value={proj.superBulletSizeMultiplier ?? 2.5} onChange={(v) => upRc("projectile", { superBulletSizeMultiplier: v })} min={1} max={10} step={0.1} />
                 </div>
               </Section>
               <Section title="Virus (perm upgrade)">
@@ -732,9 +752,10 @@ export default function SecretGameAdminPage() {
                 { id: "luck",       label: "Luck" },
                 { id: "machineGun", label: "Machine Gun" },
                 { id: "nuke",       label: "Nuke" },
+                { id: "orbital",    label: "Orbital Orbs" },
                 { id: "projectile", label: "Extra Projectile" },
                 { id: "rapidFire",  label: "Rapid Fire" },
-                { id: "seeker",     label: "Seeker" },
+                { id: "seeker",     label: "Seeker Missile" },
                 { id: "shield",     label: "Perm Shield" },
                 { id: "speed",      label: "Speed" },
                 { id: "strength",   label: "Strength" },
