@@ -111,6 +111,10 @@ export function MobileControls({}: MobileControlsProps) {
   const handleMouseMove = useCallback(
     (e: React.MouseEvent) => {
       const pos = screenToBase(e.clientX, e.clientY);
+      // Move the player toward the cursor (same mechanism as touch follow-finger)
+      sharedTouch.targetX = pos.x;
+      sharedTouch.targetY = pos.y;
+      // Also update aim position
       sharedAim.x = pos.x;
       sharedAim.y = pos.y;
     },
@@ -152,6 +156,17 @@ export function MobileControls({}: MobileControlsProps) {
     }
   }, []);
 
+  // When the cursor leaves the game window, stop mouse-driven movement so the
+  // player doesn't keep chasing a position that no longer updates.
+  const handleMouseLeaveWindow = useCallback(() => {
+    sharedTouch.targetX = null;
+    sharedTouch.targetY = null;
+    leftDownRef.current = false;
+    rightDownRef.current = false;
+    sharedAim.firing = false;
+    sharedAim.aiming = false;
+  }, []);
+
   // Reset on unmount
   useEffect(() => {
     return () => {
@@ -177,7 +192,7 @@ export function MobileControls({}: MobileControlsProps) {
       onMouseMove={handleMouseMove}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
+      onMouseLeave={handleMouseLeaveWindow}
       onContextMenu={(e) => e.preventDefault()}
     />
   );
