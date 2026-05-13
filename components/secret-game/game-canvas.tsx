@@ -189,6 +189,7 @@ export function GameCanvas({
       animState: EnemyAnimState;
       animAccum: number;    // seconds elapsed in current anim
       dying: boolean;       // true while death anim plays (alive=false)
+      orbitalHitCooldown: number; // prevents orbital from dealing damage every frame
     }[],
     bullets: [] as {
       x: number; y: number; vx: number; vy: number;
