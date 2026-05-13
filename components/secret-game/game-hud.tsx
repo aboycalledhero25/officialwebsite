@@ -221,7 +221,7 @@ export function GameHUD({ score, lives, wave, muted, activePowerUps, onPause, on
         </div>
       )}
 
-      {/* Hearts — supports roguelike heart slicing and dynamic count */}
+      {/* Hearts — single heart with slice fill + numeric lives counter */}
       {hearts.visible && (
         <div
           className="absolute select-none"
@@ -229,17 +229,52 @@ export function GameHUD({ score, lives, wave, muted, activePowerUps, onPause, on
         >
           <div className="flex items-center gap-1 p-1" style={{ background: "rgba(0,0,0,0.6)" }}>
             {(() => {
-              const totalHearts = maxHearts ?? lives;
               const sph = slicesPerHeart ?? 1;
               const curSlices = currentSlices ?? lives * sph;
+              const livesCount = curSlices > 0 ? Math.ceil(curSlices / sph) : 0;
               const heartSizePx = Math.round(scaleSize(hearts.size) * 0.7);
-              return Array.from({ length: totalHearts }).map((_, i) => {
-                // Slices belonging to this heart: e.g. heart 0 uses slices [0..sph-1]
-                const heartBaseSlice = i * sph;
-                const slicesInThisHeart = Math.max(0, Math.min(sph, curSlices - heartBaseSlice));
-                const fillFraction = slicesInThisHeart / sph;
-                return <PixelHeart key={i} fillFraction={fillFraction} size={heartSizePx} />;
-              });
+              // Fill fraction of the current (topmost) life:
+              // If curSlices is an exact multiple of sph the heart is full; otherwise show partial.
+              const remainder = curSlices % sph;
+              const fillFraction = curSlices <= 0 ? 0 : remainder === 0 ? 1 : remainder / sph;
+              return (
+                <>
+                  {/* Single heart showing health within the current life */}
+                  <PixelHeart fillFraction={fillFraction} size={heartSizePx} />
+                  {/* Slice pip indicators when health power-up is active */}
+                  {sph > 1 && (
+                    <div className="flex gap-px items-end ml-0.5">
+                      {Array.from({ length: sph }).map((_, si) => {
+                        const filled = si < (curSlices <= 0 ? 0 : remainder === 0 ? sph : remainder);
+                        return (
+                          <div
+                            key={si}
+                            style={{
+                              width: Math.max(2, heartSizePx * 0.18),
+                              height: Math.max(4, heartSizePx * 0.35),
+                              backgroundColor: filled ? "#ff006e" : "#ff006e33",
+                              imageRendering: "pixelated",
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
+                  )}
+                  {/* Lives count */}
+                  <span
+                    className="font-mono font-bold leading-none"
+                    style={{
+                      color: "#ff006e",
+                      fontSize: heartSizePx * 0.65,
+                      textShadow: "1px 1px 0 #440022",
+                      imageRendering: "pixelated",
+                      marginLeft: 2,
+                    }}
+                  >
+                    ×{livesCount}
+                  </span>
+                </>
+              );
             })()}
           </div>
         </div>

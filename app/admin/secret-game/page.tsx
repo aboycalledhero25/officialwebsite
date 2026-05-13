@@ -75,6 +75,11 @@ export default function SecretGameAdminPage() {
           powerUpDurations: sg.powerUpDurations ?? { rapid: 5, wideShot: 4, invincible: 4 },
           enemyBaseHp: sg.enemyBaseHp ?? 1,
           enemyHpPerWave: sg.enemyHpPerWave ?? 0,
+          enemyCollisionDamage: sg.enemyCollisionDamage ?? 1,
+          enemyCollisionDamagePerWave: sg.enemyCollisionDamagePerWave ?? 0,
+          enemyProjectileDamage: sg.enemyProjectileDamage ?? 1,
+          enemyProjectileDamagePerWave: sg.enemyProjectileDamagePerWave ?? 0,
+          enemyProjectileSpeedPerWave: sg.enemyProjectileSpeedPerWave ?? 0,
           impacts: sg.impacts ?? { playerBullet: { w: 28, h: 28 }, enemyBullet: { w: 20, h: 20 } },
           powerUpDropRates: sg.powerUpDropRates ?? { rapid: 1, wideshot: 1, extralife: 1, invincible: 1 },
           waveRewardEnabled: sg.waveRewardEnabled ?? true,
@@ -547,6 +552,55 @@ export default function SecretGameAdminPage() {
               />
             </div>
             <p className="text-xs text-neutral-500 mt-2">Enemy HP at wave N = Base HP + (N − 1) × Extra HP Per Wave. Set Extra to 0 for one-hit enemies throughout.</p>
+          </Section>
+
+          {/* Per-Wave Enemy Damage Scaling */}
+          <Section title="Enemy Damage Scaling (Per Wave)">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <NumberField
+                label="Collision Damage (Base)"
+                value={settings.enemyCollisionDamage ?? 1}
+                onChange={(v) => updateField("enemyCollisionDamage", v)}
+                min={1}
+                max={20}
+                step={1}
+              />
+              <NumberField
+                label="Collision Dmg Per Wave"
+                value={settings.enemyCollisionDamagePerWave ?? 0}
+                onChange={(v) => updateField("enemyCollisionDamagePerWave", v)}
+                min={0}
+                max={10}
+                step={1}
+              />
+              <NumberField
+                label="Projectile Damage (Base)"
+                value={settings.enemyProjectileDamage ?? 1}
+                onChange={(v) => updateField("enemyProjectileDamage", v)}
+                min={1}
+                max={20}
+                step={1}
+              />
+              <NumberField
+                label="Projectile Dmg Per Wave"
+                value={settings.enemyProjectileDamagePerWave ?? 0}
+                onChange={(v) => updateField("enemyProjectileDamagePerWave", v)}
+                min={0}
+                max={10}
+                step={1}
+              />
+              <NumberField
+                label="Projectile Speed Per Wave"
+                value={settings.enemyProjectileSpeedPerWave ?? 0}
+                onChange={(v) => updateField("enemyProjectileSpeedPerWave", v)}
+                min={0}
+                max={50}
+                step={1}
+              />
+            </div>
+            <p className="text-xs text-neutral-500 mt-2">
+              Collision damage = Base + (Wave − 1) × Per Wave (slices removed on body contact). Projectile damage = same formula (slices removed by enemy bullets). Projectile speed increases by Per Wave each wave.
+            </p>
           </Section>
 
           {/* Reward Screen */}

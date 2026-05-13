@@ -635,6 +635,12 @@ export function GameCanvas({
               const target = bombTargets[Math.floor(Math.random() * bombTargets.length)];
               bx = target.x + enemyCfgRef.width / 2;
               by = target.y + enemyCfgRef.height / 2;
+            } else if (s.boss) {
+              // No regular enemies — target the boss directly
+              const bossW = siteData.secretGame?.boss?.width ?? 40;
+              const bossH = siteData.secretGame?.boss?.height ?? 30;
+              bx = s.boss.x + bossW / 2;
+              by = s.boss.y + bossH / 2;
             } else {
               bx = Math.random() * playAreaW;
               by = BASE_H * 0.4;
@@ -781,10 +787,10 @@ export function GameCanvas({
           const aliveForNuke = s.enemies.filter((e) => e.alive);
           const nukeCx = aliveForNuke.length > 0
             ? aliveForNuke.reduce((sum, e) => sum + e.x + settingsRef.current.enemy.width / 2, 0) / aliveForNuke.length
-            : playAreaW / 2;
+            : (s.boss ? s.boss.x + (siteData.secretGame?.boss?.width ?? 40) / 2 : playAreaW / 2);
           const nukeCy = aliveForNuke.length > 0
             ? aliveForNuke.reduce((sum, e) => sum + e.y + settingsRef.current.enemy.height / 2, 0) / aliveForNuke.length
-            : BASE_H / 3;
+            : (s.boss ? s.boss.y + (siteData.secretGame?.boss?.height ?? 30) / 2 : BASE_H / 3);
           spawnEffect(s.activeEffects, "nuke", nukeCx, nukeCy, siteData.secretGame?.impacts?.nuke ?? { w: 100, h: 100 });
           // Clear all regular enemies
           for (const e of s.enemies) {
@@ -993,6 +999,15 @@ export function GameCanvas({
                 }
               }
             }
+            // Orbital vs enemy bullets — orbs destroy incoming projectiles
+            for (let bi = s.bullets.length - 1; bi >= 0; bi--) {
+              const eb = s.bullets[bi];
+              if (eb.isPlayer) continue;
+              if (Math.hypot(ox - eb.x, oy - eb.y) <= oR + 4) {
+                s.bullets.splice(bi, 1);
+                spawnParticles(eb.x, eb.y, "#00f0ff", 3);
+              }
+            }
           }
         } else {
           s.orbitalAccum += dt;
@@ -1107,6 +1122,8 @@ export function GameCanvas({
       // ── Enemy shooting (rate-limited: 1 shot per second per enemy) ──
       const aliveEnemies = s.enemies.filter((e) => e.alive);
       const cfg = settingsRef.current.enemy;
+      // Per-wave projectile speed scaling
+      const waveEnemyProjSpeed = cfg.projectileSpeed + (s.wave - 1) * (siteData.secretGame?.enemyProjectileSpeedPerWave ?? 0);
       aliveEnemies.forEach((e) => {
         e.cooldown -= dt;
         if (e.cooldown <= 0 && Math.random() < s.enemyFireChance) {
@@ -1114,7 +1131,7 @@ export function GameCanvas({
             x: e.x + ew / 2,
             y: e.y + eh,
             vx: 0,
-            vy: cfg.projectileSpeed,
+            vy: waveEnemyProjSpeed,
             isPlayer: false,
             projectileIndex: e.projectileIndex,
           });
@@ -1367,11 +1384,12 @@ export function GameCanvas({
               play("enemyHit");
             } else {
               // Compute bullet damage — missile uses superBulletDamage, super bullet uses multiplier
+              // damageMultiplier from Strength power-up is applied to all player bullets
               const bulletDmg = b.superBulletDamage != null
                 ? b.superBulletDamage
                 : b.isSuperBullet
-                  ? playerStats.superBulletDamageMultiplier
-                  : 1;
+                  ? playerStats.superBulletDamageMultiplier * playerStats.damageMultiplier
+                  : playerStats.damageMultiplier;
               const dmgColor = b.superBulletDamage != null ? "#ff4400"
                 : b.isSuperBullet ? (b.superBulletTier === 3 ? "#ffd700" : b.superBulletTier === 2 ? "#cc44ff" : "#ff2222")
                 : "#ffffff";
@@ -1514,6 +1532,16 @@ export function GameCanvas({
         }
       }
 
+      // ── Per-wave damage values ──────────────────────────────────────────
+      const waveEnemyBulletDmg = Math.max(1, Math.round(
+        (siteData.secretGame?.enemyProjectileDamage ?? 1) +
+        (s.wave - 1) * (siteData.secretGame?.enemyProjectileDamagePerWave ?? 0),
+      ));
+      const waveEnemyCollisionDmg = Math.max(1, Math.round(
+        (siteData.secretGame?.enemyCollisionDamage ?? 1) +
+        (s.wave - 1) * (siteData.secretGame?.enemyCollisionDamagePerWave ?? 0),
+      ));
+
       // ── Collision: enemy bullets vs player ──
       const enemyBulletImpact = siteData.secretGame?.impacts?.enemyBullet ?? { w: 20, h: 20 };
       // Use configurable hitbox from settings (falls back to hard-coded base values)
@@ -1574,8 +1602,8 @@ export function GameCanvas({
             playFile("/audio/shield.mp3");
             continue;
           }
-          // Heart slicing: remove 1 slice; only lose a life when a full heart is exhausted
-          s.currentSlices = Math.max(0, s.currentSlices - 1);
+          // Heart slicing: remove slices based on per-wave enemy bullet damage
+          s.currentSlices = Math.max(0, s.currentSlices - waveEnemyBulletDmg);
           s.lives = Math.ceil(s.currentSlices / s.slicesPerHeart);
           onLivesChange(s.lives);
           if (onHealthDetailChange) onHealthDetailChange(s.currentSlices, s.maxSlices, s.slicesPerHeart);
@@ -1583,7 +1611,7 @@ export function GameCanvas({
           spawnEffect(s.activeEffects, "bullet", px + pw / 2, py + ph / 2, enemyBulletImpact);
           spawnParticles(px + pw / 2, py + ph / 2, "#00f0ff", 10);
           play("playerHit");
-          s.damageNumbers.push({ x: px + pw / 2 + (Math.random() - 0.5) * 10, y: py, value: "1", timer: 1.0, maxTimer: 1.0, color: "#ff4444" });
+          s.damageNumbers.push({ x: px + pw / 2 + (Math.random() - 0.5) * 10, y: py, value: String(waveEnemyBulletDmg), timer: 1.0, maxTimer: 1.0, color: "#ff4444" });
           if (s.currentSlices <= 0) {
             play("gameOver");
             onPhaseChange("gameover");
@@ -1609,14 +1637,14 @@ export function GameCanvas({
           s.boss.y + bh > py
         ) {
           if (!isInvincible && !s.permShieldActive && !hasShield) {
-            s.currentSlices = Math.max(0, s.currentSlices - 1);
+            s.currentSlices = Math.max(0, s.currentSlices - waveEnemyCollisionDmg);
             s.lives = Math.ceil(s.currentSlices / s.slicesPerHeart);
             onLivesChange(s.lives);
             if (onHealthDetailChange) onHealthDetailChange(s.currentSlices, s.maxSlices, s.slicesPerHeart);
             s.screenShake = 0.3;
             spawnParticles(px + pw / 2, py + ph / 2, "#ff006e", 10);
             play("playerHit");
-            s.damageNumbers.push({ x: px + pw / 2, y: py - 5, value: "1", timer: 1.0, maxTimer: 1.0, color: "#ff4444" });
+            s.damageNumbers.push({ x: px + pw / 2, y: py - 5, value: String(waveEnemyCollisionDmg), timer: 1.0, maxTimer: 1.0, color: "#ff4444" });
             if (s.currentSlices <= 0) {
               play("gameOver");
               onPhaseChange("gameover");
@@ -1640,14 +1668,14 @@ export function GameCanvas({
             e.y + eh > py
           ) {
             if (isInvincible || s.permShieldActive || hasShield) break;
-            s.currentSlices = Math.max(0, s.currentSlices - 1);
+            s.currentSlices = Math.max(0, s.currentSlices - waveEnemyCollisionDmg);
             s.lives = Math.ceil(s.currentSlices / s.slicesPerHeart);
             onLivesChange(s.lives);
             if (onHealthDetailChange) onHealthDetailChange(s.currentSlices, s.maxSlices, s.slicesPerHeart);
             s.screenShake = 0.25;
             spawnParticles(px + pw / 2, py + ph / 2, "#ff4444", 8);
             play("playerHit");
-            s.damageNumbers.push({ x: px + pw / 2 + (Math.random() - 0.5) * 8, y: py - 2, value: "1", timer: 1.0, maxTimer: 1.0, color: "#ff4444" });
+            s.damageNumbers.push({ x: px + pw / 2 + (Math.random() - 0.5) * 8, y: py - 2, value: String(waveEnemyCollisionDmg), timer: 1.0, maxTimer: 1.0, color: "#ff4444" });
             s.playerBodyHitTimer = 1.0; // 1-second invincibility window after collision
             if (s.currentSlices <= 0) {
               play("gameOver");
@@ -1934,8 +1962,8 @@ export function GameCanvas({
         s.boss.animState,
         s.boss.animAccum,
         s.boss.hitFlash,
-        // Procedural fallback
-        () => drawBoss(ctx, s.boss!.x, s.boss!.y, bw, bh, s.frame, s.boss!.hitFlash, s.boss!.bossNumber),
+        // No procedural fallback — only render new sprite assets
+        () => {},
       );
       // Boss health bar — fixed HUD position from editor, always red
       const bhb = settingsRef.current.bossHealthBar;

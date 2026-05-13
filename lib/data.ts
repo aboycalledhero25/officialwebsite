@@ -295,6 +295,16 @@ export interface SecretGameSettings {
   enemyBaseHp: number;
   /** Extra HP added to enemies for each wave beyond wave 1 (default 0) */
   enemyHpPerWave: number;
+  /** Slices of health removed when an enemy body contacts the player (default 1) */
+  enemyCollisionDamage?: number;
+  /** Extra collision damage slices added per wave beyond wave 1 (default 0) */
+  enemyCollisionDamagePerWave?: number;
+  /** Slices of health removed by a single enemy bullet hit (default 1) */
+  enemyProjectileDamage?: number;
+  /** Extra bullet damage slices added per wave beyond wave 1 (default 0) */
+  enemyProjectileDamagePerWave?: number;
+  /** Extra enemy projectile speed added per wave beyond wave 1 (default 0) */
+  enemyProjectileSpeedPerWave?: number;
   /** Configurable GIF sizes for hit/death impacts */
   impacts: GameImpactSettings;
   /** Per-type relative spawn rates for standard temp power-ups */
