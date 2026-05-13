@@ -423,6 +423,9 @@ export function GameEditorPreview({
             startDrag(itemKey, settings.player.x + playerSprite.offsetX, settings.player.y + playerSprite.offsetY, e);
           } else if (itemKey === "shield") {
             startDrag(itemKey, settings.shield.offsetX, settings.shield.offsetY, e);
+          } else if (itemKey === "controls") {
+            const ctrl = settings.controls ?? { x: 152, y: 4, size: 24 };
+            startDrag(itemKey, ctrl.x, ctrl.y, e);
           } else {
             const item = settings[itemKey as keyof GamePlatformSettings] as { x: number; y: number };
             startDrag(itemKey, item.x, item.y, e);
@@ -433,6 +436,9 @@ export function GameEditorPreview({
             startDrag(itemKey, settings.player.x + playerSprite.offsetX, settings.player.y + playerSprite.offsetY, e);
           } else if (itemKey === "shield") {
             startDrag(itemKey, settings.shield.offsetX, settings.shield.offsetY, e);
+          } else if (itemKey === "controls") {
+            const ctrl = settings.controls ?? { x: 152, y: 4, size: 24 };
+            startDrag(itemKey, ctrl.x, ctrl.y, e);
           } else {
             const item = settings[itemKey as keyof GamePlatformSettings] as { x: number; y: number };
             startDrag(itemKey, item.x, item.y, e);
