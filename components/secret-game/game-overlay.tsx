@@ -21,6 +21,10 @@ export interface OverlayProps {
   instructions: string;
   leaderboard: LeaderboardEntry[];
   leaderboardLoading: boolean;
+  musicVolume?: number;
+  sfxVolume?: number;
+  onMusicVolume?: (v: number) => void;
+  onSfxVolume?: (v: number) => void;
   onStart: () => void;
   onResume: () => void;
   onRestart: () => void;
@@ -36,6 +40,10 @@ export function GameOverlay({
   instructions,
   leaderboard,
   leaderboardLoading,
+  musicVolume = 0.4,
+  sfxVolume = 1,
+  onMusicVolume,
+  onSfxVolume,
   onStart,
   onResume,
   onRestart,
@@ -161,6 +169,12 @@ export function GameOverlay({
                 High Score: {highScore}
               </div>
             )}
+            <VolumeSliders
+              musicVolume={musicVolume}
+              sfxVolume={sfxVolume}
+              onMusicVolume={onMusicVolume}
+              onSfxVolume={onSfxVolume}
+            />
             <LeaderboardTable />
           </div>
         );
@@ -176,6 +190,12 @@ export function GameOverlay({
             >
               Resume
             </button>
+            <VolumeSliders
+              musicVolume={musicVolume}
+              sfxVolume={sfxVolume}
+              onMusicVolume={onMusicVolume}
+              onSfxVolume={onSfxVolume}
+            />
             <button
               onClick={onClose}
               className="px-6 py-2 bg-white/10 hover:bg-white/20 text-white font-medium rounded-sm transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-white/50"
@@ -292,6 +312,54 @@ export function GameOverlay({
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
       {content}
+    </div>
+  );
+}
+
+// ── Volume sliders widget ────────────────────────────────────────────────────
+interface VolumeSlidersProps {
+  musicVolume: number;
+  sfxVolume: number;
+  onMusicVolume?: (v: number) => void;
+  onSfxVolume?: (v: number) => void;
+}
+
+function VolumeSliders({ musicVolume, sfxVolume, onMusicVolume, onSfxVolume }: VolumeSlidersProps) {
+  return (
+    <div className="w-full max-w-[220px] flex flex-col gap-3 py-2">
+      <VolumeRow
+        label="🎵 Music"
+        value={musicVolume}
+        onChange={onMusicVolume}
+      />
+      <VolumeRow
+        label="🔊 SFX"
+        value={sfxVolume}
+        onChange={onSfxVolume}
+      />
+    </div>
+  );
+}
+
+function VolumeRow({ label, value, onChange }: { label: string; value: number; onChange?: (v: number) => void }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="text-white/60 text-xs w-16 text-right shrink-0 font-mono">{label}</span>
+      <input
+        type="range"
+        min={0}
+        max={1}
+        step={0.01}
+        value={value}
+        onChange={(e) => onChange?.(parseFloat(e.target.value))}
+        className="flex-1 h-1.5 appearance-none rounded-full bg-white/20 accent-[#00f0ff] cursor-pointer"
+        style={{ accentColor: "#00f0ff" }}
+        onMouseDown={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
+      />
+      <span className="text-white/40 text-xs w-8 text-left font-mono tabular-nums">
+        {Math.round(value * 100)}%
+      </span>
     </div>
   );
 }

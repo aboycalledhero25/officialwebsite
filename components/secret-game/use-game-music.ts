@@ -2,14 +2,15 @@
 
 import { useRef, useEffect, useCallback } from "react";
 
-export function useGameMusic(src: string) {
+export function useGameMusic(src: string, initialVolume = 0.4) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const mutedRef = useRef(false);
+  const volumeRef = useRef(initialVolume);
 
   useEffect(() => {
     const audio = new Audio(src);
     audio.loop = true;
-    audio.volume = 0.4;
+    audio.volume = volumeRef.current;
     audioRef.current = audio;
 
     // Attempt to play (browsers may block until user interaction)
@@ -56,7 +57,19 @@ export function useGameMusic(src: string) {
     }
   }, []);
 
+  const setVolume = useCallback((vol: number) => {
+    const clamped = Math.max(0, Math.min(1, vol));
+    volumeRef.current = clamped;
+    if (audioRef.current) {
+      audioRef.current.volume = clamped;
+    }
+    // If volume is raised from 0 and we're not muted, make sure we're playing
+    if (clamped > 0 && !mutedRef.current && audioRef.current?.paused) {
+      audioRef.current.play().catch(() => {});
+    }
+  }, []);
+
   const isMuted = useCallback(() => mutedRef.current, []);
 
-  return { setMuted, isMuted };
+  return { setMuted, setVolume, isMuted };
 }

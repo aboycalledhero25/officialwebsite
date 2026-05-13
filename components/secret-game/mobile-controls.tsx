@@ -17,6 +17,10 @@ export function MobileControls({}: MobileControlsProps) {
   const leftDownRef = useRef(false);
   const rightDownRef = useRef(false);
   const layerRef = useRef<HTMLDivElement>(null);
+  // Mouse tracking is disabled on mount so that the player doesn't snap to
+  // wherever the cursor happens to be sitting after a power-up screen click.
+  // It re-enables the moment the user presses a mouse button.
+  const mouseTrackingActive = useRef(false);
   const siteData = useSiteData();
 
   const spriteConfig = siteData.secretGame?.playerSprite ?? { offsetX: -2, offsetY: -12, width: 14, height: 42 };
@@ -110,6 +114,11 @@ export function MobileControls({}: MobileControlsProps) {
   // Mouse handlers (desktop)
   const handleMouseMove = useCallback(
     (e: React.MouseEvent) => {
+      // Do not move the player on pure cursor movement until the user has
+      // explicitly clicked on the canvas. This prevents the player from
+      // teleporting to wherever the power-up overlay was clicked just before
+      // the reward screen closed and this component re-mounted.
+      if (!mouseTrackingActive.current) return;
       const pos = screenToBase(e.clientX, e.clientY);
       // Move the player toward the cursor (same mechanism as touch follow-finger)
       sharedTouch.targetX = pos.x;
@@ -124,6 +133,9 @@ export function MobileControls({}: MobileControlsProps) {
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     unlockAudio();
+    // First click after mounting (e.g. after a power-up screen) activates
+    // mouse-driven movement so the player doesn't jump unexpectedly.
+    mouseTrackingActive.current = true;
     if (e.button === 0) {
       leftDownRef.current = true;
       sharedAim.firing = true;
@@ -173,6 +185,7 @@ export function MobileControls({}: MobileControlsProps) {
       activeTouches.current.clear();
       leftDownRef.current = false;
       rightDownRef.current = false;
+      mouseTrackingActive.current = false;
       sharedTouch.targetX = null;
       sharedTouch.targetY = null;
       sharedAim.x = null;

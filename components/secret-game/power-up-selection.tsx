@@ -6,10 +6,14 @@
  * Shown after every boss defeat. Presents 3 randomised permanent upgrade
  * choices. Each card shows: icon, name, description, current stat, and the
  * improved stat after selecting (highlighted in green).
+ *
+ * Keyboard controls: W / ↑ move up, S / ↓ move down, Space confirms.
  */
 
+import { useState, useEffect } from "react";
 import { getPowerUp } from "./power-up-registry";
 import type { PermPowerUpState } from "./player-stats";
+import { sharedKeys } from "./use-keyboard-controls";
 
 // ─── Single choice card ───────────────────────────────────────────────────────
 
@@ -17,9 +21,11 @@ interface PowerUpChoiceCardProps {
   powerUpId: string;
   chosen: PermPowerUpState;
   onSelect: (id: string) => void;
+  /** Whether this card is the keyboard-highlighted option */
+  selected?: boolean;
 }
 
-function PowerUpChoiceCard({ powerUpId, chosen, onSelect }: PowerUpChoiceCardProps) {
+function PowerUpChoiceCard({ powerUpId, chosen, onSelect, selected = false }: PowerUpChoiceCardProps) {
   const def = getPowerUp(powerUpId);
   if (!def) return null;
 
@@ -30,7 +36,12 @@ function PowerUpChoiceCard({ powerUpId, chosen, onSelect }: PowerUpChoiceCardPro
   return (
     <button
       onClick={() => onSelect(powerUpId)}
-      className="w-full text-left p-4 rounded border-2 border-white/20 bg-black/60 hover:bg-white/10 hover:border-yellow-400/70 transition-all active:scale-95 focus:outline-none focus:border-yellow-400"
+      className={[
+        "w-full text-left p-4 rounded border-2 transition-all active:scale-95 focus:outline-none",
+        selected
+          ? "border-yellow-400 bg-yellow-400/10 shadow-[0_0_12px_rgba(252,238,10,0.35)]"
+          : "border-white/20 bg-black/60 hover:bg-white/10 hover:border-yellow-400/70",
+      ].join(" ")}
     >
       {/* Icon + Name */}
       <div className="flex items-center gap-3 mb-2">
@@ -94,6 +105,51 @@ export interface PowerUpSelectionProps {
 }
 
 export function PowerUpSelection({ choices, chosen, onSelect, title = "BOSS DEFEATED!" }: PowerUpSelectionProps) {
+  const [selectedIdx, setSelectedIdx] = useState(0);
+
+  // Clamp selectedIdx whenever the choice list changes
+  useEffect(() => {
+    setSelectedIdx(0);
+  }, [choices]);
+
+  // On mount: clear any movement / shoot keys that may have been held during
+  // gameplay so they don't fire the moment the reward screen closes.
+  useEffect(() => {
+    sharedKeys.up    = false;
+    sharedKeys.down  = false;
+    sharedKeys.shoot = false;
+  }, []);
+
+  // Keyboard navigation: W/↑ = up, S/↓ = down, Space = confirm.
+  // Use capture so the event is intercepted before the global game handler.
+  useEffect(() => {
+    const count = choices.length;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "w" || e.key === "W" || e.key === "ArrowUp") {
+        e.preventDefault();
+        e.stopPropagation();
+        sharedKeys.up = false;
+        setSelectedIdx((i) => Math.max(0, i - 1));
+      } else if (e.key === "s" || e.key === "S" || e.key === "ArrowDown") {
+        e.preventDefault();
+        e.stopPropagation();
+        sharedKeys.down = false;
+        setSelectedIdx((i) => Math.min(count > 0 ? count - 1 : 0, i + 1));
+      } else if (e.key === " ") {
+        e.preventDefault();
+        e.stopPropagation();
+        sharedKeys.shoot = false;
+        if (count > 0) {
+          onSelect(choices[selectedIdx] ?? "");
+        } else {
+          onSelect("");
+        }
+      }
+    };
+    window.addEventListener("keydown", handler, { capture: true });
+    return () => window.removeEventListener("keydown", handler, { capture: true });
+  }, [choices, selectedIdx, onSelect]);
+
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm">
       <div
@@ -114,17 +170,21 @@ export function PowerUpSelection({ choices, chosen, onSelect, title = "BOSS DEFE
           <p className="text-white/50 text-xs mt-2 font-mono tracking-wider">
             Choose a permanent upgrade
           </p>
+          <p className="text-white/30 text-xs mt-1 font-mono">
+            W / S to navigate &nbsp;·&nbsp; Space to select
+          </p>
         </div>
 
         {/* Choice cards */}
         <div className="w-full flex flex-col gap-3">
           {choices.length > 0 ? (
-            choices.map((id) => (
+            choices.map((id, idx) => (
               <PowerUpChoiceCard
                 key={id}
                 powerUpId={id}
                 chosen={chosen}
                 onSelect={onSelect}
+                selected={idx === selectedIdx}
               />
             ))
           ) : (

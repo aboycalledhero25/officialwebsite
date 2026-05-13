@@ -292,7 +292,11 @@ export function drawEffects(
     if (spriteReady) {
       // ── Spritesheet slice ────────────────────────────────────────────
       const frameCount = FRAME_COUNT[ef.key];
-      const fs = FRAME_SIZE[ef.key];
+      // Derive frame dimensions from the actual loaded image so the code
+      // works correctly regardless of the pixel dimensions recorded in
+      // FRAME_SIZE (which may differ from the real PNG on disk).
+      const fw = img.naturalWidth / frameCount;
+      const fh = img.naturalHeight;
       const elapsed = ef.duration - ef.timer;
       const frameDuration = ef.duration / frameCount;
       // Clamp to last frame — effect is removed before timer wraps
@@ -302,7 +306,7 @@ export function drawEffects(
       try {
         ctx.drawImage(
           img,
-          frameIndex * fs.w, 0, fs.w, fs.h,   // source rect
+          frameIndex * fw, 0, fw, fh,          // source rect (computed from real dims)
           ef.cx - drawW / 2, ef.cy - drawH / 2, drawW, drawH, // dest rect
         );
       } catch {

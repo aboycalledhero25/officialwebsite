@@ -86,6 +86,7 @@ export default function SecretGameAdminPage() {
             scoreReward: 500,
           },
           roguelikeConfig: sg.roguelikeConfig ?? {},
+          playerHitbox: sg.playerHitbox ?? { offsetX: 0, offsetY: 0, width: 10, height: 20 },
           desktop: {
             ...DEFAULT_PLATFORM,
             ...sg.desktop,
@@ -799,6 +800,43 @@ export default function SecretGameAdminPage() {
               <NumberField label="Offset Y" value={settings.playerSprite.offsetY} onChange={(v) => updateField("playerSprite.offsetY", v)} step={1} />
               <NumberField label="Width" value={settings.playerSprite.width} onChange={(v) => updateField("playerSprite.width", v)} min={1} max={100} step={1} />
               <NumberField label="Height" value={settings.playerSprite.height} onChange={(v) => updateField("playerSprite.height", v)} min={1} max={100} step={1} />
+            </div>
+          </Section>
+
+          {/* Player Hitbox */}
+          <Section title="Player Hitbox">
+            <p className="text-xs text-neutral-500 mb-3">
+              Collision box used for enemy-bullet and boss detection. Offset is relative to the player&apos;s game position (playerX / playerY). Shrink or shift to match the visual shape of your sprite — a tighter hitbox feels fairer to the player.
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <NumberField
+                label="Offset X"
+                value={settings.playerHitbox?.offsetX ?? 0}
+                onChange={(v) => updateField("playerHitbox.offsetX", v)}
+                step={1}
+              />
+              <NumberField
+                label="Offset Y"
+                value={settings.playerHitbox?.offsetY ?? 0}
+                onChange={(v) => updateField("playerHitbox.offsetY", v)}
+                step={1}
+              />
+              <NumberField
+                label="Width"
+                value={settings.playerHitbox?.width ?? 10}
+                onChange={(v) => updateField("playerHitbox.width", v)}
+                min={2}
+                max={120}
+                step={1}
+              />
+              <NumberField
+                label="Height"
+                value={settings.playerHitbox?.height ?? 20}
+                onChange={(v) => updateField("playerHitbox.height", v)}
+                min={2}
+                max={160}
+                step={1}
+              />
             </div>
           </Section>
 

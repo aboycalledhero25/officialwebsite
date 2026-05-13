@@ -57,8 +57,23 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
 
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(true);
-  const { playFile, setMuted: setAudioMuted } = useAudioSfx();
-  const { setMuted: setMusicMuted } = useGameMusic("/audio/8-bit.mp3");
+  // Persist volumes in localStorage so they survive page refreshes
+  const [musicVolume, setMusicVolumeState] = useState<number>(() => {
+    try { return parseFloat(localStorage.getItem("abch-music-vol") ?? "0.4"); } catch { return 0.4; }
+  });
+  const [sfxVolume, setSfxVolumeState] = useState<number>(() => {
+    try { return parseFloat(localStorage.getItem("abch-sfx-vol") ?? "1"); } catch { return 1; }
+  });
+
+  const { playFile, setMuted: setAudioMuted, setVolume: setSfxVolume } = useAudioSfx();
+  const { setMuted: setMusicMuted, setVolume: setMusicVolume } = useGameMusic("/audio/8-bit.mp3", musicVolume);
+
+  // Sync initial volumes into audio systems once on mount
+  useEffect(() => {
+    setSfxVolume(sfxVolume);
+    setMusicVolume(musicVolume);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Load high score + leaderboard on mount
   useEffect(() => {
@@ -206,6 +221,18 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
     setMusicMuted(next);
   }, [muted, setAudioMuted, setMusicMuted]);
 
+  const handleMusicVolume = useCallback((vol: number) => {
+    setMusicVolumeState(vol);
+    setMusicVolume(vol);
+    try { localStorage.setItem("abch-music-vol", String(vol)); } catch {}
+  }, [setMusicVolume]);
+
+  const handleSfxVolume = useCallback((vol: number) => {
+    setSfxVolumeState(vol);
+    setSfxVolume(vol);
+    try { localStorage.setItem("abch-sfx-vol", String(vol)); } catch {}
+  }, [setSfxVolume]);
+
   // Mobile control handlers
   const handleMobileShoot = useCallback((active: boolean) => {
     sharedKeys.shoot = active;
@@ -257,6 +284,10 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
         instructions={instructions}
         leaderboard={leaderboard}
         leaderboardLoading={leaderboardLoading}
+        musicVolume={musicVolume}
+        sfxVolume={sfxVolume}
+        onMusicVolume={handleMusicVolume}
+        onSfxVolume={handleSfxVolume}
         onStart={handleStart}
         onResume={() => setPhase("playing")}
         onRestart={handleRestart}

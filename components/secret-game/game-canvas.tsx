@@ -591,15 +591,25 @@ export function GameCanvas({
           const bCount = playerStats.bombCount;
           const bDmg = playerStats.bombDamage;
           const bRadius = playerStats.bombCrossRadius;
+          const enemyCfgRef = settingsRef.current.enemy;
+          // Collect alive enemies once so each bomb can pick a fresh target
+          const bombTargets = s.enemies.filter((e) => e.alive);
           for (let b = 0; b < bCount; b++) {
-            // Each bomb drops at a random x, centred vertically
-            const bx = Math.random() * playAreaW;
-            const by = BASE_H * 0.5;
+            // Target a random alive enemy; fall back to a random position
+            // if no enemies remain (e.g. boss-only wave).
+            let bx: number, by: number;
+            if (bombTargets.length > 0) {
+              const target = bombTargets[Math.floor(Math.random() * bombTargets.length)];
+              bx = target.x + enemyCfgRef.width / 2;
+              by = target.y + enemyCfgRef.height / 2;
+            } else {
+              bx = Math.random() * playAreaW;
+              by = BASE_H * 0.4;
+            }
             spawnEffect(s.activeEffects, "bomb", bx, by, siteData.secretGame?.impacts?.bomb ?? { w: 60, h: 60 });
             spawnParticles(bx, by, "#ff8800", 12);
             spawnParticles(bx, by, "#ffdd00", 6);
-            // Damage enemies in cross pattern
-            const enemyCfgRef = settingsRef.current.enemy;
+            // Damage enemies in cross pattern (target + above/below/left/right)
             for (const e of s.enemies) {
               if (!e.alive) continue;
               const ex = e.x + enemyCfgRef.width / 2;

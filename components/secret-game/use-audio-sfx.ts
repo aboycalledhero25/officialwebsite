@@ -17,6 +17,7 @@ export function useAudioSfx() {
   const ctxRef = useRef<AudioContext | null>(null);
   const masterGainRef = useRef<GainNode | null>(null);
   const mutedRef = useRef(false);
+  const sfxVolumeRef = useRef(1);
 
   const ensureCtx = () => {
     if (!ctxRef.current) {
@@ -145,11 +146,19 @@ export function useAudioSfx() {
   const setMuted = useCallback((muted: boolean) => {
     mutedRef.current = muted;
     if (masterGainRef.current) {
-      masterGainRef.current.gain.value = muted ? 0 : 1;
+      masterGainRef.current.gain.value = muted ? 0 : sfxVolumeRef.current;
+    }
+  }, []);
+
+  const setVolume = useCallback((vol: number) => {
+    const clamped = Math.max(0, Math.min(1, vol));
+    sfxVolumeRef.current = clamped;
+    if (masterGainRef.current && !mutedRef.current) {
+      masterGainRef.current.gain.value = clamped;
     }
   }, []);
 
   const isMuted = () => mutedRef.current;
 
-  return { play, playFile, setMuted, isMuted };
+  return { play, playFile, setMuted, setVolume, isMuted };
 }
