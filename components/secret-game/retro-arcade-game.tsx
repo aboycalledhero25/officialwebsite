@@ -7,7 +7,7 @@ import { GameOverlay } from "./game-overlay";
 import { MobileControls } from "./mobile-controls";
 import { PowerUpSelection } from "./power-up-selection";
 import { sharedKeys, sharedAim } from "./use-keyboard-controls";
-import { useAudioSfx } from "./use-audio-sfx";
+import { useAudioSfx, setSoundVolumes } from "./use-audio-sfx";
 import { useGameMusic } from "./use-game-music";
 import { getLeaderboard } from "@/lib/actions";
 import { type PermPowerUpState, computePlayerStats } from "./player-stats";
@@ -72,6 +72,10 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
   useEffect(() => {
     setSfxVolume(sfxVolume);
     setMusicVolume(musicVolume);
+    // Apply per-sound volume overrides from admin mixer
+    if (siteData.secretGame?.sfxVolumes) {
+      setSoundVolumes(siteData.secretGame.sfxVolumes);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

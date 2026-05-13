@@ -294,7 +294,11 @@ export function GameCanvas({
 
     if (isBossWave) {
       const bossNumber = Math.floor(w / (bossCfg?.interval ?? 10));
-      const bossHealth = (bossCfg?.baseHealth ?? 500) + (bossNumber - 1) * (bossCfg?.healthIncrease ?? 500);
+      // Use per-boss HP override from admin if available, otherwise fall back to formula
+      const perGroupHp = siteData.secretGame?.bossHealthPerWaveGroup;
+      const bossHealth = (perGroupHp && perGroupHp[bossNumber - 1] != null)
+        ? perGroupHp[bossNumber - 1]
+        : (bossCfg?.baseHealth ?? 500) + (bossNumber - 1) * (bossCfg?.healthIncrease ?? 500);
       const bossPos = settingsRef.current.boss;
       const bx = (bossPos?.x ?? 100) * (logW / BASE_W);
       // Pick a random boss skin that has real PNG assets.
@@ -366,6 +370,9 @@ export function GameCanvas({
     s.wave = w;
     s.spawnAnim = 0;
     s.playAreaW = logW;
+    // Reset the nuke timer so it fires at the predictable 30s mark into the new wave,
+    // not immediately because the previous wave happened to leave the accumulator near 30s.
+    s.nukeAccum = 0;
   }, []);
 
   const resetGame = useCallback(() => {
@@ -570,6 +577,7 @@ export function GameCanvas({
             s.permShieldAccum = 0;
             s.permShieldActive = true;
             s.permShieldTimer = playerStats.permShieldDuration;
+            playFile("/audio/shield.mp3");
             spawnParticles(s.playerX + PLAYER_W_BASE / 2, s.playerY + PLAYER_H_BASE / 2, "#00f0ff", 8);
           }
         }
@@ -1399,7 +1407,7 @@ export function GameCanvas({
             }
             spawnEffect(s.activeEffects, "bullet", px + pw / 2, py + ph / 2, enemyBulletImpact);
             spawnParticles(px + pw / 2, py + ph / 2, "#00f0ff", 6);
-            play("shoot"); // reuse a light sound
+            playFile("/audio/shield.mp3");
             continue;
           }
           // Heart slicing: remove 1 slice; only lose a life when a full heart is exhausted

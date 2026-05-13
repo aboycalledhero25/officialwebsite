@@ -357,6 +357,18 @@ export interface SecretGameSettings {
     shield?: { duration?: number; cooldown?: number };
   };
   boss: BossSettings;
+  /**
+   * Per-boss HP overrides. Index 0 = Boss 1 (first boss encounter), index 1 = Boss 2, etc.
+   * When provided, overrides the formula-based HP (baseHealth + (bossNumber-1) * healthIncrease).
+   * Leave entries undefined/missing to fall back to the formula for that boss.
+   */
+  bossHealthPerWaveGroup?: number[];
+  /**
+   * Per-sound-effect volume multipliers (0.0 – 2.0), applied on top of the player's master SFX volume.
+   * Keys: shoot, enemyHit, playerHit, gameOver, levelComplete, bomb, lightning, powerup, connect, shield
+   * Omitting a key defaults to 1.0 (no change).
+   */
+  sfxVolumes?: Record<string, number>;
   desktop: GamePlatformSettings;
   mobile: GamePlatformSettings;
 }

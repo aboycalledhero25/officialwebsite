@@ -7,6 +7,15 @@ export type SoundName = "shoot" | "enemyHit" | "playerHit" | "gameOver" | "level
 // Shared AudioContext reference for unlocking from input handlers
 let sharedCtx: AudioContext | null = null;
 
+// Module-level per-sound volume map — shared across all useAudioSfx instances.
+// Keys match SoundName values + audio file base-names (bomb, lightning, powerup, connect, shield).
+let sharedSoundVolumes: Record<string, number> = {};
+
+/** Update per-sound volumes from admin mixer settings. Call from retro-arcade-game once on mount. */
+export function setSoundVolumes(volumes: Record<string, number>) {
+  sharedSoundVolumes = { ...volumes };
+}
+
 export function unlockAudio() {
   if (sharedCtx && sharedCtx.state === "suspended") {
     sharedCtx.resume();
@@ -25,18 +34,22 @@ export function useAudioSfx() {
       sharedCtx = ctxRef.current;
       masterGainRef.current = ctxRef.current.createGain();
       masterGainRef.current.connect(ctxRef.current.destination);
-      masterGainRef.current.gain.value = 1;
+      masterGainRef.current.gain.value = sfxVolumeRef.current;
     }
-    if (ctxRef.current.state === "suspended") {
-      ctxRef.current.resume();
-    }
+    // Do NOT auto-resume here — only unlockAudio() should resume the context.
+    // Auto-resuming on every sound call causes all queued oscillators to burst
+    // simultaneously on mobile when the context eventually unlocks.
     return { ctx: ctxRef.current, master: masterGainRef.current! };
   };
 
   const play = useCallback((name: SoundName) => {
     if (mutedRef.current) return;
     const { ctx, master } = ensureCtx();
+    // Skip when context is suspended — prevents a burst of sounds when mobile unlocks the context
+    if (ctx.state === "suspended") return;
     const t = ctx.currentTime;
+    // Per-sound volume from admin mixer (default 1.0 if not set)
+    const sv = sharedSoundVolumes[name] ?? 1;
 
     switch (name) {
       case "shoot": {
@@ -45,7 +58,7 @@ export function useAudioSfx() {
         osc.type = "triangle";
         osc.frequency.setValueAtTime(880, t);
         osc.frequency.exponentialRampToValueAtTime(440, t + 0.05);
-        gain.gain.setValueAtTime(0.3, t);
+        gain.gain.setValueAtTime(0.3 * sv, t);
         gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
         osc.connect(gain);
         gain.connect(master);
@@ -59,7 +72,7 @@ export function useAudioSfx() {
         osc.type = "square";
         osc.frequency.setValueAtTime(440, t);
         osc.frequency.exponentialRampToValueAtTime(220, t + 0.1);
-        gain.gain.setValueAtTime(0.25, t);
+        gain.gain.setValueAtTime(0.25 * sv, t);
         gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
         osc.connect(gain);
         gain.connect(master);
@@ -73,7 +86,7 @@ export function useAudioSfx() {
         osc.type = "sawtooth";
         osc.frequency.setValueAtTime(220, t);
         osc.frequency.exponentialRampToValueAtTime(55, t + 0.3);
-        gain.gain.setValueAtTime(0.3, t);
+        gain.gain.setValueAtTime(0.3 * sv, t);
         gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
         osc.connect(gain);
         gain.connect(master);
@@ -87,7 +100,7 @@ export function useAudioSfx() {
         osc.type = "sawtooth";
         osc.frequency.setValueAtTime(440, t);
         osc.frequency.exponentialRampToValueAtTime(110, t + 0.8);
-        gain.gain.setValueAtTime(0.3, t);
+        gain.gain.setValueAtTime(0.3 * sv, t);
         gain.gain.linearRampToValueAtTime(0.001, t + 0.8);
         osc.connect(gain);
         gain.connect(master);
@@ -102,7 +115,7 @@ export function useAudioSfx() {
           const gain = ctx.createGain();
           osc.type = "square";
           osc.frequency.setValueAtTime(freq, t + i * 0.1);
-          gain.gain.setValueAtTime(0.2, t + i * 0.1);
+          gain.gain.setValueAtTime(0.2 * sv, t + i * 0.1);
           gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.1 + 0.15);
           osc.connect(gain);
           gain.connect(master);
@@ -111,7 +124,6 @@ export function useAudioSfx() {
         });
         break;
       }
-
     }
   }, []);
 
@@ -121,11 +133,14 @@ export function useAudioSfx() {
   /**
    * Play an audio file (e.g. an MP3 in /public/audio/) through the Web Audio
    * master gain so it respects the mute state and plays simultaneously with
-   * the background music.
+   * the background music.  Per-sound volumes from the admin mixer are applied
+   * by extracting the file base-name (e.g. /audio/bomb.mp3 → "bomb").
    */
   const playFile = useCallback(async (url: string) => {
     if (mutedRef.current) return;
     const { ctx, master } = ensureCtx();
+    // Skip when context is suspended — prevents burst on mobile
+    if (ctx.state === "suspended") return;
     try {
       let buffer = bufferCacheRef.current[url];
       if (!buffer) {
@@ -134,9 +149,20 @@ export function useAudioSfx() {
         buffer = await ctx.decodeAudioData(arrayBuf);
         bufferCacheRef.current[url] = buffer;
       }
+      // Derive the sound key from the URL (e.g. /audio/bomb.mp3 → "bomb")
+      const soundKey = url.split("/").pop()?.replace(/\.[^.]+$/, "") ?? "";
+      const sv = sharedSoundVolumes[soundKey] ?? 1;
+
       const source = ctx.createBufferSource();
       source.buffer = buffer;
-      source.connect(master);
+      if (sv !== 1) {
+        const fileGain = ctx.createGain();
+        fileGain.gain.value = Math.max(0, sv);
+        source.connect(fileGain);
+        fileGain.connect(master);
+      } else {
+        source.connect(master);
+      }
       source.start();
     } catch {
       // Audio unavailable — silently ignore
@@ -162,3 +188,5 @@ export function useAudioSfx() {
 
   return { play, playFile, setMuted, setVolume, isMuted };
 }
+
+

@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Save, Gamepad2, RotateCcw, Play, Smartphone, Monitor, Trophy, ZoomIn, ZoomOut } from "lucide-react";
+import { Save, Gamepad2, RotateCcw, Play, Smartphone, Monitor, Trophy, ZoomIn, ZoomOut, Plus, Trash2, Volume2 } from "lucide-react";
 import { GameEditorPreview } from "@/components/secret-game/game-editor-preview";
 import { updateSecretGameSettings, resetLeaderboard, getLeaderboard, deleteScore, updateScore } from "@/lib/actions";
 import { useRouter } from "next/navigation";
 import type { SecretGameSettings, GamePlatformSettings } from "@/lib/data";
+import { useAudioSfx, unlockAudio } from "@/components/secret-game/use-audio-sfx";
 
 const DEFAULT_PLATFORM: GamePlatformSettings = {
   player: { x: 115, y: 265 },
@@ -54,6 +55,7 @@ export default function SecretGameAdminPage() {
   // Stores the full data.json payload so we can POST it back to bust the in-memory cache
   // after a save (the server action writes to Supabase but doesn't update the route's memCache).
   const fullDataRef = useRef<Record<string, unknown> | null>(null);
+  const { play, playFile } = useAudioSfx();
 
   useEffect(() => {
     fetch("/api/admin/data")
@@ -96,6 +98,10 @@ export default function SecretGameAdminPage() {
           playerHitbox: sg.playerHitbox ?? {},
           bulletSpawnOffsetX: sg.bulletSpawnOffsetX,
           bulletSpawnOffsetY: sg.bulletSpawnOffsetY,
+          // Boss HP per wave group (index 0 = Boss 1, index 1 = Boss 2, …)
+          bossHealthPerWaveGroup: sg.bossHealthPerWaveGroup ?? [],
+          // Per-sound volume multipliers for the admin mixer
+          sfxVolumes: sg.sfxVolumes ?? {},
           desktop: {
             ...DEFAULT_PLATFORM,
             ...sg.desktop,
@@ -775,6 +781,61 @@ export default function SecretGameAdminPage() {
             <p className="text-xs text-neutral-500 mt-2">Boss appears every N waves. HP = Base + (BossNumber - 1) × HealthIncrease.</p>
           </Section>
 
+          {/* Boss HP Per Wave Group */}
+          <Section title="Boss HP Per Wave Group">
+            <p className="text-xs text-neutral-500 mb-3">
+              Set a custom HP for each boss encounter. Boss 1 = waves 1–10, Boss 2 = waves 11–20, etc.
+              Leave the array short and later bosses fall back to the formula above. Add entries with the button below.
+            </p>
+            <div className="space-y-2">
+              {(settings.bossHealthPerWaveGroup ?? []).map((hp, idx) => {
+                const waveFrom = idx * (settings.boss.interval ?? 10) + 1;
+                const waveTo = (idx + 1) * (settings.boss.interval ?? 10);
+                return (
+                  <div key={idx} className="flex items-center gap-3">
+                    <span className="text-xs text-neutral-400 w-36 shrink-0">
+                      Boss {idx + 1} (Wave {waveFrom}–{waveTo})
+                    </span>
+                    <input
+                      type="number"
+                      value={hp}
+                      min={1}
+                      step={100}
+                      onChange={(e) => {
+                        const next = [...(settings.bossHealthPerWaveGroup ?? [])];
+                        next[idx] = parseFloat(e.target.value) || 0;
+                        setSettings((prev) => prev ? { ...prev, bossHealthPerWaveGroup: next } : prev);
+                      }}
+                      className="w-32 rounded-lg border border-[#1e1e1e] bg-[#0a0a0a] px-3 py-2 text-sm text-white outline-none transition-colors focus:border-[#00f0ff] focus:ring-1 focus:ring-[#00f0ff]"
+                    />
+                    <button
+                      onClick={() => {
+                        const next = [...(settings.bossHealthPerWaveGroup ?? [])];
+                        next.splice(idx, 1);
+                        setSettings((prev) => prev ? { ...prev, bossHealthPerWaveGroup: next } : prev);
+                      }}
+                      className="p-1.5 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors"
+                      title="Remove this boss entry"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => {
+                const current = settings.bossHealthPerWaveGroup ?? [];
+                const lastHp = current.length > 0 ? current[current.length - 1] : (settings.boss?.baseHealth ?? 500);
+                const increment = settings.boss?.healthIncrease ?? 500;
+                setSettings((prev) => prev ? { ...prev, bossHealthPerWaveGroup: [...current, lastHp + increment] } : prev);
+              }}
+              className="mt-3 flex items-center gap-1.5 rounded-lg border border-[#1e1e1e] bg-[#0a0a0a] px-3 py-2 text-xs text-neutral-300 hover:bg-[#1e1e1e] transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" /> Add Boss Group
+            </button>
+          </Section>
+
           {/* Boss Position (per-platform) */}
           <Section title="Boss Position">
             <p className="text-xs text-neutral-500 mb-3">
@@ -795,6 +856,64 @@ export default function SecretGameAdminPage() {
               <NumberField label="X" value={plat.bossHealthBar.x} onChange={(v) => updateField(`${platform}.bossHealthBar.x`, v)} min={0} max={240} step={1} />
               <NumberField label="Y" value={plat.bossHealthBar.y} onChange={(v) => updateField(`${platform}.bossHealthBar.y`, v)} min={0} max={320} step={1} />
               <NumberField label="Size" value={plat.bossHealthBar.size ?? 6} onChange={(v) => updateField(`${platform}.bossHealthBar.size`, v)} min={4} max={32} step={1} />
+            </div>
+          </Section>
+
+          {/* SFX Volume Mixer */}
+          <Section title="SFX Volume Mixer">
+            <p className="text-xs text-neutral-500 mb-4">
+              Set per-sound volume multipliers. 1.0 = unchanged, 0.5 = half, 2.0 = double.
+              These are applied globally on top of the player&apos;s master SFX volume and cannot be adjusted by players.
+              Click ▶ to preview each sound at its current level.
+            </p>
+            <div className="space-y-3">
+              {([
+                { key: "shoot",         label: "Shoot",          type: "procedural" },
+                { key: "enemyHit",      label: "Enemy Hit",      type: "procedural" },
+                { key: "playerHit",     label: "Player Hit",     type: "procedural" },
+                { key: "gameOver",      label: "Game Over",      type: "procedural" },
+                { key: "levelComplete", label: "Level Complete", type: "procedural" },
+                { key: "bomb",          label: "Bomb",           type: "file", url: "/audio/bomb.mp3" },
+                { key: "lightning",     label: "Lightning",      type: "file", url: "/audio/lightning.mp3" },
+                { key: "powerup",       label: "Power-Up",       type: "file", url: "/audio/powerup.mp3" },
+                { key: "connect",       label: "Connect",        type: "file", url: "/audio/connect.mp3" },
+                { key: "shield",        label: "Shield",         type: "file", url: "/audio/shield.mp3" },
+              ] as { key: string; label: string; type: "procedural" | "file"; url?: string }[]).map(({ key, label, type, url }) => {
+                const vol = (settings.sfxVolumes ?? {})[key] ?? 1;
+                return (
+                  <div key={key} className="flex items-center gap-3">
+                    <span className="text-xs text-neutral-400 w-28 shrink-0">{label}</span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={2}
+                      step={0.05}
+                      value={vol}
+                      onChange={(e) => {
+                        const next = { ...(settings.sfxVolumes ?? {}), [key]: parseFloat(e.target.value) };
+                        setSettings((prev) => prev ? { ...prev, sfxVolumes: next } : prev);
+                      }}
+                      className="flex-1 accent-[#00f0ff]"
+                    />
+                    <span className="text-xs font-mono text-neutral-300 w-10 text-right">{vol.toFixed(2)}×</span>
+                    <button
+                      title={`Preview ${label}`}
+                      onClick={() => {
+                        // Resume AudioContext on user gesture so the preview actually plays
+                        unlockAudio();
+                        if (type === "file" && url) {
+                          playFile(url);
+                        } else {
+                          play(key as Parameters<typeof play>[0]);
+                        }
+                      }}
+                      className="flex items-center gap-1 rounded bg-[#1e1e1e] hover:bg-[#2a2a2a] px-2 py-1 text-xs text-neutral-300 transition-colors"
+                    >
+                      <Volume2 className="w-3 h-3" /> ▶
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </Section>
 

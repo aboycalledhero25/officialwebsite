@@ -152,13 +152,9 @@ export const POWER_UP_REGISTRY: PowerUpDefinition[] = [
     name: "Nuke",
     description: "Every 30s destroys all normal enemies and deals 25% HP to bosses.",
     icon: "/powerups/icons/nuke.png",
-    canStack: true, maxStacks: -1, removeFromPoolAfterMaxed: false,
-    getCurrentStat: (c) => {
-      const n = c["nuke"] ?? 0;
-      if (n === 0) return "Nukes/cooldown: 0";
-      return `Nukes/cooldown: ${n * ROGUELIKE_CONFIG.nuke.nukesPerStack}`;
-    },
-    getNextStat: (c) => `Nukes/cooldown: ${((c["nuke"] ?? 0) + 1) * ROGUELIKE_CONFIG.nuke.nukesPerStack}`,
+    canStack: false, maxStacks: 1, removeFromPoolAfterMaxed: true,
+    getCurrentStat: () => "Nuke: Off",
+    getNextStat: () => `Nuke: clears wave every ${ROGUELIKE_CONFIG.nuke.cooldown}s`,
   },
   {
     id: "projectile",

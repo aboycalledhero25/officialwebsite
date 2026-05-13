@@ -14,13 +14,15 @@ interface MobileControlsProps {
 
 export function MobileControls({}: MobileControlsProps) {
   const activeTouches = useRef<Map<number, { x: number; y: number }>>(new Map());
-  const leftDownRef = useRef(false);
-  const rightDownRef = useRef(false);
   const layerRef = useRef<HTMLDivElement>(null);
-  // Mouse tracking is disabled on mount so that the player doesn't snap to
-  // wherever the cursor happens to be sitting after a power-up screen click.
-  // It re-enables the moment the user presses a mouse button.
+  // Mouse tracking is disabled briefly after mount so that the player doesn't snap to
+  // wherever the cursor was when the power-up overlay was clicked.
+  // Tracking auto-activates after a short grace period, so trackpad users
+  // can move the player by simply moving their finger without clicking first.
   const mouseTrackingActive = useRef(false);
+  const mountTimeRef = useRef(Date.now());
+  // Toggle state: tracks whether left-click shooting is currently active.
+  const firingToggle = useRef(false);
   const siteData = useSiteData();
 
   const spriteConfig = siteData.secretGame?.playerSprite ?? { offsetX: -2, offsetY: -12, width: 14, height: 42 };
@@ -111,14 +113,17 @@ export function MobileControls({}: MobileControlsProps) {
     [syncTouchState]
   );
 
-  // Mouse handlers (desktop)
+  // Mouse handlers (desktop + trackpad)
   const handleMouseMove = useCallback(
     (e: React.MouseEvent) => {
-      // Do not move the player on pure cursor movement until the user has
-      // explicitly clicked on the canvas. This prevents the player from
-      // teleporting to wherever the power-up overlay was clicked just before
-      // the reward screen closed and this component re-mounted.
-      if (!mouseTrackingActive.current) return;
+      // After a 400 ms grace period following mount, auto-enable tracking on any
+      // mouse/trackpad movement. This lets trackpad users just move their finger
+      // to control the player without needing to click first, while still preventing
+      // the player from snapping to the cursor position right after a power-up click.
+      if (!mouseTrackingActive.current) {
+        if (Date.now() - mountTimeRef.current < 400) return;
+        mouseTrackingActive.current = true;
+      }
       const pos = screenToBase(e.clientX, e.clientY);
       // Move the player toward the cursor (same mechanism as touch follow-finger)
       sharedTouch.targetX = pos.x;
@@ -133,48 +138,28 @@ export function MobileControls({}: MobileControlsProps) {
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     unlockAudio();
-    // First click after mounting (e.g. after a power-up screen) activates
-    // mouse-driven movement so the player doesn't jump unexpectedly.
+    // Activate mouse-driven movement on first click so the player doesn't
+    // teleport to where the cursor was during the power-up screen.
     mouseTrackingActive.current = true;
-    if (e.button === 0) {
-      leftDownRef.current = true;
-      sharedAim.firing = true;
-      sharedAim.aiming = false;
-    } else if (e.button === 2) {
-      rightDownRef.current = true;
-      sharedAim.firing = true;
-      sharedAim.aiming = true;
-    }
   }, []);
 
   const handleMouseUp = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     if (e.button === 0) {
-      leftDownRef.current = false;
-      if (rightDownRef.current) {
-        sharedAim.aiming = true;
-      } else {
-        sharedAim.firing = false;
-        sharedAim.aiming = false;
-      }
-    } else if (e.button === 2) {
-      rightDownRef.current = false;
-      if (leftDownRef.current) {
-        sharedAim.aiming = false;
-      } else {
-        sharedAim.firing = false;
-        sharedAim.aiming = false;
-      }
+      // Left click: toggle shooting on/off.
+      firingToggle.current = !firingToggle.current;
+      sharedAim.firing = firingToggle.current;
+      sharedAim.aiming = false;
     }
   }, []);
 
   // When the cursor leaves the game window, stop mouse-driven movement so the
   // player doesn't keep chasing a position that no longer updates.
+  // Also reset the firing toggle so it doesn't persist unexpectedly.
   const handleMouseLeaveWindow = useCallback(() => {
     sharedTouch.targetX = null;
     sharedTouch.targetY = null;
-    leftDownRef.current = false;
-    rightDownRef.current = false;
+    firingToggle.current = false;
     sharedAim.firing = false;
     sharedAim.aiming = false;
   }, []);
@@ -183,9 +168,8 @@ export function MobileControls({}: MobileControlsProps) {
   useEffect(() => {
     return () => {
       activeTouches.current.clear();
-      leftDownRef.current = false;
-      rightDownRef.current = false;
       mouseTrackingActive.current = false;
+      firingToggle.current = false;
       sharedTouch.targetX = null;
       sharedTouch.targetY = null;
       sharedAim.x = null;
