@@ -215,6 +215,7 @@ export function GameCanvas({
       x: number; y: number; health: number; maxHealth: number;
       fireCooldown: number; hitFlash: number; dir: number; bossNumber: number;
       virusStacks: number; virusTimer: number; virusAccum: number;
+      orbitalHitCooldown: number; // rate-limits orbital damage per frame
       // Sprite animation
       skinIndex: number;        // 1-18, randomly chosen at wave start
       animState: BossAnimState; // current animation ("walking" | "throwing" | "hurt" | "dying")
@@ -341,6 +342,7 @@ export function GameCanvas({
         skinIndex,
         animState: "walking",
         animAccum: 0,
+        orbitalHitCooldown: 0, // prevents orbital from dealing damage every frame
       };
     } else {
       const maxW = logW - edgeMargin * 2;
@@ -378,6 +380,7 @@ export function GameCanvas({
             animState: "walking",
             animAccum: Math.random() * 2.5, // stagger start frame so grid doesn't look uniform
             dying: false,
+            orbitalHitCooldown: 0, // prevents orbital from dealing damage every frame
           });
         }
       }
@@ -459,7 +462,11 @@ export function GameCanvas({
   const spawnParticles = useCallback(
     (x: number, y: number, color: string, count: number) => {
       const s = stateRef.current;
-      for (let i = 0; i < count; i++) {
+      const MAX_PARTICLES = 200;
+      const available = MAX_PARTICLES - s.particles.length;
+      if (available <= 0) return;
+      const actual = Math.min(count, available);
+      for (let i = 0; i < actual; i++) {
         s.particles.push({
           x,
           y,
@@ -962,14 +969,17 @@ export function GameCanvas({
               const nearEX = Math.max(e.x, Math.min(ox, e.x + ew));
               const nearEY = Math.max(e.y, Math.min(oy, e.y + eh));
               const dist2 = Math.hypot(ox - nearEX, oy - nearEY);
-              if (dist2 <= oR) {
+              if (dist2 <= oR && (e.orbitalHitCooldown ?? 0) <= 0) {
                 const dmg = playerStats.orbitalDamage;
                 e.hp = (e.hp ?? 1) - dmg;
                 e.animState = "hurt"; e.animAccum = 0;
+                e.orbitalHitCooldown = 0.25; // rate-limit: only hit every 250ms per enemy
                 spawnParticles(e.x + ew / 2, e.y + eh / 2, "#00f0ff", 3);
                 const dnX = e.x + ew / 2 + (Math.random() - 0.5) * 10;
                 const dnY = e.y;
-                s.damageNumbers.push({ x: dnX, y: dnY, value: String(dmg), timer: 1.2, maxTimer: 1.2, color: "#00f0ff" });
+                if (s.damageNumbers.length < 40) {
+                  s.damageNumbers.push({ x: dnX, y: dnY, value: String(dmg), timer: 1.2, maxTimer: 1.2, color: "#00f0ff" });
+                }
                 if (e.hp <= 0) {
                   e.alive = false; e.dying = true; e.animState = "dying"; e.animAccum = 0;
                   s.score += 10 * s.wave;
@@ -984,11 +994,14 @@ export function GameCanvas({
               const bh2 = siteData.secretGame?.boss?.height ?? 30;
               const nearBX = Math.max(s.boss.x, Math.min(ox, s.boss.x + bw2));
               const nearBY = Math.max(s.boss.y, Math.min(oy, s.boss.y + bh2));
-              if (Math.hypot(ox - nearBX, oy - nearBY) <= oR) {
+              if (Math.hypot(ox - nearBX, oy - nearBY) <= oR && (s.boss.orbitalHitCooldown ?? 0) <= 0) {
                 const dmg = playerStats.orbitalDamage;
                 s.boss.health -= dmg;
                 s.boss.hitFlash = 0.08;
-                s.damageNumbers.push({ x: s.boss.x + bw2 / 2, y: s.boss.y, value: String(dmg), timer: 1.2, maxTimer: 1.2, color: "#00f0ff" });
+                s.boss.orbitalHitCooldown = 0.25; // rate-limit boss hits too
+                if (s.damageNumbers.length < 40) {
+                  s.damageNumbers.push({ x: s.boss.x + bw2 / 2, y: s.boss.y, value: String(dmg), timer: 1.2, maxTimer: 1.2, color: "#00f0ff" });
+                }
                 if (s.boss.health <= 0) {
                   s.score += siteData.secretGame?.boss?.scoreReward ?? 500;
                   onScoreChange(s.score);
@@ -1397,7 +1410,7 @@ export function GameCanvas({
               s.bullets.splice(bi, 1);
               // Spawn damage number
               const dnX = impactX + (Math.random() - 0.5) * 8;
-              s.damageNumbers.push({ x: dnX, y: e.y, value: String(Math.round(bulletDmg)), timer: 1.0, maxTimer: 1.0, color: dmgColor });
+              if (s.damageNumbers.length < 40) s.damageNumbers.push({ x: dnX, y: e.y, value: String(Math.round(bulletDmg)), timer: 1.0, maxTimer: 1.0, color: dmgColor });
               if (e.hp <= 0) {
                 e.alive = false; e.dying = true; e.animState = "dying"; e.animAccum = 0;
                 s.score += 10 * s.wave;
@@ -1507,7 +1520,7 @@ export function GameCanvas({
             spawnParticles(b.x, b.y, "#fcee0a", 3);
             play("enemyHit");
             // Spawn damage number on boss
-            s.damageNumbers.push({ x: b.x + (Math.random() - 0.5) * 10, y: s.boss.y - 2, value: String(Math.round(damage)), timer: 1.0, maxTimer: 1.0, color: b.superBulletDamage != null ? "#ff4400" : "#ffffff" });
+            if (s.damageNumbers.length < 40) s.damageNumbers.push({ x: b.x + (Math.random() - 0.5) * 10, y: s.boss.y - 2, value: String(Math.round(damage)), timer: 1.0, maxTimer: 1.0, color: b.superBulletDamage != null ? "#ff4400" : "#ffffff" });
             // Virus infection on boss hit
             if (playerStats.hasVirus && s.boss.virusStacks < playerStats.virusMaxStacks) {
               s.boss.virusStacks++;
@@ -1710,6 +1723,8 @@ export function GameCanvas({
         if (e.alive) {
           // Advance walking / hurt accumulator
           e.animAccum += dt;
+          // Decrement orbital hit cooldown
+          if (e.orbitalHitCooldown > 0) e.orbitalHitCooldown -= dt;
           // Hurt is one-shot: return to walking when done
           if (e.animState === "hurt" && isAnimComplete("hurt", e.animAccum)) {
             e.animState = "walking";
@@ -1725,6 +1740,8 @@ export function GameCanvas({
           }
         }
       }
+      // Decrement boss orbital hit cooldown
+      if (s.boss && s.boss.orbitalHitCooldown > 0) s.boss.orbitalHitCooldown -= dt;
 
       // ── Particles ──
       for (let i = s.particles.length - 1; i >= 0; i--) {
