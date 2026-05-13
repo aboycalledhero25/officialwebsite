@@ -1065,8 +1065,13 @@ export function GameCanvas({
             onPhaseChange("bossreward");
             return; // exit update — phase change stops the loop
           } else if (pu.type === "extralife") {
-            s.lives = Math.min(s.maxHearts + 2, s.lives + 1); // allow up to maxHearts+2 lives total
+            // Without health powerup (slicesPerHeart === 1) restore a full heart.
+            // With health powerup (slicesPerHeart > 1) restore only one slice.
+            const healAmount = s.slicesPerHeart > 1 ? 1 : s.slicesPerHeart;
+            s.currentSlices = Math.min(s.maxSlices, s.currentSlices + healAmount);
+            s.lives = Math.ceil(s.currentSlices / s.slicesPerHeart);
             onLivesChange(s.lives);
+            if (onHealthDetailChange) onHealthDetailChange(s.currentSlices, s.maxSlices, s.slicesPerHeart);
             play("levelComplete"); // reuse cheerful sound
           } else {
             const durations = siteData.secretGame?.powerUpDurations;
