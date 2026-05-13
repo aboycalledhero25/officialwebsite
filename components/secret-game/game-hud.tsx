@@ -130,6 +130,7 @@ export function GameHUD({ score, lives, wave, muted, activePowerUps, onPause, on
   const scorePos = plat?.score ?? { visible: true, x: 8, y: 8, size: 14 };
   const wavePos = plat?.wave ?? { visible: true, x: 120, y: 8, size: 14 };
   const powerUpsPos = plat?.powerUps ?? { visible: true, x: 120, y: 28, size: 8 };
+  const controlsPos = plat?.controls ?? { x: 152, y: 4, size: 24 };
 
   // Scale stored positions (0-240 x, 0-320 y) to actual screen dimensions
   const screenX = (baseX: number) => (baseX / BASE_W) * dims.w;
@@ -300,55 +301,53 @@ export function GameHUD({ score, lives, wave, muted, activePowerUps, onPause, on
         </div>
       )}
 
-      {/* Controls - top right (8-bit) */}
-      <div className="absolute flex items-center gap-1 pointer-events-auto" style={{ right: screenX(8), top: screenY(8) }}>
-        {/* Fullscreen toggle — collapses browser chrome on mobile */}
-        <button
-          onClick={toggleFullscreen}
-          className="flex items-center justify-center text-neutral-300 hover:text-white transition-colors"
-          style={{
-            width: scaleSize(24),
-            height: scaleSize(24),
-            background: "#000000",
-            border: "2px solid #444444",
-            fontSize: scaleSize(10),
-            imageRendering: "pixelated",
-          }}
-          aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-        >
-          {isFullscreen ? "⊡" : "⛶"}
-        </button>
-        <button
-          onClick={onToggleMute}
-          className="flex items-center justify-center text-neutral-300 hover:text-white transition-colors"
-          style={{
-            width: scaleSize(24),
-            height: scaleSize(24),
-            background: "#000000",
-            border: "2px solid #444444",
-            fontSize: scaleSize(12),
-            imageRendering: "pixelated",
-          }}
-          aria-label={muted ? "Unmute" : "Mute"}
-        >
-          {muted ? "M" : "S"}
-        </button>
-        <button
-          onClick={onPause}
-          className="flex items-center justify-center text-neutral-300 hover:text-white transition-colors"
-          style={{
-            width: scaleSize(24),
-            height: scaleSize(24),
-            background: "#000000",
-            border: "2px solid #444444",
-            fontSize: scaleSize(12),
-            imageRendering: "pixelated",
-          }}
-          aria-label="Pause"
-        >
-          II
-        </button>
-      </div>
+      {/* Controls — position/size from admin panel */}
+      {(() => {
+        const btnSz = scaleSize(controlsPos.size);
+        const btnStyle: React.CSSProperties = {
+          width: btnSz,
+          height: btnSz,
+          background: "#000000",
+          border: "2px solid #444444",
+          fontSize: btnSz * 0.45,
+          imageRendering: "pixelated",
+          flexShrink: 0,
+        };
+        return (
+          <div
+            className="absolute flex items-center pointer-events-auto"
+            style={{ left: screenX(controlsPos.x), top: screenY(controlsPos.y), gap: Math.max(2, btnSz * 0.1) }}
+          >
+            {/* Fullscreen toggle */}
+            <button
+              onClick={toggleFullscreen}
+              className="flex items-center justify-center text-neutral-300 hover:text-white transition-colors"
+              style={btnStyle}
+              aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+            >
+              {isFullscreen ? "⊡" : "⛶"}
+            </button>
+            {/* Mute toggle */}
+            <button
+              onClick={onToggleMute}
+              className="flex items-center justify-center text-neutral-300 hover:text-white transition-colors"
+              style={btnStyle}
+              aria-label={muted ? "Unmute" : "Mute"}
+            >
+              {muted ? "M" : "S"}
+            </button>
+            {/* Pause */}
+            <button
+              onClick={onPause}
+              className="flex items-center justify-center text-neutral-300 hover:text-white transition-colors"
+              style={btnStyle}
+              aria-label="Pause"
+            >
+              II
+            </button>
+          </div>
+        );
+      })()}
     </div>
   );
 }

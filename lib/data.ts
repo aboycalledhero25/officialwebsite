@@ -233,6 +233,8 @@ export interface GamePlatformSettings {
   enemy: GameEnemySettings;
   bossHealthBar: GameUIElement;
   boss: { x: number; y: number };
+  /** Position and size of the HUD controls row (Pause / Mute / Fullscreen buttons). */
+  controls?: { x: number; y: number; size: number };
 }
 
 export interface BossSettings {

@@ -466,6 +466,16 @@ export default function SecretGameAdminPage() {
             </div>
           </Section>
 
+          {/* HUD Controls (Pause / Mute / Fullscreen) */}
+          <Section title="HUD Controls (Pause / Mute / Fullscreen)">
+            <p className="text-xs text-neutral-500 mb-3">Position of the control button row in game-logical units (240 × 320). Buttons flow left-to-right from this point.</p>
+            <div className="grid grid-cols-3 gap-4">
+              <NumberField label="X" value={plat.controls?.x ?? 152} onChange={(v) => updateField(`${platform}.controls.x`, v)} min={0} max={240} step={1} />
+              <NumberField label="Y" value={plat.controls?.y ?? 4} onChange={(v) => updateField(`${platform}.controls.y`, v)} min={0} max={320} step={1} />
+              <NumberField label="Button Size" value={plat.controls?.size ?? 24} onChange={(v) => updateField(`${platform}.controls.size`, v)} min={12} max={48} step={1} />
+            </div>
+          </Section>
+
           {/* Shield */}
           <Section title="Shield Bubble">
             <div className="grid grid-cols-3 gap-4">

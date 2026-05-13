@@ -4,8 +4,10 @@ import { useRef, useCallback } from "react";
 
 export type SoundName = "shoot" | "enemyHit" | "playerHit" | "gameOver" | "levelComplete";
 
-// Shared AudioContext reference for unlocking from input handlers
+// Shared AudioContext reference — created on first user gesture so mobile browsers allow it.
 let sharedCtx: AudioContext | null = null;
+// Shared master gain created alongside sharedCtx
+let sharedMaster: GainNode | null = null;
 
 // Module-level per-sound volume map — shared across all useAudioSfx instances.
 // Keys match SoundName values + audio file base-names (bomb, lightning, powerup, connect, shield).
@@ -16,8 +18,19 @@ export function setSoundVolumes(volumes: Record<string, number>) {
   sharedSoundVolumes = { ...volumes };
 }
 
+/**
+ * Call this from any user-gesture handler (touchstart, mousedown, keydown).
+ * Creates the shared AudioContext on the first call so mobile browsers allow it
+ * to start in "running" state. Resumes it if it was suspended.
+ */
 export function unlockAudio() {
-  if (sharedCtx && sharedCtx.state === "suspended") {
+  if (!sharedCtx) {
+    sharedCtx = new AudioContext();
+    sharedMaster = sharedCtx.createGain();
+    sharedMaster.gain.value = 1;
+    sharedMaster.connect(sharedCtx.destination);
+  }
+  if (sharedCtx.state === "suspended") {
     sharedCtx.resume();
   }
 }
@@ -30,15 +43,23 @@ export function useAudioSfx() {
 
   const ensureCtx = () => {
     if (!ctxRef.current) {
-      ctxRef.current = new AudioContext();
-      sharedCtx = ctxRef.current;
-      masterGainRef.current = ctxRef.current.createGain();
-      masterGainRef.current.connect(ctxRef.current.destination);
+      // Reuse the shared context created by unlockAudio() on first user gesture,
+      // so the context is already in "running" state on mobile.
+      // Fall back to creating a new one if unlockAudio hasn't fired yet.
+      const ctx = sharedCtx ?? new AudioContext();
+      ctxRef.current = ctx;
+      sharedCtx = ctx;
+
+      if (sharedMaster) {
+        // Reuse the already-connected master gain
+        masterGainRef.current = sharedMaster;
+      } else {
+        masterGainRef.current = ctx.createGain();
+        masterGainRef.current.connect(ctx.destination);
+        sharedMaster = masterGainRef.current;
+      }
       masterGainRef.current.gain.value = sfxVolumeRef.current;
     }
-    // Do NOT auto-resume here — only unlockAudio() should resume the context.
-    // Auto-resuming on every sound call causes all queued oscillators to burst
-    // simultaneously on mobile when the context eventually unlocks.
     return { ctx: ctxRef.current, master: masterGainRef.current! };
   };
 
