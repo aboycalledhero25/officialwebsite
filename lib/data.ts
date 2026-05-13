@@ -390,6 +390,24 @@ export interface SecretGameSettings {
    * Omitting a key defaults to 1.0 (no change).
    */
   sfxVolumes?: Record<string, number>;
+  /**
+   * Visual settings for floating damage numbers.
+   * All colors are CSS hex strings (e.g. "#ffffff").
+   */
+  damageNumbers?: {
+    /** Color for player bullet hits on enemies. Default "#ffffff". */
+    playerBulletColor?: string;
+    /** Color for seeker missile hits. Default "#ff4400". */
+    seekerColor?: string;
+    /** Color for orbital orb hits. Default "#00f0ff". */
+    orbitalColor?: string;
+    /** Color for numbers shown when player is hit. Default "#ff4444". */
+    playerHitColor?: string;
+    /** Upward drift speed in game units per second. Default 18. */
+    driftSpeed?: number;
+    /** Font size in game units. Default 8. */
+    fontSize?: number;
+  };
   desktop: GamePlatformSettings;
   mobile: GamePlatformSettings;
 }

@@ -107,6 +107,7 @@ export default function SecretGameAdminPage() {
           bossHealthPerWaveGroup: sg.bossHealthPerWaveGroup ?? [],
           // Per-sound volume multipliers for the admin mixer
           sfxVolumes: sg.sfxVolumes ?? {},
+          damageNumbers: sg.damageNumbers ?? {},
           desktop: {
             ...DEFAULT_PLATFORM,
             ...sg.desktop,
@@ -651,6 +652,45 @@ export default function SecretGameAdminPage() {
               <NumberField label="Nuke H" value={(settings.impacts as {nuke?:{w:number;h:number}})?.nuke?.h ?? 100} onChange={(v) => updateField("impacts.nuke.h", v)} min={4} max={400} step={1} />
               <NumberField label="Virus W" value={(settings.impacts as {virus?:{w:number;h:number}})?.virus?.w ?? 30} onChange={(v) => updateField("impacts.virus.w", v)} min={4} max={400} step={1} />
               <NumberField label="Virus H" value={(settings.impacts as {virus?:{w:number;h:number}})?.virus?.h ?? 30} onChange={(v) => updateField("impacts.virus.h", v)} min={4} max={400} step={1} />
+            </div>
+          </Section>
+
+          {/* Damage Numbers */}
+          <Section title="Damage Numbers">
+            <p className="text-xs text-neutral-500 mb-3">
+              Floating numbers that appear when enemies or the player are hit. Colors are CSS hex values (e.g. <code>#ffffff</code>).
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-medium uppercase tracking-wider text-neutral-500 mb-1.5">Player Bullet Color</label>
+                <div className="flex items-center gap-2">
+                  <input type="color" value={settings.damageNumbers?.playerBulletColor ?? "#ffffff"} onChange={(e) => updateField("damageNumbers.playerBulletColor", e.target.value)} className="h-8 w-12 rounded cursor-pointer bg-transparent border border-neutral-700" />
+                  <span className="text-xs text-neutral-400 font-mono">{settings.damageNumbers?.playerBulletColor ?? "#ffffff"}</span>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium uppercase tracking-wider text-neutral-500 mb-1.5">Seeker Missile Color</label>
+                <div className="flex items-center gap-2">
+                  <input type="color" value={settings.damageNumbers?.seekerColor ?? "#ff4400"} onChange={(e) => updateField("damageNumbers.seekerColor", e.target.value)} className="h-8 w-12 rounded cursor-pointer bg-transparent border border-neutral-700" />
+                  <span className="text-xs text-neutral-400 font-mono">{settings.damageNumbers?.seekerColor ?? "#ff4400"}</span>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium uppercase tracking-wider text-neutral-500 mb-1.5">Orbital Orb Color</label>
+                <div className="flex items-center gap-2">
+                  <input type="color" value={settings.damageNumbers?.orbitalColor ?? "#00f0ff"} onChange={(e) => updateField("damageNumbers.orbitalColor", e.target.value)} className="h-8 w-12 rounded cursor-pointer bg-transparent border border-neutral-700" />
+                  <span className="text-xs text-neutral-400 font-mono">{settings.damageNumbers?.orbitalColor ?? "#00f0ff"}</span>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium uppercase tracking-wider text-neutral-500 mb-1.5">Player Hit Color</label>
+                <div className="flex items-center gap-2">
+                  <input type="color" value={settings.damageNumbers?.playerHitColor ?? "#ff4444"} onChange={(e) => updateField("damageNumbers.playerHitColor", e.target.value)} className="h-8 w-12 rounded cursor-pointer bg-transparent border border-neutral-700" />
+                  <span className="text-xs text-neutral-400 font-mono">{settings.damageNumbers?.playerHitColor ?? "#ff4444"}</span>
+                </div>
+              </div>
+              <NumberField label="Drift Speed (px/s)" value={settings.damageNumbers?.driftSpeed ?? 18} onChange={(v) => updateField("damageNumbers.driftSpeed", v)} min={1} max={100} step={1} />
+              <NumberField label="Font Size (px)" value={settings.damageNumbers?.fontSize ?? 8} onChange={(v) => updateField("damageNumbers.fontSize", v)} min={4} max={32} step={1} />
             </div>
           </Section>
 

@@ -107,6 +107,7 @@ export function GameCanvas({
   const dimsRef = useRef({ w: BASE_W, h: BASE_H, scale: 1 });
   const playerImageRef = useRef<HTMLImageElement | null>(null);
   const shieldImageRef = useRef<HTMLImageElement | null>(null);
+  const orbsImageRef = useRef<HTMLImageElement | null>(null);
   useKeyboardControls();
   const { play, playFile, setMuted, isMuted } = useAudioSfx();
   const siteData = useSiteData();
@@ -135,7 +136,7 @@ export function GameCanvas({
   const playerStatsRef = useRef(playerStats);
   useEffect(() => { playerStatsRef.current = playerStats; });
 
-  // Load custom guitar sprite + shield spritesheet
+  // Load custom guitar sprite + shield spritesheet + orbital orbs spritesheet
   useEffect(() => {
     const img = new Image();
     img.src = "/images/guitar.png";
@@ -146,6 +147,11 @@ export function GameCanvas({
     shieldImg.src = "/shield/shield.png";
     shieldImg.onload = () => {
       shieldImageRef.current = shieldImg;
+    };
+    const orbsImg = new Image();
+    orbsImg.src = "/projectiles/spritesheets/orbs.png";
+    orbsImg.onload = () => {
+      orbsImageRef.current = orbsImg;
     };
     // Start loading all enemy sprite sheets and effect GIFs in the background
     loadEnemySprites();
@@ -193,6 +199,8 @@ export function GameCanvas({
       isSuperBullet?: boolean;    // true for super bullet projectiles
       superBulletTier?: number;   // 0=normal, 1=red, 2=purple, 3=gold
       superBulletDamage?: number; // damage override (for seeker missiles)
+      // Seeker missile: reference to the specific enemy this missile is tracking
+      seekerTarget?: { x: number; y: number; alive: boolean; dying: boolean } | null;
     }[],
     particles: [] as {
       x: number; y: number; vx: number; vy: number;
@@ -910,27 +918,35 @@ export function GameCanvas({
           s.seekerMissileAccum -= playerStats.seekerMissileCooldown;
           const pcx = s.playerX + PLAYER_W_BASE / 2;
           const pcy = s.playerY + PLAYER_H_BASE / 2;
-          // Find nearest alive enemy
-          let nearX: number | null = null, nearY: number | null = null, nearDist = Infinity;
-          for (const e of s.enemies) {
-            if (!e.alive) continue;
-            const d = Math.hypot(e.x + ew / 2 - pcx, e.y + eh / 2 - pcy);
-            if (d < nearDist) { nearDist = d; nearX = e.x + ew / 2; nearY = e.y + eh / 2; }
-          }
-          if (nearX === null && s.boss) {
-            const bw2 = siteData.secretGame?.boss?.width ?? 40;
-            const bh2 = siteData.secretGame?.boss?.height ?? 30;
-            nearX = s.boss.x + bw2 / 2; nearY = s.boss.y + bh2 / 2;
+          // Build a shuffled list of alive enemies so each missile gets a unique target
+          const aliveEnemies = s.enemies.filter(e => e.alive);
+          // Fisher-Yates shuffle for random, unique assignment
+          for (let i = aliveEnemies.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [aliveEnemies[i], aliveEnemies[j]] = [aliveEnemies[j], aliveEnemies[i]];
           }
           const missileSpeed = BULLET_SPEED_BASE * 1.3;
           for (let mi = 0; mi < playerStats.seekerMissileCount; mi++) {
-            const spread = (mi - (playerStats.seekerMissileCount - 1) / 2) * 0.18;
+            // Pick a unique enemy for each missile (wraps around if more missiles than enemies)
+            const targetEnemy = aliveEnemies.length > 0
+              ? aliveEnemies[mi % aliveEnemies.length]
+              : null;
+            let targetX: number | null = null, targetY: number | null = null;
+            if (targetEnemy) {
+              targetX = targetEnemy.x + ew / 2;
+              targetY = targetEnemy.y + eh / 2;
+            } else if (s.boss) {
+              // No enemies — target the boss
+              const bw2 = siteData.secretGame?.boss?.width ?? 40;
+              const bh2 = siteData.secretGame?.boss?.height ?? 30;
+              targetX = s.boss.x + bw2 / 2; targetY = s.boss.y + bh2 / 2;
+            }
             let mvx = 0, mvy = -missileSpeed;
-            if (nearX !== null && nearY !== null) {
-              const tdx = nearX - pcx, tdy = nearY - pcy;
+            if (targetX !== null && targetY !== null) {
+              const tdx = targetX - pcx, tdy = targetY - pcy;
               const tdist = Math.hypot(tdx, tdy);
               if (tdist > 1) {
-                const angle = Math.atan2(tdy, tdx) + spread;
+                const angle = Math.atan2(tdy, tdx);
                 mvx = Math.cos(angle) * missileSpeed;
                 mvy = Math.sin(angle) * missileSpeed;
               }
@@ -940,9 +956,10 @@ export function GameCanvas({
               isPlayer: true,
               isSeeker: true,
               superBulletDamage: playerStats.seekerMissileDamage,
+              seekerTarget: targetEnemy ?? null,
             });
           }
-          play("shoot");
+          playFile("/audio/seeker.mp3");
         }
       }
 
@@ -978,7 +995,8 @@ export function GameCanvas({
                 const dnX = e.x + ew / 2 + (Math.random() - 0.5) * 10;
                 const dnY = e.y;
                 if (s.damageNumbers.length < 40) {
-                  s.damageNumbers.push({ x: dnX, y: dnY, value: String(dmg), timer: 1.2, maxTimer: 1.2, color: "#00f0ff" });
+                  const orbColor = siteDataRef.current.secretGame?.damageNumbers?.orbitalColor ?? "#00f0ff";
+                  s.damageNumbers.push({ x: dnX, y: dnY, value: String(dmg), timer: 1.2, maxTimer: 1.2, color: orbColor });
                 }
                 if (e.hp <= 0) {
                   e.alive = false; e.dying = true; e.animState = "dying"; e.animAccum = 0;
@@ -1000,7 +1018,8 @@ export function GameCanvas({
                 s.boss.hitFlash = 0.08;
                 s.boss.orbitalHitCooldown = 0.25; // rate-limit boss hits too
                 if (s.damageNumbers.length < 40) {
-                  s.damageNumbers.push({ x: s.boss.x + bw2 / 2, y: s.boss.y, value: String(dmg), timer: 1.2, maxTimer: 1.2, color: "#00f0ff" });
+                  const orbColor2 = siteDataRef.current.secretGame?.damageNumbers?.orbitalColor ?? "#00f0ff";
+                  s.damageNumbers.push({ x: s.boss.x + bw2 / 2, y: s.boss.y, value: String(dmg), timer: 1.2, maxTimer: 1.2, color: orbColor2 });
                 }
                 if (s.boss.health <= 0) {
                   s.score += siteData.secretGame?.boss?.scoreReward ?? 500;
@@ -1305,19 +1324,28 @@ export function GameCanvas({
             b.vy += ((hdy / hdist) * pspeed - b.vy) * 2 * dt;
           }
         }
-        // Seeker missile: home in strongly on nearest alive enemy (or boss)
+        // Seeker missile: home in strongly on assigned target (or nearest if target is dead)
         if (b.isSeeker && b.isPlayer) {
-          let nearX: number | null = null, nearY: number | null = null, nearDist = Infinity;
-          for (const e of s.enemies) {
-            if (!e.alive) continue;
-            const ecfg = settingsRef.current.enemy;
-            const ex = e.x + ecfg.width / 2, ey = e.y + ecfg.height / 2;
-            const d = Math.hypot(ex - b.x, ey - b.y);
-            if (d < nearDist) { nearDist = d; nearX = ex; nearY = ey; }
-          }
-          if (s.boss && (nearX === null || Math.hypot(s.boss.x + (siteData.secretGame?.boss?.width ?? 40) / 2 - b.x, s.boss.y + (siteData.secretGame?.boss?.height ?? 30) / 2 - b.y) < nearDist)) {
-            nearX = s.boss.x + (siteData.secretGame?.boss?.width ?? 40) / 2;
-            nearY = s.boss.y + (siteData.secretGame?.boss?.height ?? 30) / 2;
+          let nearX: number | null = null, nearY: number | null = null;
+          const ecfg = settingsRef.current.enemy;
+          if (b.seekerTarget && b.seekerTarget.alive && !b.seekerTarget.dying) {
+            // Follow the assigned target
+            nearX = b.seekerTarget.x + ecfg.width / 2;
+            nearY = b.seekerTarget.y + ecfg.height / 2;
+          } else {
+            // Target is dead/missing — fall back to nearest alive enemy
+            b.seekerTarget = null;
+            let nearDist = Infinity;
+            for (const e of s.enemies) {
+              if (!e.alive) continue;
+              const ex = e.x + ecfg.width / 2, ey = e.y + ecfg.height / 2;
+              const d = Math.hypot(ex - b.x, ey - b.y);
+              if (d < nearDist) { nearDist = d; nearX = ex; nearY = ey; }
+            }
+            if (s.boss && (nearX === null || Math.hypot(s.boss.x + (siteData.secretGame?.boss?.width ?? 40) / 2 - b.x, s.boss.y + (siteData.secretGame?.boss?.height ?? 30) / 2 - b.y) < nearDist)) {
+              nearX = s.boss.x + (siteData.secretGame?.boss?.width ?? 40) / 2;
+              nearY = s.boss.y + (siteData.secretGame?.boss?.height ?? 30) / 2;
+            }
           }
           if (nearX !== null && nearY !== null) {
             const sdx = nearX - b.x, sdy = nearY - b.y;
@@ -1398,14 +1426,20 @@ export function GameCanvas({
             } else {
               // Compute bullet damage — missile uses superBulletDamage, super bullet uses multiplier
               // damageMultiplier from Strength power-up is applied to all player bullets
-              const bulletDmg = b.superBulletDamage != null
+              const bulletDmg = b.superBulletDamage != null && !b.isSeeker
                 ? b.superBulletDamage
-                : b.isSuperBullet
-                  ? playerStats.superBulletDamageMultiplier * playerStats.damageMultiplier
-                  : playerStats.damageMultiplier;
-              const dmgColor = b.superBulletDamage != null ? "#ff4400"
-                : b.isSuperBullet ? (b.superBulletTier === 3 ? "#ffd700" : b.superBulletTier === 2 ? "#cc44ff" : "#ff2222")
-                : "#ffffff";
+                : b.isSeeker
+                  ? b.superBulletDamage ?? playerStats.damageMultiplier
+                  : b.isSuperBullet
+                    ? playerStats.superBulletDamageMultiplier * playerStats.damageMultiplier
+                    : playerStats.damageMultiplier;
+              const dnCfg = siteDataRef.current.secretGame?.damageNumbers;
+              const dmgColor = b.isSeeker
+                ? (dnCfg?.seekerColor ?? "#ff4400")
+                : b.superBulletDamage != null
+                  ? "#ff4400"
+                  : b.isSuperBullet ? (b.superBulletTier === 3 ? "#ffd700" : b.superBulletTier === 2 ? "#cc44ff" : "#ff2222")
+                  : (dnCfg?.playerBulletColor ?? "#ffffff");
               e.hp = (e.hp ?? 1) - bulletDmg;
               s.bullets.splice(bi, 1);
               // Spawn damage number
@@ -1424,7 +1458,7 @@ export function GameCanvas({
                 spawnEffect(s.activeEffects, "bullet", impactX, impactY, playerBulletImpact);
                 spawnParticles(impactX, impactY, "#ff006e", 3);
               }
-              play("enemyHit");
+              if (b.isSeeker) { playFile("/audio/bomb.mp3"); } else { play("enemyHit"); }
             }
 
             // Chance to spawn power-up (boosted by Luck perm upgrade) — only on kill
@@ -1518,9 +1552,17 @@ export function GameCanvas({
             spawnEffect(s.activeEffects, "bullet", b.x, b.y, playerBulletImpact);
             spawnParticles(b.x, b.y, "#ff006e", 4);
             spawnParticles(b.x, b.y, "#fcee0a", 3);
-            play("enemyHit");
+            if (b.isSeeker) { playFile("/audio/bomb.mp3"); } else { play("enemyHit"); }
             // Spawn damage number on boss
-            if (s.damageNumbers.length < 40) s.damageNumbers.push({ x: b.x + (Math.random() - 0.5) * 10, y: s.boss.y - 2, value: String(Math.round(damage)), timer: 1.0, maxTimer: 1.0, color: b.superBulletDamage != null ? "#ff4400" : "#ffffff" });
+            {
+              const dnCfg2 = siteDataRef.current.secretGame?.damageNumbers;
+              const bossDmgColor = b.isSeeker
+                ? (dnCfg2?.seekerColor ?? "#ff4400")
+                : b.superBulletDamage != null
+                  ? "#ff4400"
+                  : (dnCfg2?.playerBulletColor ?? "#ffffff");
+              if (s.damageNumbers.length < 40) s.damageNumbers.push({ x: b.x + (Math.random() - 0.5) * 10, y: s.boss.y - 2, value: String(Math.round(damage)), timer: 1.0, maxTimer: 1.0, color: bossDmgColor });
+            }
             // Virus infection on boss hit
             if (playerStats.hasVirus && s.boss.virusStacks < playerStats.virusMaxStacks) {
               s.boss.virusStacks++;
@@ -1624,7 +1666,7 @@ export function GameCanvas({
           spawnEffect(s.activeEffects, "bullet", px + pw / 2, py + ph / 2, enemyBulletImpact);
           spawnParticles(px + pw / 2, py + ph / 2, "#00f0ff", 10);
           play("playerHit");
-          s.damageNumbers.push({ x: px + pw / 2 + (Math.random() - 0.5) * 10, y: py, value: String(waveEnemyBulletDmg), timer: 1.0, maxTimer: 1.0, color: "#ff4444" });
+          s.damageNumbers.push({ x: px + pw / 2 + (Math.random() - 0.5) * 10, y: py, value: String(waveEnemyBulletDmg), timer: 1.0, maxTimer: 1.0, color: siteDataRef.current.secretGame?.damageNumbers?.playerHitColor ?? "#ff4444" });
           if (s.currentSlices <= 0) {
             play("gameOver");
             onPhaseChange("gameover");
@@ -1657,7 +1699,7 @@ export function GameCanvas({
             s.screenShake = 0.3;
             spawnParticles(px + pw / 2, py + ph / 2, "#ff006e", 10);
             play("playerHit");
-            s.damageNumbers.push({ x: px + pw / 2, y: py - 5, value: String(waveEnemyCollisionDmg), timer: 1.0, maxTimer: 1.0, color: "#ff4444" });
+            s.damageNumbers.push({ x: px + pw / 2, y: py - 5, value: String(waveEnemyCollisionDmg), timer: 1.0, maxTimer: 1.0, color: siteDataRef.current.secretGame?.damageNumbers?.playerHitColor ?? "#ff4444" });
             if (s.currentSlices <= 0) {
               play("gameOver");
               onPhaseChange("gameover");
@@ -1688,7 +1730,7 @@ export function GameCanvas({
             s.screenShake = 0.25;
             spawnParticles(px + pw / 2, py + ph / 2, "#ff4444", 8);
             play("playerHit");
-            s.damageNumbers.push({ x: px + pw / 2 + (Math.random() - 0.5) * 8, y: py - 2, value: String(waveEnemyCollisionDmg), timer: 1.0, maxTimer: 1.0, color: "#ff4444" });
+            s.damageNumbers.push({ x: px + pw / 2 + (Math.random() - 0.5) * 8, y: py - 2, value: String(waveEnemyCollisionDmg), timer: 1.0, maxTimer: 1.0, color: siteDataRef.current.secretGame?.damageNumbers?.playerHitColor ?? "#ff4444" });
             s.playerBodyHitTimer = 1.0; // 1-second invincibility window after collision
             if (s.currentSlices <= 0) {
               play("gameOver");
@@ -1761,11 +1803,14 @@ export function GameCanvas({
       tickEffects(s.activeEffects, dt);
 
       // ── Damage numbers: drift up and fade ──
-      for (let i = s.damageNumbers.length - 1; i >= 0; i--) {
-        const dn = s.damageNumbers[i];
-        dn.y -= 18 * dt; // drift upward
-        dn.timer -= dt;
-        if (dn.timer <= 0) s.damageNumbers.splice(i, 1);
+      {
+        const driftSpd = siteDataRef.current.secretGame?.damageNumbers?.driftSpeed ?? 18;
+        for (let i = s.damageNumbers.length - 1; i >= 0; i--) {
+          const dn = s.damageNumbers[i];
+          dn.y -= driftSpd * dt; // drift upward
+          dn.timer -= dt;
+          if (dn.timer <= 0) s.damageNumbers.splice(i, 1);
+        }
       }
 
       // ── Render ──
@@ -1991,34 +2036,37 @@ export function GameCanvas({
       }
     }
 
-    // Draw orbital orbs (8-bit energy orbs around player)
+    // Draw orbital orbs — use orbs.png spritesheet (4×8 grid, 32×32 per cell, row 0 = first orb)
     const playerStats2 = playerStatsRef.current;
     if (playerStats2.hasOrbital && s.orbitalActive) {
       const pcx3 = s.playerX + PLAYER_W_BASE / 2;
       const pcy3 = s.playerY + PLAYER_H_BASE / 2;
+      // Animate through 4 frames of row 0 at ~8fps
+      const orbFrame = Math.floor(s.frame / 8) % 4;
+      const ORB_CELL = 32; // sprite cell size
+      const orbImg = orbsImageRef.current;
       for (let oi = 0; oi < playerStats2.orbitalOrbCount; oi++) {
         const angle = s.orbitalBaseAngle + (oi / playerStats2.orbitalOrbCount) * Math.PI * 2;
         const ox = pcx3 + Math.cos(angle) * playerStats2.orbitalRadius;
         const oy = pcy3 + Math.sin(angle) * playerStats2.orbitalRadius;
-        const oR = playerStats2.orbitalOrbSize;
-        // Glow pulse
-        const pulse = 0.7 + Math.sin(s.frame * 0.2 + oi * 2.1) * 0.3;
+        const oR = playerStats2.orbitalOrbSize; // hitbox radius — sprite drawn at oR*2 × oR*2
+        const pulse = 0.8 + Math.sin(s.frame * 0.2 + oi * 2.1) * 0.2;
         ctx.save();
         ctx.globalAlpha = pulse;
-        ctx.shadowColor = "#00f0ff";
-        ctx.shadowBlur = 10;
-        // Outer orb
-        ctx.fillStyle = "#00f0ff";
-        ctx.fillRect(ox - oR, oy - oR, oR * 2, oR * 2);
-        // Inner bright core (8-bit style)
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(ox - oR * 0.45, oy - oR * 0.45, oR * 0.9, oR * 0.9);
-        // Corner pixels for 8-bit look
-        ctx.fillStyle = "#0088cc";
-        ctx.fillRect(ox - oR, oy - oR, 2, 2);
-        ctx.fillRect(ox + oR - 2, oy - oR, 2, 2);
-        ctx.fillRect(ox - oR, oy + oR - 2, 2, 2);
-        ctx.fillRect(ox + oR - 2, oy + oR - 2, 2, 2);
+        if (orbImg && orbImg.complete) {
+          // Draw sprite from row 0, column = orbFrame
+          ctx.drawImage(
+            orbImg,
+            orbFrame * ORB_CELL, 0,   // source x, y
+            ORB_CELL, ORB_CELL,       // source w, h
+            ox - oR, oy - oR,         // dest x, y (centred on orbit position)
+            oR * 2, oR * 2,           // dest w, h (matches hitbox diameter)
+          );
+        } else {
+          // Fallback: simple cyan square while image loads
+          ctx.fillStyle = "#00f0ff";
+          ctx.fillRect(ox - oR, oy - oR, oR * 2, oR * 2);
+        }
         ctx.restore();
       }
     }
@@ -2099,18 +2147,21 @@ export function GameCanvas({
     ctx.globalAlpha = 1;
 
     // Draw damage numbers (floating text, fades upward)
-    for (const dn of s.damageNumbers) {
-      const alpha = Math.max(0, dn.timer / dn.maxTimer);
-      ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = dn.color;
-      ctx.shadowColor = dn.color;
-      ctx.shadowBlur = 4;
-      ctx.font = "bold 6px monospace";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(dn.value, dn.x, dn.y);
-      ctx.restore();
+    {
+      const dnFontSize = siteDataRef.current.secretGame?.damageNumbers?.fontSize ?? 8;
+      for (const dn of s.damageNumbers) {
+        const alpha = Math.max(0, dn.timer / dn.maxTimer);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = dn.color;
+        ctx.shadowColor = dn.color;
+        ctx.shadowBlur = 4;
+        ctx.font = `bold ${dnFontSize}px monospace`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(dn.value, dn.x, dn.y);
+        ctx.restore();
+      }
     }
 
     ctx.restore();
