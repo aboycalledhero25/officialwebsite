@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { User } from "lucide-react";
+import { Menu, User } from "lucide-react";
 
 const pageTitles: Record<string, string> = {
   "/admin": "Dashboard",
@@ -17,13 +17,23 @@ const pageTitles: Record<string, string> = {
   "/admin/media-library": "Media Library",
 };
 
-export function AdminHeader() {
+export function AdminHeader({ onMenuOpen }: { onMenuOpen?: () => void }) {
   const pathname = usePathname();
   const title = pageTitles[pathname] || "Admin";
 
   return (
-    <header className="h-16 border-b border-[#1e1e1e] bg-[#0a0a0a] flex items-center justify-between px-6 sticky top-0 z-10">
-      <h1 className="text-lg font-semibold text-white">{title}</h1>
+    <header className="h-14 lg:h-16 border-b border-[#1e1e1e] bg-[#0a0a0a] flex items-center justify-between px-4 lg:px-6 sticky top-0 z-10">
+      <div className="flex items-center gap-3">
+        {/* Hamburger – mobile only */}
+        <button
+          onClick={onMenuOpen}
+          className="lg:hidden p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-[#1e1e1e] transition-colors -ml-1"
+          aria-label="Open navigation"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+        <h1 className="text-base lg:text-lg font-semibold text-white">{title}</h1>
+      </div>
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2 text-sm text-neutral-400">
           <div className="w-7 h-7 rounded-full bg-[#1e1e1e] flex items-center justify-center">
