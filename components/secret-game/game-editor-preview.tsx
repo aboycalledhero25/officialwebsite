@@ -493,18 +493,17 @@ export function GameEditorPreview({
   }
 
   const isMobile = platform === "mobile";
-  // Mobile: portrait phone (375×750 ≈ 1:2, fits in 520px sidebar).
-  // Desktop: landscape – the game fills the full viewport height-scaled, so a
-  // wide-short frame represents a typical monitor. Use full container width so
-  // it doesn't overflow the 520px admin sidebar.
+  // Mobile: 390×844 = iPhone 14 viewport — the actual size the game renders at.
+  // Desktop: fill 100% of whatever width the parent gives (parent handles sizing),
+  // locked to 16:9 so it matches a typical desktop monitor aspect ratio.
   const frameClass = isMobile
-    ? "w-[375px] h-[750px]"
-    : "w-full h-[260px]";
+    ? "w-[390px] h-[844px]"
+    : "w-full aspect-[16/9]";
 
   return (
     <div className="flex flex-col items-center gap-3">
       <div className="text-xs text-neutral-400 font-mono uppercase tracking-wider">
-        {platform} Preview ({BASE_W} × {BASE_H} ref)
+        {platform} Preview · {isMobile ? "390 × 844 (iPhone 14)" : "16:9 desktop"} · {BASE_W} × {BASE_H} game units
       </div>
       <div
         ref={containerRef}

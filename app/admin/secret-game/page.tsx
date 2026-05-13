@@ -274,10 +274,13 @@ export default function SecretGameAdminPage() {
         />
       </div>
 
-      {/* Platform toggle + Two-column layout */}
+      {/* Platform toggle + Two-column layout
+          Mobile platform  → forms flex-1 (left), phone preview fixed-width (right)
+          Desktop platform → forms fixed-width (left), wide preview flex-1 (right)
+          so the desktop preview can grow to fill the full available admin width.     */}
       <div className="flex flex-col lg:flex-row gap-6">
-        {/* Left: Settings forms */}
-        <div className="flex-1 min-w-0 space-y-4">
+        {/* Settings forms */}
+        <div className={`space-y-4 ${platform === "desktop" ? "lg:w-[420px] shrink-0" : "flex-1 min-w-0"}`}>
           {/* Platform tabs */}
           <div className="flex gap-2">
             <button
@@ -947,8 +950,10 @@ export default function SecretGameAdminPage() {
           </Section>
         </div>
 
-        {/* Right: Live Preview */}
-        <div className="lg:w-[520px] shrink-0">
+        {/* Right: Live Preview
+            Desktop platform → flex-1 (grows to fill remaining width, matching actual game size)
+            Mobile platform  → fixed 460px wide (fits the 390px phone with breathing room)  */}
+        <div className={platform === "desktop" ? "flex-1 min-w-0" : "lg:w-[460px] shrink-0"}>
           <div className="sticky top-6 rounded-xl border border-[#1e1e1e] bg-[#141414] p-5 space-y-4">
             <h3 className="font-semibold text-white">Live Preview</h3>
             <p className="text-xs text-neutral-500">
