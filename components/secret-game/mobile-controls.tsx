@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
-import { sharedTouch, sharedAim } from "./use-keyboard-controls";
+import { sharedTouch, sharedAim, sharedKeys } from "./use-keyboard-controls";
 import { unlockAudio } from "./use-audio-sfx";
 import { useSiteData } from "@/components/data-provider";
 
@@ -31,18 +31,20 @@ export function MobileControls({}: MobileControlsProps) {
 
   // Convert screen pixel to base game coordinates using the control layer's actual size
   const screenToBase = useCallback((clientX: number, clientY: number) => {
+    const vw = window.visualViewport;
+    if (vw) {
+      // Prefer visualViewport (available on all modern browsers) — avoids
+      // forced synchronous layout from getBoundingClientRect().
+      return {
+        x: Math.max(0, Math.min(BASE_W, ((clientX - vw.offsetLeft) / vw.width) * BASE_W)),
+        y: Math.max(0, Math.min(BASE_H, ((clientY - vw.offsetTop) / vw.height) * BASE_H)),
+      };
+    }
     const layer = layerRef.current;
     const rect = layer ? layer.getBoundingClientRect() : { width: window.innerWidth, height: window.innerHeight, left: 0, top: 0 };
-    const vw = window.visualViewport;
-    // Use visualViewport when available for consistent sizing across mobile browsers
-    const viewW = vw ? vw.width : rect.width;
-    const viewH = vw ? vw.height : rect.height;
-    const viewLeft = vw ? vw.offsetLeft : rect.left;
-    const viewTop = vw ? vw.offsetTop : rect.top;
-
     return {
-      x: Math.max(0, Math.min(BASE_W, ((clientX - viewLeft) / viewW) * BASE_W)),
-      y: Math.max(0, Math.min(BASE_H, ((clientY - viewTop) / viewH) * BASE_H)),
+      x: Math.max(0, Math.min(BASE_W, ((clientX - rect.left) / rect.width) * BASE_W)),
+      y: Math.max(0, Math.min(BASE_H, ((clientY - rect.top) / rect.height) * BASE_H)),
     };
   }, []);
 
@@ -125,12 +127,17 @@ export function MobileControls({}: MobileControlsProps) {
         mouseTrackingActive.current = true;
       }
       const pos = screenToBase(e.clientX, e.clientY);
-      // Move the player toward the cursor (same mechanism as touch follow-finger)
-      sharedTouch.targetX = pos.x;
-      sharedTouch.targetY = pos.y;
-      // Also update aim position
+      // Always update aim position so the mouse controls shooting direction
       sharedAim.x = pos.x;
       sharedAim.y = pos.y;
+      // Only drive player movement from the mouse if keyboard keys aren't held.
+      // This stops the mouse from hijacking movement when the user is playing
+      // with WASD / arrow keys on desktop.
+      const keysActive = sharedKeys.left || sharedKeys.right || sharedKeys.up || sharedKeys.down;
+      if (!keysActive) {
+        sharedTouch.targetX = pos.x;
+        sharedTouch.targetY = pos.y;
+      }
     },
     [screenToBase]
   );
@@ -159,6 +166,7 @@ export function MobileControls({}: MobileControlsProps) {
   const handleMouseLeaveWindow = useCallback(() => {
     sharedTouch.targetX = null;
     sharedTouch.targetY = null;
+    mouseTrackingActive.current = false;
     firingToggle.current = false;
     sharedAim.firing = false;
     sharedAim.aiming = false;

@@ -59,24 +59,32 @@ export function useKeyboardControls() {
         case "a":
         case "A":
           sharedKeys.left = true;
+          sharedTouch.targetX = null;
+          sharedTouch.targetY = null;
           e.preventDefault();
           break;
         case "ArrowRight":
         case "d":
         case "D":
           sharedKeys.right = true;
+          sharedTouch.targetX = null;
+          sharedTouch.targetY = null;
           e.preventDefault();
           break;
         case "ArrowUp":
         case "w":
         case "W":
           sharedKeys.up = true;
+          sharedTouch.targetX = null;
+          sharedTouch.targetY = null;
           e.preventDefault();
           break;
         case "ArrowDown":
         case "s":
         case "S":
           sharedKeys.down = true;
+          sharedTouch.targetX = null;
+          sharedTouch.targetY = null;
           e.preventDefault();
           break;
         case " ":
@@ -144,6 +152,8 @@ export function useKeyboardControls() {
       sharedKeys.up = false;
       sharedKeys.down = false;
       sharedKeys.shoot = false;
+      sharedTouch.targetX = null;
+      sharedTouch.targetY = null;
     };
 
     window.addEventListener("keydown", handleDown);
