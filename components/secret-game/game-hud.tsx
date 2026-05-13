@@ -1,7 +1,7 @@
 "use client";
 
 import { useSiteData } from "@/components/data-provider";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const BASE_H = 320;
 const BASE_W = 240;
@@ -90,6 +90,12 @@ export function GameHUD({ score, lives, wave, muted, activePowerUps, onPause, on
   const [dims, setDims] = useState({ w: 1920, h: 1080 });
   const [scoreBump, setScoreBump] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [iosHint, setIosHint] = useState(false);
+  const iosHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Detect iOS — requestFullscreen does not exist on iOS Safari for non-video elements
+  const isIOS = typeof navigator !== "undefined" &&
+    /iP(hone|ad|od)/.test(navigator.userAgent);
 
   // Track fullscreen state changes (e.g. user presses Escape)
   useEffect(() => {
@@ -106,11 +112,22 @@ export function GameHUD({ score, lives, wave, muted, activePowerUps, onPause, on
   }, []);
 
   const toggleFullscreen = () => {
-    const doc = document as Document & { webkitFullscreenElement?: Element; webkitExitFullscreen?: () => void };
-    const el = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => void };
+    // iOS Safari has no fullscreen API for web content (only <video> supports it).
+    // The only way to get true fullscreen on iOS is "Add to Home Screen" → standalone PWA.
+    if (isIOS) {
+      if (iosHintTimer.current) clearTimeout(iosHintTimer.current);
+      setIosHint(true);
+      iosHintTimer.current = setTimeout(() => setIosHint(false), 6000);
+      return;
+    }
+
+    type FSDoc = Document & { webkitFullscreenElement?: Element; webkitExitFullscreen?: () => void };
+    type FSEl  = HTMLElement & { webkitRequestFullscreen?: () => void };
+    const doc = document as FSDoc;
+    const el  = document.documentElement as FSEl;
     const isFs = !!(document.fullscreenElement || doc.webkitFullscreenElement);
+
     if (!isFs) {
-      // Standard API first, then webkit fallback (Safari / older Chrome on iOS)
       if (typeof el.requestFullscreen === "function") {
         el.requestFullscreen().catch(() => {});
       } else if (typeof el.webkitRequestFullscreen === "function") {
@@ -363,6 +380,38 @@ export function GameHUD({ score, lives, wave, muted, activePowerUps, onPause, on
           </div>
         );
       })()}
+
+      {/* iOS fullscreen hint — shown when user taps fullscreen on iPhone/iPad */}
+      {iosHint && (
+        <div
+          className="absolute pointer-events-none"
+          style={{
+            bottom: "12%",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 200,
+            width: "min(280px, 80vw)",
+          }}
+        >
+          <div
+            className="rounded-xl text-white text-center px-4 py-4"
+            style={{
+              background: "rgba(0,0,0,0.92)",
+              border: "1px solid rgba(255,255,255,0.2)",
+              boxShadow: "0 4px 24px rgba(0,0,0,0.6)",
+            }}
+          >
+            <div className="text-2xl mb-2">📱</div>
+            <div className="font-bold text-sm mb-1">Fullscreen on iPhone</div>
+            <div className="text-xs text-white/70 leading-relaxed">
+              Tap the <span className="text-white font-bold">Share</span> button{" "}
+              <span className="text-lg">⬆</span> then{" "}
+              <span className="text-white font-bold">Add to Home Screen</span>.
+              Opening from there gives you the full screen with no browser bar.
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
