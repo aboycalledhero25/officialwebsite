@@ -710,10 +710,12 @@ export default function SecretGameAdminPage() {
         </Section>
 
         <Section title="Perm Shield (perm upgrade)">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             <NumberField label="Duration (s)" value={shield.duration ?? 10} onChange={(v) => upRc("shield", { duration: v })} min={1} max={60} step={1} />
             <NumberField label="Cooldown (s)" value={shield.cooldown ?? 30} onChange={(v) => upRc("shield", { cooldown: v })} min={1} max={120} step={1} />
+            <NumberField label="Visual Size (scale)" value={settings.permShield?.size ?? 1} onChange={(v) => updateField("permShield.size", v)} min={0.1} max={5} step={0.1} />
           </div>
+          <p className="text-xs text-neutral-500 mt-2">Visual Size scales the shield sprite. Radius and offset are in the Layout tab.</p>
         </Section>
 
         <Section title="Health (Slices)">
