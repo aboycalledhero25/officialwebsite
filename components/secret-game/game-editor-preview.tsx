@@ -729,7 +729,10 @@ export function GameEditorPreview({
     if (bgImg && bgImg.complete && bgImg.naturalWidth > 0) {
       const imgW = bgImg.naturalWidth;
       const imgH = bgImg.naturalHeight;
-      const bgScale = Math.max(logW / imgW, BASE_H / imgH);
+      // Desktop: cover (fill logical canvas). Mobile: contain (show full image, no crop).
+      const bgScale = platform === "mobile"
+        ? Math.min(logW / imgW, BASE_H / imgH)
+        : Math.max(logW / imgW, BASE_H / imgH);
       const drawW = imgW * bgScale;
       const drawH = imgH * bgScale;
       const offX = (logW - drawW) / 2;

@@ -154,9 +154,10 @@ export default function FullscreenPreviewPage() {
           className="relative overflow-hidden"
           style={{
             width: platform === "desktop" ? "100%" : "min(100%, 420px)",
-            height: platform === "desktop" ? "100%" : "100%",
+            height: platform === "desktop" ? "100%" : "auto",
             maxWidth: platform === "desktop" ? "100%" : "420px",
             maxHeight: platform === "desktop" ? "100%" : "100%",
+            aspectRatio: platform === "desktop" ? undefined : "941 / 1672",
           }}
         >
           <GameEditorPreview
