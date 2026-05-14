@@ -293,6 +293,11 @@ export function GameCanvas({
     seekerMissileAccum: 0, // cooldown accumulator
     // ── Run stats ────────────────────────────────────────────────────
     totalDamageDealt: 0,   // accumulated player damage this run
+    // ── Horde spawn state ────────────────────────────────────────────
+    enemiesToSpawn: 0,     // how many enemies still need to spawn this wave
+    spawnTimer: 0,         // countdown until next enemy spawn
+    spawnRate: 1,          // enemies per second
+    waveCompleteDelay: 0,  // delay before auto-advancing to next wave
   });
 
   // Resize canvas to fill viewport
@@ -400,53 +405,14 @@ export function GameCanvas({
         collisionDamage: bossGroupConfig?.collisionDamage ?? (siteData.secretGame?.enemyCollisionDamage ?? 1),
       };
     } else {
-      const maxW = logW - edgeMargin * 2;
-      const colUnit = cfg.width + cfg.paddingX;
-      const rowUnit = cfg.height + cfg.paddingY;
-      const maxCols = Math.max(1, Math.floor((maxW + cfg.paddingX) / colUnit));
-      // Grow columns slowly: +1 col every 5 waves (smooth scaling, avoids 70-enemy grids early)
-      const cols = Math.min(maxCols, cfg.columns + Math.floor((w - 1) / 5));
-      // Cap rows so enemies never drop below 55% of screen height (above player area)
-      const maxRows = Math.floor((BASE_H * 0.55 - cfg.startY) / rowUnit) + 1;
-      // Grow rows slowly: +1 row every 8 waves
-      const rows = Math.min(maxRows, cfg.rows + Math.floor((w - 1) / 8));
-      const totalW = cols * colUnit - cfg.paddingX;
-      const startX = Math.max(edgeMargin, (logW - totalW) / 2) + (cfg.offsetX ?? 0);
-      const startY = Math.max(3, cfg.startY); // ensure enemy hair is visible
-
-      // Calculate enemy HP for this wave
-      let waveHp: number;
-      if (groupConfig) {
-        waveHp = Math.max(1, Math.round(groupConfig.hp));
-      } else {
-        const baseHp = siteData.secretGame?.enemyBaseHp ?? 1;
-        const hpPerWave = siteData.secretGame?.enemyHpPerWave ?? 0;
-        waveHp = Math.max(1, Math.round(baseHp + (w - 1) * hpPerWave));
-      }
-
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          s.enemies.push({
-            x: startX + c * (cfg.width + cfg.paddingX),
-            y: startY + r * (cfg.height + cfg.paddingY),
-            variant: ((r + c) % 3) as 0 | 1 | 2,
-            alive: true,
-            cooldown: Math.random() * 2,
-            // Each enemy fires a random projectile from the 4×4 sprite sheet (0–15)
-            projectileIndex: Math.floor(Math.random() * 16),
-            virusStacks: 0,
-            virusTimer: 0,
-            virusAccum: 0,
-            hp: waveHp,
-            maxHp: waveHp,
-            animState: "walking",
-            animAccum: Math.random() * 2.5, // stagger start frame so grid doesn't look uniform
-            dying: false,
-            facing: "down",
-            orbitalHitCooldown: 0, // prevents orbital from dealing damage every frame
-          });
-        }
-      }
+      // Horde wave: set up spawn counters instead of spawning all at once
+      const waveConfig = siteData.secretGame?.waveConfigs?.[w - 1];
+      const spawnCount = waveConfig?.spawnCount ?? Math.min(8 + (w - 1) * 4, 60);
+      const spawnRate = waveConfig?.spawnRate ?? Math.min(1 + (w - 1) * 0.2, 5);
+      const spawnDelay = waveConfig?.spawnDelay ?? 1;
+      s.enemiesToSpawn = spawnCount;
+      s.spawnRate = spawnRate;
+      s.spawnTimer = spawnDelay;
     }
 
     // Scale difficulty with wave (capped for infinite playability)
@@ -609,6 +575,7 @@ export function GameCanvas({
     }
     if (
       phase === "playing" &&
+      stateRef.current.enemiesToSpawn === 0 &&
       stateRef.current.enemies.filter((e) => e.alive).length === 0 &&
       !stateRef.current.boss
     ) {
@@ -699,6 +666,49 @@ export function GameCanvas({
       }
       s.playerX = Math.max(0, Math.min(playAreaW - PLAYER_W_BASE, s.playerX));
       s.playerY = Math.max(0, Math.min(BASE_H - PLAYER_H_BASE, s.playerY));
+
+      // ── Horde spawning ──
+      if (s.enemiesToSpawn > 0) {
+        s.spawnTimer -= dt;
+        if (s.spawnTimer <= 0) {
+          const spawnPoints = settingsRef.current.spawnPoints.filter((sp) => sp.enabled);
+          if (spawnPoints.length > 0) {
+            const sp = spawnPoints[Math.floor(Math.random() * spawnPoints.length)];
+            const groupIdx2 = Math.floor((s.wave - 1) / 10);
+            const groupConfig2 = siteData.secretGame?.enemyDifficultyPerWaveGroup?.[groupIdx2];
+            let waveHp2: number;
+            if (groupConfig2) {
+              waveHp2 = Math.max(1, Math.round(groupConfig2.hp));
+            } else {
+              const baseHp2 = siteData.secretGame?.enemyBaseHp ?? 1;
+              const hpPerWave2 = siteData.secretGame?.enemyHpPerWave ?? 0;
+              waveHp2 = Math.max(1, Math.round(baseHp2 + (s.wave - 1) * hpPerWave2));
+            }
+            const ew2 = settingsRef.current.enemy.width;
+            const eh2 = settingsRef.current.enemy.height;
+            s.enemies.push({
+              x: sp.x - ew2 / 2,
+              y: sp.y,
+              variant: Math.floor(Math.random() * 3) as 0 | 1 | 2,
+              alive: true,
+              cooldown: Math.random() * 2,
+              projectileIndex: Math.floor(Math.random() * 16),
+              virusStacks: 0,
+              virusTimer: 0,
+              virusAccum: 0,
+              hp: waveHp2,
+              maxHp: waveHp2,
+              animState: "walking",
+              animAccum: Math.random() * 2.5,
+              dying: false,
+              facing: "down",
+              orbitalHitCooldown: 0,
+            });
+            s.enemiesToSpawn--;
+            s.spawnTimer = 1 / s.spawnRate;
+          }
+        }
+      }
 
       // ── Permanent Shield (periodic) ─────────────────────────────────
       if (playerStats.hasPermShield) {
@@ -1148,21 +1158,32 @@ export function GameCanvas({
           aimX = sharedAim.x * (logW / BASE_W);
           aimY = sharedAim.y;
         } else {
-          // Auto-target closest alive enemy
+          // Auto-target closest alive enemy or boss
+          let bestDist = Infinity;
+          let targetX: number | null = null;
+          let targetY: number | null = null;
           const aliveEnemies2 = s.enemies.filter((e) => e.alive);
-          if (aliveEnemies2.length > 0) {
-            let closest = aliveEnemies2[0];
-            let bestDist = Infinity;
-            for (const e of aliveEnemies2) {
-              const ex = e.x + ew / 2;
-              const ey = e.y + eh / 2;
-              const ddx = ex - px;
-              const ddy = ey - py;
-              const dd = ddx * ddx + ddy * ddy;
-              if (dd < bestDist) { bestDist = dd; closest = e; }
-            }
-            aimX = closest.x + ew / 2;
-            aimY = closest.y + eh / 2;
+          for (const e of aliveEnemies2) {
+            const ex = e.x + ew / 2;
+            const ey = e.y + eh / 2;
+            const ddx = ex - px;
+            const ddy = ey - py;
+            const dd = ddx * ddx + ddy * ddy;
+            if (dd < bestDist) { bestDist = dd; targetX = ex; targetY = ey; }
+          }
+          if (s.boss && s.boss.health > 0) {
+            const bw2 = siteData.secretGame?.boss?.width ?? 40;
+            const bh2 = siteData.secretGame?.boss?.height ?? 30;
+            const bx2 = s.boss.x + bw2 / 2;
+            const by2 = s.boss.y + bh2 / 2;
+            const ddx = bx2 - px;
+            const ddy = by2 - py;
+            const dd = ddx * ddx + ddy * ddy;
+            if (dd < bestDist) { bestDist = dd; targetX = bx2; targetY = by2; }
+          }
+          if (targetX !== null && targetY !== null) {
+            aimX = targetX;
+            aimY = targetY;
           }
         }
         const dx = aimX - px;
@@ -1274,39 +1295,48 @@ export function GameCanvas({
       // ── Boss behaviour ──
       const bossCfg = siteData.secretGame?.boss;
       if (s.boss && bossCfg?.enabled) {
-        // Patrol freely left / right, bouncing off walls
         const bw = bossCfg?.width ?? 40;
+        const bh = bossCfg?.height ?? 30;
         const bossSpeed = s.boss.trackSpeed;
-        s.boss.x += s.boss.dir * bossSpeed * dt;
-        if (s.boss.x <= 4) {
-          s.boss.x = 4;
-          s.boss.dir = 1;
-        } else if (s.boss.x + bw >= playAreaW - 4) {
-          s.boss.x = playAreaW - 4 - bw;
-          s.boss.dir = -1;
+        // Track player like regular enemies
+        const bcx = s.boss.x + bw / 2;
+        const bcy = s.boss.y + bh / 2;
+        const bdx2 = pCx - bcx;
+        const bdy2 = pCy - bcy;
+        const bdist2 = Math.sqrt(bdx2 * bdx2 + bdy2 * bdy2);
+        if (bdist2 > 1) {
+          s.boss.x += (bdx2 / bdist2) * bossSpeed * dt;
+          s.boss.y += (bdy2 / bdist2) * bossSpeed * dt;
         }
+        // Clamp to play area
+        s.boss.x = Math.max(4, Math.min(playAreaW - 4 - bw, s.boss.x));
+        s.boss.y = Math.max(4, Math.min(BASE_H - 4 - bh, s.boss.y));
 
-        // Fire large projectile at player every N seconds
+        // Fire projectiles at player every N seconds
         s.boss.fireCooldown -= dt;
         if (s.boss.fireCooldown <= 0) {
           const bx = s.boss.x + bw / 2;
-          const by = s.boss.y + (bossCfg?.height ?? 30);
-          const px = s.playerX + PLAYER_W_BASE / 2;
-          const py = s.playerY + PLAYER_H_BASE / 2;
-          const bdx = px - bx;
-          const bdy = py - by;
-          const bdist = Math.sqrt(bdx * bdx + bdy * bdy);
+          const by = s.boss.y + bh;
+          const px2 = s.playerX + PLAYER_W_BASE / 2;
+          const py2 = s.playerY + PLAYER_H_BASE / 2;
+          const bdx3 = px2 - bx;
+          const bdy3 = py2 - by;
+          const bdist3 = Math.sqrt(bdx3 * bdx3 + bdy3 * bdy3);
           const pspeed = s.boss.projectileSpeed;
-          const vx = bdist > 1 ? (bdx / bdist) * pspeed : 0;
-          const vy = bdist > 1 ? (bdy / bdist) * pspeed : pspeed;
-          s.bullets.push({
-            x: bx,
-            y: by,
-            vx,
-            vy,
-            isPlayer: false,
-            isBoss: true,
-          });
+          const baseAngle = Math.atan2(bdist3 > 1 ? (bdy3 / bdist3) * pspeed : pspeed, bdist3 > 1 ? (bdx3 / bdist3) * pspeed : 0);
+          const count = bossCfg?.projectileCount ?? 1;
+          const spread = count > 1 ? 0.15 : 0;
+          for (let i = 0; i < count; i++) {
+            const angle = baseAngle + (count > 1 ? (i - (count - 1) / 2) * spread : 0);
+            s.bullets.push({
+              x: bx,
+              y: by,
+              vx: Math.cos(angle) * pspeed,
+              vy: Math.sin(angle) * pspeed,
+              isPlayer: false,
+              isBoss: true,
+            });
+          }
           s.boss.fireCooldown = s.boss.fireInterval;
           // Trigger Throwing animation
           s.boss.animState = "throwing";
@@ -1883,7 +1913,7 @@ export function GameCanvas({
       }
 
       // ── Wave complete? ──
-      if (aliveEnemies.length === 0 && !s.boss) {
+      if (s.enemiesToSpawn === 0 && aliveEnemies.length === 0 && !s.boss) {
         play("levelComplete");
         if (s.wave === 100) {
           onPhaseChange("songunlock");

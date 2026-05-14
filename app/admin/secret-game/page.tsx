@@ -8,7 +8,7 @@ import {
 import { GameEditorPreview } from "@/components/secret-game/game-editor-preview";
 import { updateSecretGameSettings, resetLeaderboard, getLeaderboard, deleteScore, updateScore } from "@/lib/actions";
 import { useRouter } from "next/navigation";
-import type { SecretGameSettings, GamePlatformSettings } from "@/lib/data";
+import type { SecretGameSettings, GamePlatformSettings, SpawnPoint } from "@/lib/data";
 import { useAudioSfx, unlockAudio } from "@/components/secret-game/use-audio-sfx";
 import { POWER_UP_REGISTRY } from "@/components/secret-game/power-up-registry";
 
@@ -40,6 +40,11 @@ const DEFAULT_PLATFORM: GamePlatformSettings = {
   },
   bossHealthBar: { visible: true, x: 90, y: 4, size: 6 },
   boss: { x: 100, y: 20 },
+  spawnPoints: [
+    { x: 40, y: 10, enabled: true },
+    { x: 120, y: 10, enabled: true },
+    { x: 200, y: 10, enabled: true },
+  ] as [SpawnPoint, SpawnPoint, SpawnPoint],
 };
 
 const TABS = [
@@ -105,8 +110,8 @@ export default function SecretGameAdminPage() {
           powerUpMaxStacks: sg.powerUpMaxStacks ?? {},
           boss: sg.boss ?? {
             enabled: true, interval: 10, baseHealth: 500, healthIncrease: 500,
-            bulletDamage: 20, projectileSpeed: 80, projectileSize: 10, fireInterval: 3,
-            trackSpeed: 30, width: 40, height: 30, scoreReward: 500,
+            bulletDamage: 20, projectileSpeed: 80, projectileSize: 10, projectileCount: 1,
+            fireInterval: 3, trackSpeed: 30, width: 40, height: 30, scoreReward: 500,
           },
           roguelikeConfig: sg.roguelikeConfig ?? {},
           permShield: sg.permShield ?? { offsetX: 0, offsetY: 0, radius: 20, size: 1 },
@@ -118,6 +123,7 @@ export default function SecretGameAdminPage() {
           bossHealthPerWaveGroup: sg.bossHealthPerWaveGroup ?? [],
           bossDifficultyPerWaveGroup: sg.bossDifficultyPerWaveGroup ?? [],
           enemyDifficultyPerWaveGroup: sg.enemyDifficultyPerWaveGroup ?? [],
+          waveConfigs: sg.waveConfigs ?? [{ spawnCount: 8, spawnRate: 1, spawnDelay: 1 }, { spawnCount: 12, spawnRate: 1.2, spawnDelay: 0.5 }, { spawnCount: 16, spawnRate: 1.4, spawnDelay: 0.5 }],
           sfxVolumes: sg.sfxVolumes ?? {},
           damageNumbers: sg.damageNumbers ?? {},
           desktop: { ...DEFAULT_PLATFORM, ...sg.desktop, enemy: { ...DEFAULT_PLATFORM.enemy, ...(sg.desktop?.enemy ?? {}) } },
@@ -378,6 +384,22 @@ export default function SecretGameAdminPage() {
         </div>
       </Section>
 
+      <Section title={`Enemy Spawn Points (${platform})`}>
+        <p className="text-xs text-neutral-500 mb-3">Three spawn points where horde enemies appear. Drag them in the preview to reposition.</p>
+        {plat.spawnPoints.map((sp, idx) => (
+          <div key={idx} className="rounded-lg border border-[#1e1e1e] bg-[#0a0a0a] p-3 mb-2">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-neutral-300">Spawn Point {idx + 1}</span>
+              <Toggle label="Enabled" checked={sp.enabled} onChange={(v) => updateField(`${platform}.spawnPoints.${idx}.enabled`, v)} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <NumberField label="X" value={sp.x} onChange={(v) => updateField(`${platform}.spawnPoints.${idx}.x`, v)} min={0} max={240} step={1} />
+              <NumberField label="Y" value={sp.y} onChange={(v) => updateField(`${platform}.spawnPoints.${idx}.y`, v)} min={0} max={320} step={1} />
+            </div>
+          </div>
+        ))}
+      </Section>
+
       <Section title="Shield Bubble (temp power-up)">
         <div className="grid grid-cols-3 gap-4">
           <NumberField label="Offset X" value={plat.shield.offsetX} onChange={(v) => updateField(`${platform}.shield.offsetX`, v)} step={1} />
@@ -494,6 +516,42 @@ export default function SecretGameAdminPage() {
           setSettings((prev) => prev ? { ...prev, enemyDifficultyPerWaveGroup: [...current, nextGroup] } : prev);
         }} className="mt-3 flex items-center gap-1.5 rounded-lg border border-[#1e1e1e] bg-[#0a0a0a] px-3 py-2 text-xs text-neutral-300 hover:bg-[#1e1e1e] transition-colors"><Plus className="w-3.5 h-3.5" /> Add Wave Group</button>
       </Section>
+
+      <Section title="Wave Spawn Config (Per Wave)">
+        <p className="text-xs text-neutral-500 mb-3">Configure how many enemies spawn, how fast they spawn, and the initial delay for each individual wave. If a wave has no config, it falls back to formula scaling.</p>
+        <div className="space-y-3">
+          {(settings.waveConfigs ?? []).map((wave, idx) => {
+            const updateWave = (patch: Partial<typeof wave>) => {
+              const next = [...(settings.waveConfigs ?? [])];
+              next[idx] = { ...wave, ...patch };
+              setSettings((prev) => prev ? { ...prev, waveConfigs: next } : prev);
+            };
+            return (
+              <div key={idx} className="rounded-lg border border-[#1e1e1e] bg-[#0a0a0a] p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-neutral-300">Wave {idx + 1}</span>
+                  <button onClick={() => {
+                    const next = [...(settings.waveConfigs ?? [])];
+                    next.splice(idx, 1);
+                    setSettings((prev) => prev ? { ...prev, waveConfigs: next } : prev);
+                  }} className="p-1 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors" title="Remove this wave config"><Trash2 className="w-3.5 h-3.5" /></button>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <NumberField label="Spawn Count" value={wave.spawnCount} onChange={(v) => updateWave({ spawnCount: v })} min={1} max={200} step={1} />
+                  <NumberField label="Spawn Rate (per sec)" value={wave.spawnRate} onChange={(v) => updateWave({ spawnRate: v })} min={0.1} max={10} step={0.1} />
+                  <NumberField label="Spawn Delay (sec)" value={wave.spawnDelay} onChange={(v) => updateWave({ spawnDelay: v })} min={0} max={30} step={0.5} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <button onClick={() => {
+          const current = settings.waveConfigs ?? [];
+          const last = current.length > 0 ? current[current.length - 1] : null;
+          const nextWave = last ? { ...last, spawnCount: last.spawnCount + 4 } : { spawnCount: 8, spawnRate: 1, spawnDelay: 1 };
+          setSettings((prev) => prev ? { ...prev, waveConfigs: [...current, nextWave] } : prev);
+        }} className="mt-3 flex items-center gap-1.5 rounded-lg border border-[#1e1e1e] bg-[#0a0a0a] px-3 py-2 text-xs text-neutral-300 hover:bg-[#1e1e1e] transition-colors"><Plus className="w-3.5 h-3.5" /> Add Wave</button>
+      </Section>
     </div>
   );
 
@@ -510,6 +568,7 @@ export default function SecretGameAdminPage() {
           <NumberField label="Bullet Damage" value={settings.boss.bulletDamage} onChange={(v) => updateField("boss.bulletDamage", v)} min={1} max={500} step={1} />
           <NumberField label="Projectile Speed" value={settings.boss.projectileSpeed} onChange={(v) => updateField("boss.projectileSpeed", v)} min={10} max={300} step={1} />
           <NumberField label="Projectile Size" value={settings.boss.projectileSize} onChange={(v) => updateField("boss.projectileSize", v)} min={4} max={32} step={1} />
+          <NumberField label="Projectile Count" value={settings.boss.projectileCount} onChange={(v) => updateField("boss.projectileCount", v)} min={1} max={20} step={1} />
           <NumberField label="Fire Interval (sec)" value={settings.boss.fireInterval} onChange={(v) => updateField("boss.fireInterval", v)} min={0.5} max={10} step={0.5} />
           <NumberField label="Track Speed" value={settings.boss.trackSpeed} onChange={(v) => updateField("boss.trackSpeed", v)} min={5} max={200} step={5} />
           <NumberField label="Boss Width" value={settings.boss.width} onChange={(v) => updateField("boss.width", v)} min={10} max={120} step={1} />
@@ -1147,11 +1206,13 @@ export default function SecretGameAdminPage() {
                 bulletSpawnOffsetY={settings.bulletSpawnOffsetY}
                 mouseFollowOffsetX={settings.mouseFollowOffsetX}
                 mouseFollowOffsetY={settings.mouseFollowOffsetY}
+                spawnPoints={plat.spawnPoints}
                 onChange={updatePlatform}
                 onBossChange={(next) => setSettings((prev) => prev ? { ...prev, boss: next } : prev)}
                 onHitboxChange={(points) => setSettings((prev) => prev ? { ...prev, playerHitbox: { ...(prev.playerHitbox ?? {}), points } } : prev)}
                 onBulletSpawnChange={(ox, oy) => setSettings((prev) => prev ? { ...prev, bulletSpawnOffsetX: ox, bulletSpawnOffsetY: oy } : prev)}
                 onMouseFollowChange={(ox, oy) => setSettings((prev) => prev ? { ...prev, mouseFollowOffsetX: ox, mouseFollowOffsetY: oy } : prev)}
+                onSpawnPointsChange={(next) => updateField(`${platform}.spawnPoints`, next)}
               />
             </div>
           </div>

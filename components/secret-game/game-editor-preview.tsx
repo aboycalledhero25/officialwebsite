@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useState, useCallback, useLayoutEffect } from "react";
-import type { GamePlatformSettings, PlayerSprite, BossSettings, HitboxPoint } from "@/lib/data";
+import type { GamePlatformSettings, PlayerSprite, BossSettings, HitboxPoint, SpawnPoint } from "@/lib/data";
 import { drawEnemy, drawBoss } from "./draw-sprites";
 import { loadPlayerSprite, drawPlayerSprite } from "./player-sprite";
 
@@ -37,6 +37,8 @@ interface GameEditorPreviewProps {
   onBulletSpawnChange?: (offsetX: number, offsetY: number) => void;
   /** Called when mouse-follow offset is dragged. */
   onMouseFollowChange?: (offsetX: number, offsetY: number) => void;
+  spawnPoints?: [SpawnPoint, SpawnPoint, SpawnPoint];
+  onSpawnPointsChange?: (next: [SpawnPoint, SpawnPoint, SpawnPoint]) => void;
 }
 
 function drawStarfield(ctx: CanvasRenderingContext2D, logW: number, h: number) {
@@ -71,6 +73,8 @@ export function GameEditorPreview({
   onHitboxChange,
   onBulletSpawnChange,
   onMouseFollowChange,
+  spawnPoints,
+  onSpawnPointsChange,
 }: GameEditorPreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -187,6 +191,28 @@ export function GameEditorPreview({
       ctx.strokeRect(bx, by, bossSettings.width, bossSettings.height);
       ctx.setLineDash([]);
     }
+
+    // Draw spawn point overlays
+    const sps = spawnPoints ?? [
+      { x: 40, y: 10, enabled: true },
+      { x: 120, y: 10, enabled: true },
+      { x: 200, y: 10, enabled: true },
+    ];
+    sps.forEach((sp, idx) => {
+      const sx = sp.x * (logW / BASE_W);
+      const sy = sp.y;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 6, 0, Math.PI * 2);
+      ctx.fillStyle = sp.enabled ? "rgba(255, 0, 110, 0.4)" : "rgba(100, 100, 100, 0.3)";
+      ctx.fill();
+      ctx.strokeStyle = sp.enabled ? "#ff006e" : "#666";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = sp.enabled ? "#ff006e" : "#888";
+      ctx.font = "bold 8px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(`S${idx + 1}`, sx, sy - 10);
+    });
 
     // ── Draw hitbox polygon ───────────────────────────────────────────
     if (hitboxPoints && hitboxPoints.length >= 2) {
@@ -357,6 +383,22 @@ export function GameEditorPreview({
           break;
         }
         default: {
+          // Spawn point drag: key = "spawn_0", "spawn_1", "spawn_2"
+          if (d.key.startsWith("spawn_") && onSpawnPointsChange && spawnPoints) {
+            const idx = parseInt(d.key.slice(6), 10);
+            const nextSp: [SpawnPoint, SpawnPoint, SpawnPoint] = [
+              { ...spawnPoints[0] },
+              { ...spawnPoints[1] },
+              { ...spawnPoints[2] },
+            ];
+            nextSp[idx] = {
+              ...nextSp[idx],
+              x: Math.round((d.origX + dx) * (BASE_W / (dims.w / scaleY))),
+              y: Math.round(d.origY + dy),
+            };
+            onSpawnPointsChange(nextSp);
+          }
+          changed = false;
           // Hitbox polygon point: key = "hbpt_N"
           if (d.key.startsWith("hbpt_") && onHitboxChange && hitboxPoints) {
             const idx = parseInt(d.key.slice(5), 10);
@@ -387,7 +429,7 @@ export function GameEditorPreview({
       window.removeEventListener("touchmove", handleMove);
       window.removeEventListener("touchend", handleUp);
     };
-  }, [scaleX, scaleY, settings, onChange, onBossChange, bossSettings, playerSprite.offsetX, playerSprite.offsetY, hitboxPoints, onHitboxChange, onBulletSpawnChange, onMouseFollowChange, mouseFollowOffsetX, mouseFollowOffsetY]);
+  }, [scaleX, scaleY, settings, onChange, onBossChange, bossSettings, playerSprite.offsetX, playerSprite.offsetY, hitboxPoints, onHitboxChange, onBulletSpawnChange, onMouseFollowChange, mouseFollowOffsetX, mouseFollowOffsetY, spawnPoints, onSpawnPointsChange]);
 
   // Click on canvas to add a new hitbox point
   const handleCanvasClick = useCallback((e: React.MouseEvent) => {
@@ -691,6 +733,37 @@ export function GameEditorPreview({
             onDragStart={startDrag}
           />
         )}
+
+        {/* Spawn point overlays */}
+        {(spawnPoints ?? []).map((sp, idx) => {
+          if (!sp.enabled) return null;
+          const sl = sp.x * scaleX - 10;
+          const st = sp.y * scaleY - 10;
+          return (
+            <div
+              key={`spawn-${idx}`}
+              className="absolute select-none cursor-grab active:cursor-grabbing"
+              style={{
+                left: sl, top: st,
+                width: 20, height: 20,
+                borderRadius: "50%",
+                background: "rgba(255, 0, 110, 0.25)",
+                border: "2px solid #ff006e",
+                zIndex: 20,
+                boxShadow: "0 0 10px rgba(255,0,110,0.4)",
+              }}
+              onMouseDown={(e) => { e.stopPropagation(); startDrag(`spawn_${idx}`, sp.x, sp.y, e); }}
+              onTouchStart={(e) => { e.stopPropagation(); startDrag(`spawn_${idx}`, sp.x, sp.y, e); }}
+            >
+              <div
+                className="absolute -top-5 left-1/2 -translate-x-1/2 text-[10px] font-mono px-1 rounded"
+                style={{ background: "#ff006e", color: "#fff", whiteSpace: "nowrap" }}
+              >
+                S{idx + 1}
+              </div>
+            </div>
+          );
+        })};
 
         {/* Hitbox polygon point handles */}
         {hitboxPoints && hitboxPoints.map((pt, i) => (

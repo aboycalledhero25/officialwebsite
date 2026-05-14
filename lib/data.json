@@ -611,12 +611,18 @@
       "bulletDamage": 20,
       "projectileSpeed": 80,
       "projectileSize": 20,
+      "projectileCount": 3,
       "fireInterval": 3,
       "trackSpeed": 30,
       "width": 50,
       "height": 40,
       "scoreReward": 150000
     },
+    "waveConfigs": [
+      { "spawnCount": 8, "spawnRate": 1.0, "spawnDelay": 1.0 },
+      { "spawnCount": 12, "spawnRate": 1.2, "spawnDelay": 0.5 },
+      { "spawnCount": 16, "spawnRate": 1.4, "spawnDelay": 0.5 }
+    ],
     "desktop": {
       "player": {
         "x": 116,
@@ -704,7 +710,12 @@
         "x": 159,
         "y": 292,
         "size": 24
-      }
+      },
+      "spawnPoints": [
+        { "x": 40, "y": 10, "enabled": true },
+        { "x": 120, "y": 10, "enabled": true },
+        { "x": 200, "y": 10, "enabled": true }
+      ]
     },
     "mobile": {
       "player": {
@@ -788,7 +799,12 @@
       "boss": {
         "x": 94,
         "y": 23
-      }
+      },
+      "spawnPoints": [
+        { "x": 40, "y": 10, "enabled": true },
+        { "x": 120, "y": 10, "enabled": true },
+        { "x": 200, "y": 10, "enabled": true }
+      ]
     }
   },
   "guitarColors": {

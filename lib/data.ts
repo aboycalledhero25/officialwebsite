@@ -239,6 +239,8 @@ export interface GamePlatformSettings {
   boss: { x: number; y: number };
   /** Position and size of the HUD controls row (Pause / Mute / Fullscreen buttons). */
   controls?: { x: number; y: number; size: number };
+  /** Three enemy spawn points for horde waves. */
+  spawnPoints: [SpawnPoint, SpawnPoint, SpawnPoint];
   /** Per-platform overrides for projectile visual sizes. Falls back to global defaults when omitted. */
   projectileSizes?: {
     boss?: number;
@@ -259,11 +261,24 @@ export interface BossSettings {
   bulletDamage: number;
   projectileSpeed: number;
   projectileSize: number;
+  projectileCount: number;
   fireInterval: number;
   trackSpeed: number;
   width: number;
   height: number;
   scoreReward: number;
+}
+
+export interface SpawnPoint {
+  x: number;
+  y: number;
+  enabled: boolean;
+}
+
+export interface WaveConfig {
+  spawnCount: number;
+  spawnRate: number;
+  spawnDelay: number;
 }
 
 /** Configurable sizes for GIF impact effects (in game coordinate units, 240×320 space) */
@@ -449,6 +464,8 @@ export interface SecretGameSettings {
     projectileDamage: number;
     collisionDamage: number;
   }>;
+  /** Per-wave horde spawn configuration. Index 0 = Wave 1. */
+  waveConfigs?: WaveConfig[];
   /**
    * Per-sound-effect volume multipliers (0.0 – 2.0), applied on top of the player's master SFX volume.
    * Keys: shoot, enemyHit, playerHit, gameOver, levelComplete, bomb, lightning, powerup, connect, shield
