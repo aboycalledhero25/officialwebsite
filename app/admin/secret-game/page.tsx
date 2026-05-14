@@ -628,11 +628,12 @@ export default function SecretGameAdminPage() {
   const PlayerTab = () => (
     <div className="space-y-4">
       <Section title="Player Sprite Offset">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
           <NumberField label="Offset X" value={settings.playerSprite.offsetX} onChange={(v) => updateField("playerSprite.offsetX", v)} step={1} />
           <NumberField label="Offset Y" value={settings.playerSprite.offsetY} onChange={(v) => updateField("playerSprite.offsetY", v)} step={1} />
           <NumberField label="Width" value={settings.playerSprite.width} onChange={(v) => updateField("playerSprite.width", v)} min={1} max={100} step={1} />
           <NumberField label="Height" value={settings.playerSprite.height} onChange={(v) => updateField("playerSprite.height", v)} min={1} max={100} step={1} />
+          <NumberField label="Cols" value={settings.playerSprite.cols ?? 12} onChange={(v) => updateField("playerSprite.cols", v)} min={1} max={60} step={1} />
         </div>
       </Section>
 

@@ -128,6 +128,8 @@ export interface PlayerSprite {
   offsetY: number;
   width: number;
   height: number;
+  /** Number of animation frames per row. Defaults to 12. */
+  cols?: number;
 }
 
 /** A single point in the player's polygon hitbox, relative to playerX/Y in game-logical units. */

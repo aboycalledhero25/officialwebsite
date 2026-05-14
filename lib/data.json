@@ -463,10 +463,11 @@
     "title": "HERO INVADERS",
     "instructions": "Defend the stage from the invasion!",
     "playerSprite": {
-      "offsetX": -2,
-      "offsetY": -12,
-      "width": 14,
-      "height": 42
+      "offsetX": -8,
+      "offsetY": -14,
+      "width": 26,
+      "height": 30,
+      "cols": 12
     },
     "powerUpSpawnChance": 0.15,
     "bossProjectileDropRate": 0.2,
@@ -503,10 +504,10 @@
     ],
     "powerUpMaxStacks": {},
     "playerHitbox": {
-      "offsetX": -3,
-      "offsetY": -13,
-      "width": 15,
-      "height": 44
+      "offsetX": -8,
+      "offsetY": -8,
+      "width": 16,
+      "height": 16
     },
     "permShield": {
       "offsetX": -1,

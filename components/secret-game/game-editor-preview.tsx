@@ -3,6 +3,7 @@
 import { useRef, useEffect, useState, useCallback, useLayoutEffect } from "react";
 import type { GamePlatformSettings, PlayerSprite, BossSettings, HitboxPoint } from "@/lib/data";
 import { drawEnemy, drawBoss } from "./draw-sprites";
+import { loadPlayerSprite, drawPlayerSprite } from "./player-sprite";
 
 const BASE_W = 240;
 const BASE_H = 320;
@@ -73,7 +74,6 @@ export function GameEditorPreview({
 }: GameEditorPreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const imgRef = useRef<HTMLImageElement | null>(null);
   const [dims, setDims] = useState({ w: 280, h: 560 });
   const [editMode, setEditMode] = useState<EditMode>("none");
 
@@ -95,10 +95,11 @@ export function GameEditorPreview({
 
   // Load player sprite
   useEffect(() => {
+    loadPlayerSprite();
+    // Re-draw once image loads
     const img = new Image();
-    img.src = "/images/guitar.png";
+    img.src = "/player/player.png";
     img.onload = () => {
-      imgRef.current = img;
       draw();
     };
   }, []);
@@ -149,17 +150,17 @@ export function GameEditorPreview({
     // Draw player
     const playerX = settings.player.x * (logW / BASE_W);
     const playerY = settings.player.y;
-    if (imgRef.current && imgRef.current.complete) {
-      ctx.drawImage(
-        imgRef.current,
-        playerX + playerSprite.offsetX,
-        playerY + playerSprite.offsetY,
-        playerSprite.width,
-        playerSprite.height
-      );
-    } else {
-      drawPlayerFallback(ctx, playerX, playerY);
-    }
+    drawPlayerSprite(
+      ctx,
+      playerX + playerSprite.offsetX,
+      playerY + playerSprite.offsetY,
+      "down",
+      0,
+      playerSprite.width,
+      playerSprite.height,
+      playerSprite.cols,
+      () => drawPlayerFallback(ctx, playerX, playerY),
+    );
 
     // Draw shield bubble on canvas (exactly as in-game)
     const shield = settings.shield;

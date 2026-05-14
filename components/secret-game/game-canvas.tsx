@@ -34,6 +34,11 @@ import {
   type EnemyFacing,
 } from "./enemy-sprites";
 import {
+  loadPlayerSprite,
+  drawPlayerSprite,
+  type PlayerFacing,
+} from "./player-sprite";
+import {
   loadEffectSprites,
   spawnEffect,
   tickEffects,
@@ -109,7 +114,7 @@ export function GameCanvas({
 }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const dimsRef = useRef({ w: BASE_W, h: BASE_H, scale: 1 });
-  const playerImageRef = useRef<HTMLImageElement | null>(null);
+
   const shieldImageRef = useRef<HTMLImageElement | null>(null);
   const orbsImageRef = useRef<HTMLImageElement | null>(null);
   const [stageBgDesktop, setStageBgDesktop] = useState<HTMLImageElement | null>(null);
@@ -144,11 +149,7 @@ export function GameCanvas({
 
   // Load custom guitar sprite + shield spritesheet + orbital orbs spritesheet
   useEffect(() => {
-    const img = new Image();
-    img.src = "/images/guitar.png";
-    img.onload = () => {
-      playerImageRef.current = img;
-    };
+    loadPlayerSprite();
     const shieldImg = new Image();
     shieldImg.src = "/shield/shield.png";
     shieldImg.onload = () => {
@@ -191,6 +192,8 @@ export function GameCanvas({
     playerX: BASE_W / 2,
     playerY: BASE_H - 55,
     playerCooldown: 0,
+    playerFacing: "down" as PlayerFacing,
+    playerAnimAccum: 0,
     enemies: [] as {
       x: number;
       y: number;
@@ -664,16 +667,35 @@ export function GameCanvas({
 
       // ── Player movement (speed from playerStats) ──
       const pSpeed = playerStats.movementSpeed;
+      let movedX = 0;
+      let movedY = 0;
       if (sharedTouch.targetX !== null && sharedTouch.targetY !== null) {
         const targetX = Math.max(0, Math.min(playAreaW - PLAYER_W_BASE, sharedTouch.targetX * (logW / BASE_W)));
         const targetY = Math.max(0, Math.min(BASE_H - PLAYER_H_BASE, sharedTouch.targetY));
+        const prevX = s.playerX;
+        const prevY = s.playerY;
         s.playerX += (targetX - s.playerX) * Math.min(1, pSpeed * 2.5 * dt);
         s.playerY += (targetY - s.playerY) * Math.min(1, pSpeed * 2.5 * dt);
+        movedX = s.playerX - prevX;
+        movedY = s.playerY - prevY;
       } else {
+        const prevX = s.playerX;
+        const prevY = s.playerY;
         if (keys.left) s.playerX -= pSpeed * dt;
         if (keys.right) s.playerX += pSpeed * dt;
         if (keys.up) s.playerY -= pSpeed * dt;
         if (keys.down) s.playerY += pSpeed * dt;
+        movedX = s.playerX - prevX;
+        movedY = s.playerY - prevY;
+      }
+      // Update facing based on movement direction
+      if (Math.abs(movedX) > 0.01 || Math.abs(movedY) > 0.01) {
+        s.playerAnimAccum += dt;
+        if (Math.abs(movedX) > Math.abs(movedY)) {
+          s.playerFacing = movedX > 0 ? "right" : "left";
+        } else {
+          s.playerFacing = movedY > 0 ? "down" : "up";
+        }
       }
       s.playerX = Math.max(0, Math.min(playAreaW - PLAYER_W_BASE, s.playerX));
       s.playerY = Math.max(0, Math.min(BASE_H - PLAYER_H_BASE, s.playerY));
@@ -2022,18 +2044,17 @@ export function GameCanvas({
     }
 
     // Draw player (custom sprite if loaded, else fallback)
-    const playerImg = playerImageRef.current;
-    if (playerImg && playerImg.complete) {
-      ctx.drawImage(
-        playerImg,
-        s.playerX + spriteConfig.offsetX,
-        s.playerY + spriteConfig.offsetY,
-        spriteConfig.width,
-        spriteConfig.height
-      );
-    } else {
-      drawPlayer(ctx, s.playerX, s.playerY, s.frame);
-    }
+    drawPlayerSprite(
+      ctx,
+      s.playerX + spriteConfig.offsetX,
+      s.playerY + spriteConfig.offsetY,
+      s.playerFacing,
+      s.playerAnimAccum,
+      spriteConfig.width,
+      spriteConfig.height,
+      spriteConfig.cols,
+      () => drawPlayer(ctx, s.playerX, s.playerY, s.frame),
+    );
 
     // Draw invincibility sparkles (Sonic-style) around the guitar
     if (s.activePowerUps.some((p) => p.type === "invincible")) {
