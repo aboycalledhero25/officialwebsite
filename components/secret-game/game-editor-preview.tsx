@@ -1418,7 +1418,7 @@ export function GameEditorPreview({
         onMouseLeave={onMouseUp}
       />
       {/* Inspector */}
-      <div className="absolute top-3 right-3 w-56 space-y-2 pointer-events-auto max-h-[calc(100vh-24px)] overflow-y-auto">
+      <div className="absolute bottom-3 left-3 w-56 space-y-2 pointer-events-auto max-h-[50%] overflow-y-auto">
         <Inspector
           sel={sel}
           settings={settings}
