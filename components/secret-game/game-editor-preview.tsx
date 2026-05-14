@@ -1471,6 +1471,16 @@ export function GameEditorPreview({
           });
           break;
         }
+        case "enemyBody": {
+          const idx = (drag.el as Extract<Sel, { type: "enemyBody" }>).index;
+          const nextSps = sps.map((sp: SpawnPoint, i: number) =>
+            i === idx
+              ? { ...sp, x: clamp(sp.x + dx / xs, 0, BASE_W), y: clamp(sp.y + dy, 0, BASE_H) }
+              : sp
+          ) as [SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint];
+          onSpawnPointsChange?.(nextSps);
+          break;
+        }
       }
     }
 
