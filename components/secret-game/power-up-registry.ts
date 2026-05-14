@@ -60,7 +60,7 @@ export const POWER_UP_REGISTRY: PowerUpDefinition[] = [
     name: "Connect",
     description: "Links lightning strike points with damaging bolts. Requires Lightning.",
     icon: "/powerups/icons/connect.png",
-    canStack: true, maxStacks: 3, removeFromPoolAfterMaxed: true,
+    canStack: true, maxStacks: 2, removeFromPoolAfterMaxed: true,
     getCurrentStat: (c) => {
       const n = c["connect"] ?? 0;
       if (n === 0) return "Bolt Damage: —";
@@ -329,7 +329,7 @@ export function getAvailableIds(
     }
     if (p.id === "superProjectile") {
       // Show red when projectile was maxed (for first pick) or red already unlocked (for stacks 2-3)
-      const unlocked = (chosen.projectile ?? 0) >= 3 || (chosen.superProjectile ?? 0) > 0;
+      const unlocked = (chosen.projectile ?? 0) >= 2 || (chosen.superProjectile ?? 0) > 0;
       return unlocked && (chosen.superProjectile2 ?? 0) === 0 && (chosen.superProjectile3 ?? 0) === 0 && (max === -1 || stacks < max);
     }
     if (p.id === "superProjectile2") {

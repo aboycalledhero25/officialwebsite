@@ -167,9 +167,9 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
     }
     setChosenPowerUps((prev) => {
       const next = { ...prev, [id]: (prev[id] ?? 0) + 1 };
-      // Tier conversion: first pick of a super tier converts 3 of previous tier
+      // Tier conversion: first pick of a super tier converts all of previous tier
       if (id === "superProjectile" && (prev.superProjectile ?? 0) === 0) {
-        next.projectile = Math.max(0, (prev.projectile ?? 0) - 3);
+        next.projectile = Math.max(0, (prev.projectile ?? 0) - 2);
       }
       if (id === "superProjectile2" && (prev.superProjectile2 ?? 0) === 0) {
         next.superProjectile = Math.max(0, (prev.superProjectile ?? 0) - 3);
