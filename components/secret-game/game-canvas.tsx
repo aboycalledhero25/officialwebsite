@@ -2113,13 +2113,17 @@ export function GameCanvas({
           ctx.restore();
         } else if (b.isSeeker) {
           // Seeker missile: red with trail
+          const ssz = playerStats2.seekerMissileSize ?? 6;
+          const bodyW = ssz;
+          const bodyH = ssz * (8 / 6);
+          const tipW = ssz * (4 / 6);
           ctx.save();
           ctx.shadowColor = "#ff4400";
           ctx.shadowBlur = 8;
           ctx.fillStyle = "#ff6600";
-          ctx.fillRect(b.x - 3, b.y - 4, 6, 8);
+          ctx.fillRect(b.x - bodyW / 2, b.y - bodyH / 2, bodyW, bodyH);
           ctx.fillStyle = "#ffdd00";
-          ctx.fillRect(b.x - 2, b.y - 2, 4, 4);
+          ctx.fillRect(b.x - tipW / 2, b.y - tipW / 2, tipW, tipW);
           ctx.restore();
         } else {
           drawPlayerBullet(ctx, b.x, b.y, s.frame);

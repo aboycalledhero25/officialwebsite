@@ -46,7 +46,7 @@ export interface RoguelikeConfig {
   nuke:        { cooldown: number; bossHPReduction: number; nukesPerStack: number };
   rapidFire:   { ratePerStack: number; minCooldown: number };
   /** Seeker Missile: auto-fires a homing missile at the nearest enemy every cooldown seconds. */
-  seeker:      { missileDamage: number; missileCooldown: number; missilesPerStack: number };
+  seeker:      { missileDamage: number; missileCooldown: number; missilesPerStack: number; missileSize: number };
   shield:      { duration: number; cooldown: number };
   /** Orbital: spawns energy orbs that orbit the player and damage enemies on contact. */
   orbital:     { damage: number; orbitSpeed: number; orbSize: number; hitboxSize: number; cooldown: number; orbitRadius: number; duration: number };
@@ -111,7 +111,7 @@ export const ROGUELIKE_CONFIG: RoguelikeConfig = {
   nuke:       { cooldown: 30, bossHPReduction: 0.25, nukesPerStack: 1 },
   projectile: { projectilesPerStack: 1, normalMax: 4, redDamage: 30, purpleDamage: 50, goldDamage: 80, tierSize: 5, superBulletSizeMultiplier: 2.5, redSize: 10, purpleSize: 12, goldSize: 14 },
   rapidFire:  { ratePerStack: 0.02, minCooldown: 0.05 },
-  seeker:     { missileDamage: 150, missileCooldown: 15, missilesPerStack: 1 },
+  seeker:     { missileDamage: 150, missileCooldown: 15, missilesPerStack: 1, missileSize: 6 },
   shield:     { duration: 10, cooldown: 30 },
   orbital:    { damage: 30, orbitSpeed: 2.5, orbSize: 8, hitboxSize: 8, cooldown: 15, orbitRadius: 35, duration: 10 },
   speed:      { speedPerStack: 0.01 },

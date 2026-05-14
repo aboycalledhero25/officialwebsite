@@ -662,6 +662,7 @@ export default function SecretGameAdminPage() {
             <NumberField label="Missile Damage" value={seeker.missileDamage ?? 150} onChange={(v) => upRc("seeker", { missileDamage: v })} min={1} max={1000} step={5} />
             <NumberField label="Cooldown (s)" value={seeker.missileCooldown ?? 15} onChange={(v) => upRc("seeker", { missileCooldown: v })} min={1} max={60} step={1} />
             <NumberField label="Missiles/Stack" value={seeker.missilesPerStack ?? 1} onChange={(v) => upRc("seeker", { missilesPerStack: v })} min={1} max={5} step={1} />
+            <NumberField label="Missile Size (px)" value={seeker.missileSize ?? 6} onChange={(v) => upRc("seeker", { missileSize: v })} min={2} max={30} step={1} />
           </div>
         </Section>
 

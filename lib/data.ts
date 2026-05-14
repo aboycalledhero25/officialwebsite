@@ -368,7 +368,7 @@ export interface SecretGameSettings {
     bomb?: { cooldown?: number; damage?: number; bombsPerStack?: number; crossRadius?: number };
     lightning?: { cooldown?: number; damage?: number; baseStrikes?: number; strikesPerStack?: number };
     connect?: { damage?: number; damagePerStack?: number };
-    seeker?: { missileDamage?: number; missileCooldown?: number; missilesPerStack?: number };
+    seeker?: { missileDamage?: number; missileCooldown?: number; missilesPerStack?: number; missileSize?: number };
     orbital?: { damage?: number; orbitSpeed?: number; orbSize?: number; hitboxSize?: number; cooldown?: number; orbitRadius?: number; duration?: number };
     virus?: { baseInfectionChance?: number; chancePerStack?: number; baseDamagePerTick?: number; damagePerStack?: number; duration?: number; maxVirusStacks?: number };
     nuke?: { cooldown?: number; bossHPReduction?: number; nukesPerStack?: number };

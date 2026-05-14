@@ -89,6 +89,7 @@ export interface PlayerStats {
   seekerMissileDamage: number;  // damage per missile hit
   seekerMissileCooldown: number; // seconds between missile volleys
   seekerMissileCount: number;   // number of missiles per volley
+  seekerMissileSize: number;    // visual size of seeker missile sprite
 
   // ─── Orbital ─────────────────────────────────────────────────────────
   hasOrbital: boolean;
@@ -244,6 +245,7 @@ export function computePlayerStats(chosen: PermPowerUpState, override?: Roguelik
     seekerMissileDamage: cfg.seeker.missileDamage,
     seekerMissileCooldown: cfg.seeker.missileCooldown,
     seekerMissileCount: sk * cfg.seeker.missilesPerStack,
+    seekerMissileSize: cfg.seeker.missileSize,
 
     hasOrbital:      orb > 0,
     orbitalDamage:   cfg.orbital.damage,

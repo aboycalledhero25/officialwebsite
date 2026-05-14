@@ -28,6 +28,9 @@ export function MobileControls({}: MobileControlsProps) {
   const spriteConfig = siteData.secretGame?.playerSprite ?? { offsetX: -2, offsetY: -12, width: 14, height: 42 };
   // Compute offset so guitar bottom sits exactly at the finger position
   const mobileYOffset = spriteConfig.offsetY + spriteConfig.height;
+  // Compute offset so sprite centre follows the mouse cursor on desktop
+  const mouseCenterOffsetX = spriteConfig.offsetX + spriteConfig.width / 2;
+  const mouseCenterOffsetY = spriteConfig.offsetY + spriteConfig.height / 2;
 
   // Convert screen pixel to base game coordinates using the control layer's actual size
   const screenToBase = useCallback((clientX: number, clientY: number) => {
@@ -135,8 +138,8 @@ export function MobileControls({}: MobileControlsProps) {
       // with WASD / arrow keys on desktop.
       const keysActive = sharedKeys.left || sharedKeys.right || sharedKeys.up || sharedKeys.down;
       if (!keysActive) {
-        sharedTouch.targetX = pos.x;
-        sharedTouch.targetY = pos.y;
+        sharedTouch.targetX = pos.x - mouseCenterOffsetX;
+        sharedTouch.targetY = pos.y - mouseCenterOffsetY;
       }
     },
     [screenToBase]
