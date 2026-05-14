@@ -401,6 +401,7 @@ export function GameEditorPreview({
   // Track which assets are ready
   const [assetsReady, setAssetsReady] = useState(false);
   const rafRef = useRef<number>(0);
+  const drawRef = useRef<() => void>(() => {});
 
   // ── Measure container ──
   useEffect(() => {
@@ -423,19 +424,10 @@ export function GameEditorPreview({
     loadEnemySprites();
     loadBossSkin(1);
 
-    // Load shield image
-    const shieldImg = new Image();
-    shieldImg.src = "/shield/shield.png";
-
-    // Load background
-    const bgImg = new Image();
-    bgImg.src = platform === "mobile" ? "/background/stage_mobile.png" : "/background/stage.png";
-
     // Poll for asset readiness then switch to continuous RAF
     let checks = 0;
     const timer = setInterval(() => {
       checks++;
-      // After ~2 seconds assume everything is loaded or failed
       if (checks > 20) {
         setAssetsReady(true);
         clearInterval(timer);
@@ -447,15 +439,12 @@ export function GameEditorPreview({
 
   // ── Continuous render loop so sprites appear when loaded ──
   useEffect(() => {
-    let frame = 0;
     const loop = () => {
-      frame++;
-      draw();
+      drawRef.current();
       rafRef.current = requestAnimationFrame(loop);
     };
     rafRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafRef.current);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Helpers ──
@@ -923,6 +912,7 @@ export function GameEditorPreview({
 
     ctx.restore();
   }, [dims, settings, playerSprite, bossSettings, sel, spawnPoints, bulletSpawnOffsetX, bulletSpawnOffsetY, mouseFollowOffsetX, mouseFollowOffsetY, hitboxPoints, platform, assetsReady]);
+  drawRef.current = draw;
 
   // ── Mouse events ──
   const onMouseDown = useCallback((e: React.MouseEvent) => {
