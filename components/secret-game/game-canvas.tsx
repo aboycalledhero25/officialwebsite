@@ -231,6 +231,9 @@ export function GameCanvas({
     enemySpeed: 18,
     enemyDropAccum: 0,
     enemyFireChance: 0.003,
+    enemyProjectileSpeed: 60,
+    enemyProjectileDamage: 1,
+    enemyCollisionDamage: 1,
     screenShake: 0,
     frame: 0,
     score: 0,
@@ -336,6 +339,10 @@ export function GameCanvas({
     // Check if this is a boss wave
     const isBossWave = bossCfg?.enabled && w > 0 && w % (bossCfg?.interval ?? 10) === 0;
 
+    // Check for per-wave-group difficulty override (applies to both boss and regular waves)
+    const groupIdx = Math.floor((w - 1) / 10);
+    const groupConfig = siteData.secretGame?.enemyDifficultyPerWaveGroup?.[groupIdx];
+
     if (isBossWave) {
       const bossNumber = Math.floor(w / (bossCfg?.interval ?? 10));
       // Use per-boss HP override from admin if available, otherwise fall back to formula
@@ -384,9 +391,14 @@ export function GameCanvas({
       const startY = Math.max(3, cfg.startY); // ensure enemy hair is visible
 
       // Calculate enemy HP for this wave
-      const baseHp = siteData.secretGame?.enemyBaseHp ?? 1;
-      const hpPerWave = siteData.secretGame?.enemyHpPerWave ?? 0;
-      const waveHp = Math.max(1, Math.round(baseHp + (w - 1) * hpPerWave));
+      let waveHp: number;
+      if (groupConfig) {
+        waveHp = Math.max(1, Math.round(groupConfig.hp));
+      } else {
+        const baseHp = siteData.secretGame?.enemyBaseHp ?? 1;
+        const hpPerWave = siteData.secretGame?.enemyHpPerWave ?? 0;
+        waveHp = Math.max(1, Math.round(baseHp + (w - 1) * hpPerWave));
+      }
 
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
@@ -413,8 +425,23 @@ export function GameCanvas({
     }
 
     // Scale difficulty with wave (capped for infinite playability)
-    s.enemySpeed = Math.min(cfg.speed + (w - 1) * 1.2, 90);
-    s.enemyFireChance = Math.min(cfg.fireRate * (1 + (w - 1) * 0.025), 0.012);
+    if (groupConfig) {
+      s.enemySpeed = groupConfig.speed;
+      s.enemyFireChance = groupConfig.fireRate;
+      s.enemyProjectileSpeed = groupConfig.projectileSpeed;
+      s.enemyProjectileDamage = groupConfig.projectileDamage;
+      s.enemyCollisionDamage = groupConfig.collisionDamage;
+    } else {
+      s.enemySpeed = Math.min(cfg.speed + (w - 1) * 1.2, 90);
+      s.enemyFireChance = Math.min(cfg.fireRate * (1 + (w - 1) * 0.025), 0.012);
+      s.enemyProjectileSpeed = cfg.projectileSpeed + (w - 1) * (siteData.secretGame?.enemyProjectileSpeedPerWave ?? 0);
+      s.enemyProjectileDamage = Math.max(1, Math.round(
+        (siteData.secretGame?.enemyProjectileDamage ?? 1) + (w - 1) * (siteData.secretGame?.enemyProjectileDamagePerWave ?? 0),
+      ));
+      s.enemyCollisionDamage = Math.max(1, Math.round(
+        (siteData.secretGame?.enemyCollisionDamage ?? 1) + (w - 1) * (siteData.secretGame?.enemyCollisionDamagePerWave ?? 0),
+      ));
+    }
     s.wave = w;
     s.spawnAnim = 0;
     s.playAreaW = logW;
@@ -447,6 +474,9 @@ export function GameCanvas({
     s.boss = null;
     s.enemyDir = 1;
     s.enemyDropAccum = 0;
+    s.enemyProjectileSpeed = 60;
+    s.enemyProjectileDamage = 1;
+    s.enemyCollisionDamage = 1;
     s.screenShake = 0;
     s.frame = 0;
     s.score = 0;
@@ -1152,8 +1182,7 @@ export function GameCanvas({
       // ── Enemy shooting (rate-limited: 1 shot per second per enemy) ──
       const aliveEnemies = s.enemies.filter((e) => e.alive);
       const cfg = settingsRef.current.enemy;
-      // Per-wave projectile speed scaling
-      const waveEnemyProjSpeed = cfg.projectileSpeed + (s.wave - 1) * (siteData.secretGame?.enemyProjectileSpeedPerWave ?? 0);
+      const waveEnemyProjSpeed = s.enemyProjectileSpeed;
       aliveEnemies.forEach((e) => {
         e.cooldown -= dt;
         if (e.cooldown <= 0 && Math.random() < s.enemyFireChance) {
@@ -1620,15 +1649,9 @@ export function GameCanvas({
         }
       }
 
-      // ── Per-wave damage values ──────────────────────────────────────────
-      const waveEnemyBulletDmg = Math.max(1, Math.round(
-        (siteData.secretGame?.enemyProjectileDamage ?? 1) +
-        (s.wave - 1) * (siteData.secretGame?.enemyProjectileDamagePerWave ?? 0),
-      ));
-      const waveEnemyCollisionDmg = Math.max(1, Math.round(
-        (siteData.secretGame?.enemyCollisionDamage ?? 1) +
-        (s.wave - 1) * (siteData.secretGame?.enemyCollisionDamagePerWave ?? 0),
-      ));
+      // ── Per-wave damage values (computed in initWave) ──────────────────
+      const waveEnemyBulletDmg = s.enemyProjectileDamage;
+      const waveEnemyCollisionDmg = s.enemyCollisionDamage;
 
       // ── Collision: enemy bullets vs player ──
       const enemyBulletImpact = siteData.secretGame?.impacts?.enemyBullet ?? { w: 20, h: 20 };

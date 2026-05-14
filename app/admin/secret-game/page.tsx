@@ -116,6 +116,7 @@ export default function SecretGameAdminPage() {
           mouseFollowOffsetX: sg.mouseFollowOffsetX,
           mouseFollowOffsetY: sg.mouseFollowOffsetY,
           bossHealthPerWaveGroup: sg.bossHealthPerWaveGroup ?? [],
+          enemyDifficultyPerWaveGroup: sg.enemyDifficultyPerWaveGroup ?? [],
           sfxVolumes: sg.sfxVolumes ?? {},
           damageNumbers: sg.damageNumbers ?? {},
           desktop: { ...DEFAULT_PLATFORM, ...sg.desktop, enemy: { ...DEFAULT_PLATFORM.enemy, ...(sg.desktop?.enemy ?? {}) } },
@@ -443,6 +444,54 @@ export default function SecretGameAdminPage() {
           <NumberField label="Projectile Speed Per Wave" value={settings.enemyProjectileSpeedPerWave ?? 0} onChange={(v) => updateField("enemyProjectileSpeedPerWave", v)} min={0} max={50} step={1} />
         </div>
         <p className="text-xs text-neutral-500 mt-2">Collision damage = Base + (Wave − 1) × Per Wave (slices removed on body contact). Projectile damage = same formula. Projectile speed increases by Per Wave each wave.</p>
+      </Section>
+
+      <Section title="Enemy Difficulty Per Wave Group">
+        <p className="text-xs text-neutral-500 mb-3">Override all enemy stats for specific wave ranges. Group 1 = Waves 1–10, Group 2 = Waves 11–20, etc. When a group is set, it replaces the formula scaling for every wave in that range.</p>
+        <div className="space-y-3">
+          {(settings.enemyDifficultyPerWaveGroup ?? []).map((group, idx) => {
+            const waveFrom = idx * 10 + 1;
+            const waveTo = (idx + 1) * 10;
+            const updateGroup = (patch: Partial<typeof group>) => {
+              const next = [...(settings.enemyDifficultyPerWaveGroup ?? [])];
+              next[idx] = { ...group, ...patch };
+              setSettings((prev) => prev ? { ...prev, enemyDifficultyPerWaveGroup: next } : prev);
+            };
+            return (
+              <div key={idx} className="rounded-lg border border-[#1e1e1e] bg-[#0a0a0a] p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-neutral-300">Group {idx + 1} (Wave {waveFrom}–{waveTo})</span>
+                  <button onClick={() => {
+                    const next = [...(settings.enemyDifficultyPerWaveGroup ?? [])];
+                    next.splice(idx, 1);
+                    setSettings((prev) => prev ? { ...prev, enemyDifficultyPerWaveGroup: next } : prev);
+                  }} className="p-1 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors" title="Remove this group"><Trash2 className="w-3.5 h-3.5" /></button>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <NumberField label="HP" value={group.hp} onChange={(v) => updateGroup({ hp: v })} min={1} max={500} step={1} />
+                  <NumberField label="Speed" value={group.speed} onChange={(v) => updateGroup({ speed: v })} min={0} max={200} step={1} />
+                  <NumberField label="Fire Rate" value={group.fireRate} onChange={(v) => updateGroup({ fireRate: v })} min={0} max={1} step={0.001} />
+                  <NumberField label="Projectile Speed" value={group.projectileSpeed} onChange={(v) => updateGroup({ projectileSpeed: v })} min={0} max={300} step={1} />
+                  <NumberField label="Projectile Damage" value={group.projectileDamage} onChange={(v) => updateGroup({ projectileDamage: v })} min={1} max={50} step={1} />
+                  <NumberField label="Collision Damage" value={group.collisionDamage} onChange={(v) => updateGroup({ collisionDamage: v })} min={1} max={50} step={1} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <button onClick={() => {
+          const current = settings.enemyDifficultyPerWaveGroup ?? [];
+          const last = current.length > 0 ? current[current.length - 1] : null;
+          const nextGroup = last ? { ...last } : {
+            hp: (settings.enemyBaseHp ?? 1) + current.length * 10 * (settings.enemyHpPerWave ?? 0),
+            speed: Math.min((plat.enemy.speed ?? 18) + current.length * 10 * 1.2, 90),
+            fireRate: Math.min((plat.enemy.fireRate ?? 0.003) * (1 + current.length * 10 * 0.025), 0.012),
+            projectileSpeed: (plat.enemy.projectileSpeed ?? 60) + current.length * 10 * (settings.enemyProjectileSpeedPerWave ?? 0),
+            projectileDamage: Math.max(1, Math.round((settings.enemyProjectileDamage ?? 1) + current.length * 10 * (settings.enemyProjectileDamagePerWave ?? 0))),
+            collisionDamage: Math.max(1, Math.round((settings.enemyCollisionDamage ?? 1) + current.length * 10 * (settings.enemyCollisionDamagePerWave ?? 0))),
+          };
+          setSettings((prev) => prev ? { ...prev, enemyDifficultyPerWaveGroup: [...current, nextGroup] } : prev);
+        }} className="mt-3 flex items-center gap-1.5 rounded-lg border border-[#1e1e1e] bg-[#0a0a0a] px-3 py-2 text-xs text-neutral-300 hover:bg-[#1e1e1e] transition-colors"><Plus className="w-3.5 h-3.5" /> Add Wave Group</button>
       </Section>
     </div>
   );

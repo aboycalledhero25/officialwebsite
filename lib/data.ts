@@ -422,6 +422,19 @@ export interface SecretGameSettings {
    */
   bossHealthPerWaveGroup?: number[];
   /**
+   * Per-wave-group enemy difficulty overrides. Index 0 = Waves 1–10, index 1 = Waves 11–20, etc.
+   * When a group config exists, ALL values in that group replace the formula-based scaling
+   * for every wave in that range. Leave entries undefined/missing to fall back to formulas.
+   */
+  enemyDifficultyPerWaveGroup?: Array<{
+    hp: number;
+    speed: number;
+    fireRate: number;
+    projectileSpeed: number;
+    projectileDamage: number;
+    collisionDamage: number;
+  }>;
+  /**
    * Per-sound-effect volume multipliers (0.0 – 2.0), applied on top of the player's master SFX volume.
    * Keys: shoot, enemyHit, playerHit, gameOver, levelComplete, bomb, lightning, powerup, connect, shield
    * Omitting a key defaults to 1.0 (no change).

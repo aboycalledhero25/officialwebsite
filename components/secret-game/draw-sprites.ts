@@ -1175,35 +1175,54 @@ export function draw8BitHealthBar(
   fillColor?: string
 ) {
   const ratio = Math.max(0, Math.min(1, current / max));
-  const fillWidth = Math.max(0, Math.floor(width * ratio));
 
-  // Border
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(x - 2, y - 2, width + 4, height + 4);
-
-  // Background
-  ctx.fillStyle = "#000000";
-  ctx.fillRect(x, y, width, height);
-
-  // Fill — use provided color or default gradient (green → yellow → red)
+  // Fill colour — use provided color or default gradient (green → yellow → red)
   let color = fillColor ?? "#00ff00";
   if (!fillColor) {
     if (ratio < 0.3) color = "#ff0000";
     else if (ratio < 0.6) color = "#ffff00";
   }
 
-  if (fillWidth > 0) {
-    ctx.fillStyle = color;
-    ctx.fillRect(x, y, fillWidth, height);
+  const segW = Math.max(3, Math.floor(height * 0.6)); // segment width
+  const gap = Math.max(1, Math.floor(height * 0.15));  // gap between segments
+  const totalSegW = segW + gap;
+  const maxSegs = Math.max(1, Math.floor((width - gap) / totalSegW));
+  const filledSegs = Math.max(0, Math.floor(maxSegs * ratio));
+
+  // Outer border (3px stepped look)
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(x - 3, y - 3, width + 6, height + 6);
+
+  // Inner background
+  ctx.fillStyle = "#1a1a1a";
+  ctx.fillRect(x - 1, y - 1, width + 2, height + 2);
+
+  // Background segments (empty slots)
+  ctx.fillStyle = "#0a0a0a";
+  for (let i = 0; i < maxSegs; i++) {
+    const sx = x + gap + i * totalSegW;
+    if (sx + segW > x + width) break;
+    ctx.fillRect(sx, y, segW, height);
   }
 
-  // Label text (8-bit pixel style — white, crisp monospace)
+  // Filled segments
+  if (filledSegs > 0) {
+    ctx.fillStyle = color;
+    for (let i = 0; i < filledSegs; i++) {
+      const sx = x + gap + i * totalSegW;
+      if (sx + segW > x + width) break;
+      ctx.fillRect(sx, y, segW, height);
+    }
+  }
+
+  // Label text drawn BELOW the bar so high numbers never clip
+  const textY = y + height + height + 2;
   ctx.fillStyle = "#ffffff";
-  ctx.font = `${Math.max(8, height)}px monospace`;
+  ctx.font = `${Math.max(8, Math.floor(height * 1.2))}px monospace`;
   ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
+  ctx.textBaseline = "top";
   ctx.textRendering = "geometricPrecision";
-  ctx.fillText(`${label} ${Math.ceil(current)}/${max}`, x + width / 2, y + height / 2);
+  ctx.fillText(`${label} ${Math.ceil(current)}/${max}`, x + width / 2, textY);
 }
 
 /* ── Barricade / shield block ── */
