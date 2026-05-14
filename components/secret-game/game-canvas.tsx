@@ -1889,7 +1889,15 @@ export function GameCanvas({
     // Draw stage background image if loaded, otherwise fall back to dark fill
     const activeStageBg = isMobileAtMount ? stageBgMobile : stageBgDesktop;
     if (activeStageBg && activeStageBg.complete && activeStageBg.naturalWidth > 0) {
-      ctx.drawImage(activeStageBg, 0, 0, logW, logH);
+      // Cover behaviour: fill the logical canvas while preserving aspect ratio
+      const imgW = activeStageBg.naturalWidth;
+      const imgH = activeStageBg.naturalHeight;
+      const scale = Math.max(logW / imgW, logH / imgH);
+      const drawW = imgW * scale;
+      const drawH = imgH * scale;
+      const offsetX = (logW - drawW) / 2;
+      const offsetY = (logH - drawH) / 2;
+      ctx.drawImage(activeStageBg, offsetX, offsetY, drawW, drawH);
     } else {
       ctx.fillStyle = "#0a0a0a";
       ctx.fillRect(0, 0, logW, logH);
