@@ -1977,25 +1977,26 @@ export function GameCanvas({
     const SHIELD_FRAMES = 25;
 
     // Helper: draw one frame of the shield spritesheet centered on (cx, cy) with given radius
-    const drawShieldSprite = (cx: number, cy: number, radius: number, progress: number) => {
+    const drawShieldSprite = (cx: number, cy: number, radius: number, progress: number, scale = 1) => {
       const shImg = shieldImageRef.current;
+      const effR = radius * scale;
       if (shImg && shImg.complete && shImg.naturalWidth > 0) {
         const frameIdx = Math.min(SHIELD_FRAMES - 1, Math.floor(Math.max(0, Math.min(0.9999, progress)) * SHIELD_FRAMES));
         const col = frameIdx % SHIELD_COLS;
         const row = Math.floor(frameIdx / SHIELD_COLS);
         const fw = shImg.naturalWidth / SHIELD_COLS;
         const fh = shImg.naturalHeight / SHIELD_ROWS;
-        const size = radius * 2;
+        const size = effR * 2;
         ctx.save();
         ctx.globalAlpha = 0.9;
-        ctx.drawImage(shImg, col * fw, row * fh, fw, fh, cx - radius, cy - radius, size, size);
+        ctx.drawImage(shImg, col * fw, row * fh, fw, fh, cx - effR, cy - effR, size, size);
         ctx.restore();
       } else {
         // Fallback: procedural arc
         ctx.strokeStyle = `rgba(0, 240, 255, ${0.4 + Math.sin(s.frame * 0.3) * 0.2})`;
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        ctx.arc(cx, cy, effR, 0, Math.PI * 2);
         ctx.stroke();
         ctx.fillStyle = `rgba(0, 240, 255, 0.08)`;
         ctx.fill();
@@ -2009,9 +2010,10 @@ export function GameCanvas({
       const cx2 = s.playerX + sc2.offsetX + sc2.width / 2 + (permShCfg?.offsetX ?? 0);
       const cy2 = s.playerY + sc2.offsetY + sc2.height / 2 + (permShCfg?.offsetY ?? 0);
       const permR = permShCfg?.radius ?? 20;
+      const permScale = permShCfg?.size ?? 1;
       const permDuration = playerStats.permShieldDuration;
       const permProgress = permDuration > 0 ? 1 - (s.permShieldTimer / permDuration) : 0;
-      drawShieldSprite(cx2, cy2, permR, permProgress);
+      drawShieldSprite(cx2, cy2, permR, permProgress, permScale);
     }
 
     // Draw shield bubble if active — animation spans the temp shield duration
@@ -2032,12 +2034,12 @@ export function GameCanvas({
       const bossCfg = siteData.secretGame?.boss;
       const bw = bossCfg?.width ?? 40;
       const bh = bossCfg?.height ?? 30;
-      // Visual size = hitbox size × sprite scale multipliers from ROGUELIKE_CONFIG
-      const sprCfg = ROGUELIKE_CONFIG.sprites;
-      const sprW = bw * sprCfg.bossWidthMult;
-      const sprH = bh * sprCfg.bossHeightMult;
-      const sprX = s.boss.x + sprCfg.bossOffsetX;
-      const sprY = s.boss.y + sprCfg.bossOffsetY;
+      // Visual size = hitbox size × sprite scale multipliers (admin-overridable)
+      const sprCfg = siteData.secretGame?.roguelikeConfig?.sprites ?? ROGUELIKE_CONFIG.sprites;
+      const sprW = bw * (sprCfg.bossWidthMult ?? 2.2);
+      const sprH = bh * (sprCfg.bossHeightMult ?? 2.2);
+      const sprX = s.boss.x + (sprCfg.bossOffsetX ?? -28);
+      const sprY = s.boss.y + (sprCfg.bossOffsetY ?? -35);
       drawBossSprite(
         ctx,
         sprX, sprY, sprW, sprH,
@@ -2127,13 +2129,13 @@ export function GameCanvas({
         drawBossProjectile(ctx, b.x, b.y, s.frame, pSize);
       } else {
         const enemyProjSize = enemyCfg?.projectileSize ?? 10;
-        const uwCfg = ROGUELIKE_CONFIG.sprites;
+        const uwCfg = siteData.secretGame?.roguelikeConfig?.sprites ?? ROGUELIKE_CONFIG.sprites;
         drawEnemyBullet(
           ctx, b.x, b.y,
           b.projectileIndex ?? 0,
           enemyProjSize,
-          uwCfg.underwearRows,
-          uwCfg.underwearCols,
+          uwCfg.underwearRows ?? 4,
+          uwCfg.underwearCols ?? 4,
         );
       }
     }

@@ -109,7 +109,7 @@ export const ROGUELIKE_CONFIG: RoguelikeConfig = {
   health:     { slicesProgression: [1, 2, 3, 4] },
   luck:       { dropChancePerStack: 0.01 },
   nuke:       { cooldown: 30, bossHPReduction: 0.25, nukesPerStack: 1 },
-  projectile: { projectilesPerStack: 1, normalMax: 4, redDamage: 5, purpleDamage: 10, goldDamage: 20, tierSize: 5, superBulletSizeMultiplier: 2.5, redSize: 10, purpleSize: 12, goldSize: 14 },
+  projectile: { projectilesPerStack: 1, normalMax: 4, redDamage: 30, purpleDamage: 50, goldDamage: 80, tierSize: 5, superBulletSizeMultiplier: 2.5, redSize: 10, purpleSize: 12, goldSize: 14 },
   rapidFire:  { ratePerStack: 0.02, minCooldown: 0.05 },
   seeker:     { missileDamage: 150, missileCooldown: 15, missilesPerStack: 1 },
   shield:     { duration: 10, cooldown: 30 },

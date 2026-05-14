@@ -218,6 +218,8 @@ export interface GameShieldSettings {
   offsetX: number;
   offsetY: number;
   radius: number;
+  /** Visual scale multiplier for the shield sprite. Default 1.0. */
+  size?: number;
 }
 
 export interface GamePlatformSettings {
@@ -372,10 +374,19 @@ export interface SecretGameSettings {
     nuke?: { cooldown?: number; bossHPReduction?: number; nukesPerStack?: number };
     speed?: { speedPerStack?: number };
     strength?: { damagePerStack?: number };
-    projectile?: { projectilesPerStack?: number; superBulletThreshold?: number; superBulletSizeMultiplier?: number; redSize?: number; purpleSize?: number; goldSize?: number };
+    projectile?: { projectilesPerStack?: number; superBulletThreshold?: number; superBulletSizeMultiplier?: number; redSize?: number; purpleSize?: number; goldSize?: number; redDamage?: number; purpleDamage?: number; goldDamage?: number };
     luck?: { dropChancePerStack?: number };
     extraLife?: { heartsPerStack?: number };
     shield?: { duration?: number; cooldown?: number };
+    health?: { slicesProgression?: number[] };
+    sprites?: {
+      bossWidthMult?: number;
+      bossHeightMult?: number;
+      bossOffsetX?: number;
+      bossOffsetY?: number;
+      underwearRows?: number;
+      underwearCols?: number;
+    };
   };
   /**
    * Per-wave enemy overrides. Specify custom projectile speed, projectile damage (enemy-to-player),

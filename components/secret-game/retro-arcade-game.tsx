@@ -165,7 +165,20 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
       setPhase("playing");
       return;
     }
-    setChosenPowerUps((prev) => ({ ...prev, [id]: (prev[id] ?? 0) + 1 }));
+    setChosenPowerUps((prev) => {
+      const next = { ...prev, [id]: (prev[id] ?? 0) + 1 };
+      // Tier conversion: first pick of a super tier converts 3 of previous tier
+      if (id === "superProjectile" && (prev.superProjectile ?? 0) === 0) {
+        next.projectile = Math.max(0, (prev.projectile ?? 0) - 3);
+      }
+      if (id === "superProjectile2" && (prev.superProjectile2 ?? 0) === 0) {
+        next.superProjectile = Math.max(0, (prev.superProjectile ?? 0) - 3);
+      }
+      if (id === "superProjectile3" && (prev.superProjectile3 ?? 0) === 0) {
+        next.superProjectile2 = Math.max(0, (prev.superProjectile2 ?? 0) - 3);
+      }
+      return next;
+    });
     setPhase("playing");
   }, []);
 

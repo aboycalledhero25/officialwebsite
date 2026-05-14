@@ -33,6 +33,8 @@ export type RoguelikeConfigOverride = Partial<{
   luck: Partial<RoguelikeConfig['luck']>;
   extraLife: Partial<RoguelikeConfig['extraLife']>;
   shield: Partial<RoguelikeConfig['shield']>;
+  health: Partial<RoguelikeConfig['health']>;
+  sprites: Partial<RoguelikeConfig['sprites']>;
 }>;
 
 /**
@@ -63,6 +65,8 @@ function mergeConfig(override?: RoguelikeConfigOverride): RoguelikeConfig {
     luck:        { ...ROGUELIKE_CONFIG.luck,        ...(override.luck        ?? {}) },
     extraLife:   { ...ROGUELIKE_CONFIG.extraLife,   ...(override.extraLife   ?? {}) },
     shield:      { ...ROGUELIKE_CONFIG.shield,      ...(override.shield      ?? {}) },
+    health:      { ...ROGUELIKE_CONFIG.health,      ...(override.health      ?? {}) },
+    sprites:     { ...ROGUELIKE_CONFIG.sprites,     ...(override.sprites     ?? {}) },
   };
 }
 
@@ -178,9 +182,11 @@ export function computePlayerStats(chosen: PermPowerUpState, override?: Roguelik
   const sh = get("shield");
 
   // ── Projectile tier calculation (Normal → Red → Purple → Gold) ───────
-  const projStack = get("projectile");
+  const normalStacks = get("projectile");
+  const redStacks = get("superProjectile");
+  const purpleStacks = get("superProjectile2");
+  const goldStacks = get("superProjectile3");
   const pCfg = cfg.projectile;
-  const tierSize = pCfg.tierSize ?? 5;
 
   let effectiveProjCount = 1;
   let superTier = 0;
@@ -193,31 +199,29 @@ export function computePlayerStats(chosen: PermPowerUpState, override?: Roguelik
   const goldSize   = pCfg.goldSize   ?? (pCfg.superBulletSizeMultiplier ?? 2.5) * 8;
   const superBulletSizes: [number, number, number] = [redSize, purpleSize, goldSize];
 
-  if (projStack > 0) {
-    if (projStack < tierSize) {
-      // Normal: picks 1-4 → 2-5 projectiles
-      effectiveProjCount = projStack + 1;
-      superTier = 0;
-      superBulletDmg = 1;
-    } else if (projStack < tierSize * 2) {
-      // Red: picks 5-9 → 1-5 red projectiles
-      effectiveProjCount = projStack - 4;
-      superTier = 1;
-      superBulletDmg = pCfg.redDamage ?? 5;
-      superSize = redSize;
-    } else if (projStack < tierSize * 3) {
-      // Purple: picks 10-14 → 1-5 purple projectiles
-      effectiveProjCount = projStack - 9;
-      superTier = 2;
-      superBulletDmg = pCfg.purpleDamage ?? 10;
-      superSize = purpleSize;
-    } else if (projStack < tierSize * 4) {
-      // Gold: picks 15-19 → 1-5 gold projectiles
-      effectiveProjCount = projStack - 14;
-      superTier = 3;
-      superBulletDmg = pCfg.goldDamage ?? 20;
-      superSize = goldSize;
-    }
+  if (goldStacks > 0) {
+    // Gold tier: each stack = 1 gold projectile, max 3
+    effectiveProjCount = Math.min(goldStacks, 3);
+    superTier = 3;
+    superBulletDmg = pCfg.goldDamage ?? 80;
+    superSize = goldSize;
+  } else if (purpleStacks > 0) {
+    // Purple tier: each stack = 1 purple projectile, max 3
+    effectiveProjCount = Math.min(purpleStacks, 3);
+    superTier = 2;
+    superBulletDmg = pCfg.purpleDamage ?? 50;
+    superSize = purpleSize;
+  } else if (redStacks > 0) {
+    // Red tier: each stack = 1 red projectile, max 3
+    effectiveProjCount = Math.min(redStacks, 3);
+    superTier = 1;
+    superBulletDmg = pCfg.redDamage ?? 30;
+    superSize = redSize;
+  } else if (normalStacks > 0) {
+    // Normal tier: base 1 + stacks, capped at 3
+    effectiveProjCount = Math.min(normalStacks + 1, 3);
+    superTier = 0;
+    superBulletDmg = 1;
   }
 
   return {
@@ -228,7 +232,7 @@ export function computePlayerStats(chosen: PermPowerUpState, override?: Roguelik
     damageMultiplier:1 + get("strength") * cfg.strength.damagePerStack,
     projectileCount: effectiveProjCount,
     luckBonus:       get("luck") * cfg.luck.dropChancePerStack,
-    totalProjectiles: projStack,
+    totalProjectiles: normalStacks + redStacks + purpleStacks + goldStacks,
     superBulletTier: superTier,
     effectiveProjectileCount: effectiveProjCount,
     superBulletDamage: superBulletDmg,

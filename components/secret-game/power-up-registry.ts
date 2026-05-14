@@ -153,27 +153,63 @@ export const POWER_UP_REGISTRY: PowerUpDefinition[] = [
   {
     id: "projectile",
     name: "Projectile",
-    description: "Adds +1 projectile per shot. After 5 normal, upgrades to Red (5 dmg), then Purple (10 dmg), then Gold (20 dmg).",
+    description: "Adds +1 projectile per shot. Max 3 projectiles, then unlocks Super Projectile (Red).",
     icon: "/powerups/icons/projectile.png",
-    canStack: true, maxStacks: 19, removeFromPoolAfterMaxed: true,
+    canStack: true, maxStacks: 3, removeFromPoolAfterMaxed: true,
     getCurrentStat: (c) => {
       const n = c["projectile"] ?? 0;
-      if (n === 0) return "Projectiles: 1";
-      if (n < 5) return `Projectiles: ${n + 1} (Normal)`;
-      if (n < 10) return `Projectiles: ${n - 4} (Red, 5 dmg)`;
-      if (n < 15) return `Projectiles: ${n - 9} (Purple, 10 dmg)`;
-      return `Projectiles: ${n - 14} (Gold, 20 dmg)`;
+      const count = Math.min(n + 1, 3);
+      return n === 0 ? "Projectiles: 1" : `Projectiles: ${count} (Normal)`;
     },
     getNextStat: (c) => {
       const n = c["projectile"] ?? 0;
-      if (n === 0) return "Projectiles: 2 (Normal)";
-      if (n < 4) return `Projectiles: ${n + 2} (Normal)`;
-      if (n === 4) return "Projectiles: 1 (Red, 5 dmg)";
-      if (n < 9) return `Projectiles: ${n - 3} (Red, 5 dmg)`;
-      if (n === 9) return "Projectiles: 1 (Purple, 10 dmg)";
-      if (n < 14) return `Projectiles: ${n - 8} (Purple, 10 dmg)`;
-      if (n === 14) return "Projectiles: 1 (Gold, 20 dmg)";
-      return `Projectiles: ${n - 13} (Gold, 20 dmg)`;
+      const count = Math.min(n + 2, 3);
+      return `Projectiles: ${count} (Normal)`;
+    },
+  },
+  {
+    id: "superProjectile",
+    name: "Super Projectile (Red)",
+    description: `Red super projectile. Each pick adds +1 projectile (${ROGUELIKE_CONFIG.projectile.redDamage} dmg). Max 3, then unlocks Purple.`,
+    icon: "/powerups/icons/super_projectile.png",
+    canStack: true, maxStacks: 3, removeFromPoolAfterMaxed: true,
+    getCurrentStat: (c) => {
+      const n = c["superProjectile"] ?? 0;
+      return n === 0 ? "Red: 0" : `Red: ${n} projectile${n > 1 ? "s" : ""} (${n * ROGUELIKE_CONFIG.projectile.redDamage} dmg)`;
+    },
+    getNextStat: (c) => {
+      const n = (c["superProjectile"] ?? 0) + 1;
+      return `Red: ${n} projectile${n > 1 ? "s" : ""} (${n * ROGUELIKE_CONFIG.projectile.redDamage} dmg)`;
+    },
+  },
+  {
+    id: "superProjectile2",
+    name: "Super Projectile (Purple)",
+    description: `Purple super projectile. Each pick adds +1 projectile (${ROGUELIKE_CONFIG.projectile.purpleDamage} dmg). Max 3, then unlocks Gold.`,
+    icon: "/powerups/icons/super_projectile2.png",
+    canStack: true, maxStacks: 3, removeFromPoolAfterMaxed: true,
+    getCurrentStat: (c) => {
+      const n = c["superProjectile2"] ?? 0;
+      return n === 0 ? "Purple: 0" : `Purple: ${n} projectile${n > 1 ? "s" : ""} (${n * ROGUELIKE_CONFIG.projectile.purpleDamage} dmg)`;
+    },
+    getNextStat: (c) => {
+      const n = (c["superProjectile2"] ?? 0) + 1;
+      return `Purple: ${n} projectile${n > 1 ? "s" : ""} (${n * ROGUELIKE_CONFIG.projectile.purpleDamage} dmg)`;
+    },
+  },
+  {
+    id: "superProjectile3",
+    name: "Super Projectile (Gold)",
+    description: `Gold super projectile. Each pick adds +1 projectile (${ROGUELIKE_CONFIG.projectile.goldDamage} dmg). Max 3.`,
+    icon: "/powerups/icons/super_projectile3.png",
+    canStack: true, maxStacks: 3, removeFromPoolAfterMaxed: true,
+    getCurrentStat: (c) => {
+      const n = c["superProjectile3"] ?? 0;
+      return n === 0 ? "Gold: 0" : `Gold: ${n} projectile${n > 1 ? "s" : ""} (${n * ROGUELIKE_CONFIG.projectile.goldDamage} dmg)`;
+    },
+    getNextStat: (c) => {
+      const n = (c["superProjectile3"] ?? 0) + 1;
+      return `Gold: ${n} projectile${n > 1 ? "s" : ""} (${n * ROGUELIKE_CONFIG.projectile.goldDamage} dmg)`;
     },
   },
   {
@@ -284,6 +320,29 @@ export function getAvailableIds(
     if (disabledSet.has(p.id)) return false;
     const stacks = chosen[p.id] ?? 0;
     const max = maxStacksOverrides?.[p.id] ?? p.maxStacks;
+
+    // Tiered projectile system: each tier only appears when previous tier is maxed
+    // and disappears permanently once a higher tier has been unlocked
+    if (p.id === "projectile") {
+      // Hide normal projectiles once any super tier is unlocked
+      return (chosen.superProjectile ?? 0) === 0 && (chosen.superProjectile2 ?? 0) === 0 && (chosen.superProjectile3 ?? 0) === 0 && (max === -1 || stacks < max);
+    }
+    if (p.id === "superProjectile") {
+      // Show red when projectile was maxed (for first pick) or red already unlocked (for stacks 2-3)
+      const unlocked = (chosen.projectile ?? 0) >= 3 || (chosen.superProjectile ?? 0) > 0;
+      return unlocked && (chosen.superProjectile2 ?? 0) === 0 && (chosen.superProjectile3 ?? 0) === 0 && (max === -1 || stacks < max);
+    }
+    if (p.id === "superProjectile2") {
+      // Show purple when red was maxed (for first pick) or purple already unlocked
+      const unlocked = (chosen.superProjectile ?? 0) >= 3 || (chosen.superProjectile2 ?? 0) > 0;
+      return unlocked && (chosen.superProjectile3 ?? 0) === 0 && (max === -1 || stacks < max);
+    }
+    if (p.id === "superProjectile3") {
+      // Show gold when purple was maxed (for first pick) or gold already unlocked
+      const unlocked = (chosen.superProjectile2 ?? 0) >= 3 || (chosen.superProjectile3 ?? 0) > 0;
+      return unlocked && (max === -1 || stacks < max);
+    }
+
     return max === -1 || stacks < max;
   }).map((p) => p.id);
 }
