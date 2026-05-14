@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import type {
   GamePlatformSettings,
   PlayerSprite,
@@ -476,6 +476,22 @@ export function GameEditorPreview({
   const [hover, setHover] = useState<Sel | null>(null);
   const [drag, setDrag] = useState<Drag>({ kind: "none" });
 
+  // Normalise spawn points to exactly 6 (defensive: handles old 3-point saves)
+  const sps = useMemo((): [SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint] => {
+    const raw = (spawnPoints ?? settings.spawnPoints ?? []) as SpawnPoint[];
+    const defaults: [SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint] = [
+      { x: 40, y: 10, enabled: true },
+      { x: 90, y: 10, enabled: true },
+      { x: 150, y: 10, enabled: true },
+      { x: 60, y: 30, enabled: true },
+      { x: 120, y: 30, enabled: true },
+      { x: 180, y: 30, enabled: true },
+    ];
+    if (!Array.isArray(raw) || raw.length === 0) return defaults;
+    if (raw.length >= 6) return raw as [SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint];
+    return [...raw, ...defaults.slice(raw.length)] as [SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint];
+  }, [spawnPoints, settings.spawnPoints]);
+
   // Track which assets are ready
   const [assetsReady, setAssetsReady] = useState(false);
   const rafRef = useRef<number>(0);
@@ -607,7 +623,6 @@ export function GameEditorPreview({
     }
 
     // Spawn points (all, including disabled)
-    const sps = spawnPoints ?? settings.spawnPoints;
     for (let i = 0; i < sps.length; i++) {
       const sp = sps[i];
       if (dist(gx, gy, sp.x * xs, sp.y) < 10) return { type: "spawnPoint", index: i };
@@ -670,7 +685,7 @@ export function GameEditorPreview({
         return null;
       }
       case "spawnPoint": {
-        const sp = (spawnPoints ?? settings.spawnPoints)[el.index];
+        const sp = sps[el.index];
         if (near(sp.x * xs, sp.y)) return "center";
         return null;
       }
@@ -733,7 +748,6 @@ export function GameEditorPreview({
     }
 
     // ── Spawn points + enemy reps (real sprites) ──
-    const sps = spawnPoints ?? settings.spawnPoints;
     const { enemy } = settings;
     for (let i = 0; i < sps.length; i++) {
       const sp = sps[i];
@@ -1177,12 +1191,12 @@ export function GameEditorPreview({
         }
         case "spawnPoint": {
           const idx = (drag.el as Extract<Sel, { type: "spawnPoint" }>).index;
-          const sps = (spawnPoints ?? settings.spawnPoints).map((sp, i) =>
+          const nextSps = sps.map((sp: SpawnPoint, i: number) =>
             i === idx
               ? { ...sp, x: clamp(sp.x + dx / xs, 0, BASE_W), y: clamp(sp.y + dy, 0, BASE_H) }
               : sp
           ) as [SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint];
-          onSpawnPointsChange?.(sps);
+          onSpawnPointsChange?.(nextSps);
           break;
         }
         case "ui": {

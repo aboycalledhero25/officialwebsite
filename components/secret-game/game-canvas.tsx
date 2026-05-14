@@ -690,8 +690,9 @@ export function GameCanvas({
             }
             const ew2 = settingsRef.current.enemy.width;
             const eh2 = settingsRef.current.enemy.height;
+            const xScale2 = logW / BASE_W;
             s.enemies.push({
-              x: sp.x - ew2 / 2,
+              x: sp.x * xScale2 - ew2 / 2,
               y: sp.y,
               variant: Math.floor(Math.random() * 3) as 0 | 1 | 2,
               alive: true,

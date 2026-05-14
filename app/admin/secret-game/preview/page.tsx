@@ -5,7 +5,21 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, ZoomIn, ZoomOut, Monitor, Smartphone, Save, Check } from "lucide-react";
 import { GameEditorPreview } from "@/components/secret-game/game-editor-preview";
 import { updateSecretGameSettings } from "@/lib/actions";
-import type { SecretGameSettings, GamePlatformSettings } from "@/lib/data";
+import type { SecretGameSettings, GamePlatformSettings, SpawnPoint } from "@/lib/data";
+
+function padSpawnPoints(sp: any[]): [SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint] {
+  const defaults: [SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint] = [
+    { x: 40, y: 10, enabled: true },
+    { x: 90, y: 10, enabled: true },
+    { x: 150, y: 10, enabled: true },
+    { x: 60, y: 30, enabled: true },
+    { x: 120, y: 30, enabled: true },
+    { x: 180, y: 30, enabled: true },
+  ];
+  if (!Array.isArray(sp) || sp.length === 0) return defaults;
+  if (sp.length >= 6) return sp as [SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint];
+  return [...sp, ...defaults.slice(sp.length)] as [SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint];
+}
 
 export default function FullscreenPreviewPage() {
   const router = useRouter();
@@ -23,7 +37,15 @@ export default function FullscreenPreviewPage() {
       .then((r) => r.json())
       .then((data) => {
         setFullData(data);
-        setSettings(data.secretGame ?? null);
+        let sg = data.secretGame ?? null;
+        if (sg) {
+          sg = {
+            ...sg,
+            desktop: { ...sg.desktop, spawnPoints: padSpawnPoints(sg.desktop?.spawnPoints) },
+            mobile: { ...sg.mobile, spawnPoints: padSpawnPoints(sg.mobile?.spawnPoints) },
+          };
+        }
+        setSettings(sg);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -126,30 +148,40 @@ export default function FullscreenPreviewPage() {
         </div>
       )}
 
-      {/* Canvas fills remaining viewport */}
-      <div className="flex-1 relative overflow-hidden">
-        <GameEditorPreview
-          settings={plat}
-          playerSprite={settings.playerSprite}
-          bossSettings={settings.boss}
-          platform={platform}
-          zoom={previewZoom}
-          hitboxPoints={settings.playerHitbox?.points}
-          bulletSpawnOffsetX={settings.bulletSpawnOffsetX}
-          bulletSpawnOffsetY={settings.bulletSpawnOffsetY}
-          mouseFollowOffsetX={settings.mouseFollowOffsetX}
-          mouseFollowOffsetY={settings.mouseFollowOffsetY}
-          spawnPoints={plat.spawnPoints}
-          onChange={updatePlatform}
-          onBossChange={(next) => setSettings((prev) => prev ? { ...prev, boss: next } : prev)}
-          onHitboxChange={(points) => setSettings((prev) => prev ? { ...prev, playerHitbox: { ...(prev.playerHitbox ?? {}), points } } : prev)}
-          onBulletSpawnChange={(ox, oy) => setSettings((prev) => prev ? { ...prev, bulletSpawnOffsetX: ox, bulletSpawnOffsetY: oy } : prev)}
-          onMouseFollowChange={(ox, oy) => setSettings((prev) => prev ? { ...prev, mouseFollowOffsetX: ox, mouseFollowOffsetY: oy } : prev)}
-          onSpawnPointsChange={(next) => updateField(`${platform}.spawnPoints`, next)}
-          onPlayerSpriteChange={(next) => setSettings((prev) => prev ? { ...prev, playerSprite: next } : prev)}
-          onPlayerHitboxChange={(next) => setSettings((prev) => prev ? { ...prev, playerHitbox: { ...(prev.playerHitbox ?? {}), ...next } } : prev)}
-          onPermShieldChange={(next) => setSettings((prev) => prev ? { ...prev, permShield: next } : prev)}
-        />
+      {/* Canvas area — portrait phone frame for mobile */}
+      <div className="flex-1 relative overflow-hidden flex items-center justify-center">
+        <div
+          className="relative overflow-hidden"
+          style={{
+            width: platform === "desktop" ? "100%" : "min(100%, 420px)",
+            height: platform === "desktop" ? "100%" : "100%",
+            maxWidth: platform === "desktop" ? "100%" : "420px",
+            maxHeight: platform === "desktop" ? "100%" : "100%",
+          }}
+        >
+          <GameEditorPreview
+            settings={plat}
+            playerSprite={settings.playerSprite}
+            bossSettings={settings.boss}
+            platform={platform}
+            zoom={previewZoom}
+            hitboxPoints={settings.playerHitbox?.points}
+            bulletSpawnOffsetX={settings.bulletSpawnOffsetX}
+            bulletSpawnOffsetY={settings.bulletSpawnOffsetY}
+            mouseFollowOffsetX={settings.mouseFollowOffsetX}
+            mouseFollowOffsetY={settings.mouseFollowOffsetY}
+            spawnPoints={plat.spawnPoints}
+            onChange={updatePlatform}
+            onBossChange={(next) => setSettings((prev) => prev ? { ...prev, boss: next } : prev)}
+            onHitboxChange={(points) => setSettings((prev) => prev ? { ...prev, playerHitbox: { ...(prev.playerHitbox ?? {}), points } } : prev)}
+            onBulletSpawnChange={(ox, oy) => setSettings((prev) => prev ? { ...prev, bulletSpawnOffsetX: ox, bulletSpawnOffsetY: oy } : prev)}
+            onMouseFollowChange={(ox, oy) => setSettings((prev) => prev ? { ...prev, mouseFollowOffsetX: ox, mouseFollowOffsetY: oy } : prev)}
+            onSpawnPointsChange={(next) => updateField(`${platform}.spawnPoints`, next)}
+            onPlayerSpriteChange={(next) => setSettings((prev) => prev ? { ...prev, playerSprite: next } : prev)}
+            onPlayerHitboxChange={(next) => setSettings((prev) => prev ? { ...prev, playerHitbox: { ...(prev.playerHitbox ?? {}), ...next } } : prev)}
+            onPermShieldChange={(next) => setSettings((prev) => prev ? { ...prev, permShield: next } : prev)}
+          />
+        </div>
       </div>
     </div>
   );
