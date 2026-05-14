@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useCallback } from "react";
+import { useRef, useEffect, useCallback, useState } from "react";
 import { useGameLoop } from "./use-game-loop";
 import { useKeyboardControls, sharedKeys, sharedTouch, sharedAim } from "./use-keyboard-controls";
 import { useAudioSfx } from "./use-audio-sfx";
@@ -111,7 +111,7 @@ export function GameCanvas({
   const playerImageRef = useRef<HTMLImageElement | null>(null);
   const shieldImageRef = useRef<HTMLImageElement | null>(null);
   const orbsImageRef = useRef<HTMLImageElement | null>(null);
-  const stageBgRef = useRef<HTMLImageElement | null>(null);
+  const [stageBgImage, setStageBgImage] = useState<HTMLImageElement | null>(null);
   useKeyboardControls();
   const { play, playFile, setMuted, isMuted } = useAudioSfx();
   const siteData = useSiteData();
@@ -160,7 +160,7 @@ export function GameCanvas({
     const stageImg = new Image();
     stageImg.src = "/background/stage.png";
     stageImg.onload = () => {
-      stageBgRef.current = stageImg;
+      setStageBgImage(stageImg);
     };
     // Start loading all enemy sprite sheets and effect GIFs in the background
     loadEnemySprites();
@@ -1848,7 +1848,7 @@ export function GameCanvas({
       render(ctx, s, CW, CH, sc);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [phase, onPhaseChange, onScoreChange, onLivesChange, onWaveChange, play, setMuted, isMuted, spawnParticles, onPowerUpChange, onHealthDetailChange, playerStats]
+    [phase, onPhaseChange, onScoreChange, onLivesChange, onWaveChange, play, setMuted, isMuted, spawnParticles, onPowerUpChange, onHealthDetailChange, playerStats, stageBgImage]
   );
 
   function render(
@@ -1881,9 +1881,8 @@ export function GameCanvas({
     ctx.scale(sc, sc);
 
     // Draw stage background image if loaded, otherwise fall back to dark fill
-    const stageImg = stageBgRef.current;
-    if (stageImg && stageImg.complete && stageImg.naturalWidth > 0) {
-      ctx.drawImage(stageImg, 0, 0, logW, logH);
+    if (stageBgImage && stageBgImage.complete && stageBgImage.naturalWidth > 0) {
+      ctx.drawImage(stageBgImage, 0, 0, logW, logH);
     } else {
       ctx.fillStyle = "#0a0a0a";
       ctx.fillRect(0, 0, logW, logH);
