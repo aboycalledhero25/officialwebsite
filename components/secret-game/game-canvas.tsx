@@ -250,6 +250,12 @@ export function GameCanvas({
       skinIndex: number;        // 1-18, randomly chosen at wave start
       animState: BossAnimState; // current animation ("walking" | "throwing" | "hurt" | "dying")
       animAccum: number;        // seconds elapsed in current animation
+      // Per-wave-group overrides (fallback to bossCfg defaults)
+      trackSpeed: number;
+      fireInterval: number;
+      projectileSpeed: number;
+      projectileDamage: number;
+      collisionDamage: number;
     } | null,
     // ── Roguelike: health slicing ─────────────────────────────────────
     currentSlices: ROGUELIKE_CONFIG.startingHearts,
@@ -345,11 +351,20 @@ export function GameCanvas({
 
     if (isBossWave) {
       const bossNumber = Math.floor(w / (bossCfg?.interval ?? 10));
-      // Use per-boss HP override from admin if available, otherwise fall back to formula
-      const perGroupHp = siteData.secretGame?.bossHealthPerWaveGroup;
-      const bossHealth = (perGroupHp && perGroupHp[bossNumber - 1] != null)
-        ? perGroupHp[bossNumber - 1]
-        : (bossCfg?.baseHealth ?? 500) + (bossNumber - 1) * (bossCfg?.healthIncrease ?? 500);
+      const bossGroupIdx = bossNumber - 1;
+      const bossGroupConfig = siteData.secretGame?.bossDifficultyPerWaveGroup?.[bossGroupIdx];
+
+      // Resolve boss health: full config → legacy HP override → formula
+      let bossHealth: number;
+      if (bossGroupConfig) {
+        bossHealth = bossGroupConfig.hp;
+      } else {
+        const perGroupHp = siteData.secretGame?.bossHealthPerWaveGroup;
+        bossHealth = (perGroupHp && perGroupHp[bossGroupIdx] != null)
+          ? perGroupHp[bossGroupIdx]
+          : (bossCfg?.baseHealth ?? 500) + bossGroupIdx * (bossCfg?.healthIncrease ?? 500);
+      }
+
       const bossPos = settingsRef.current.boss;
       const bx = (bossPos?.x ?? 100) * (logW / BASE_W);
       // Pick a random boss skin that has real PNG assets.
@@ -374,6 +389,11 @@ export function GameCanvas({
         animState: "walking",
         animAccum: 0,
         orbitalHitCooldown: 0, // prevents orbital from dealing damage every frame
+        trackSpeed: bossGroupConfig?.speed ?? (bossCfg?.trackSpeed ?? 30),
+        fireInterval: bossGroupConfig?.fireInterval ?? (bossCfg?.fireInterval ?? 3),
+        projectileSpeed: bossGroupConfig?.projectileSpeed ?? (bossCfg?.projectileSpeed ?? 80),
+        projectileDamage: bossGroupConfig?.projectileDamage ?? (siteData.secretGame?.enemyProjectileDamage ?? 1),
+        collisionDamage: bossGroupConfig?.collisionDamage ?? (siteData.secretGame?.enemyCollisionDamage ?? 1),
       };
     } else {
       const maxW = logW - edgeMargin * 2;
@@ -1203,7 +1223,7 @@ export function GameCanvas({
       if (s.boss && bossCfg?.enabled) {
         // Patrol freely left / right, bouncing off walls
         const bw = bossCfg?.width ?? 40;
-        const bossSpeed = (bossCfg?.trackSpeed ?? 30);
+        const bossSpeed = s.boss.trackSpeed;
         s.boss.x += s.boss.dir * bossSpeed * dt;
         if (s.boss.x <= 4) {
           s.boss.x = 4;
@@ -1223,7 +1243,7 @@ export function GameCanvas({
           const bdx = px - bx;
           const bdy = py - by;
           const bdist = Math.sqrt(bdx * bdx + bdy * bdy);
-          const pspeed = bossCfg?.projectileSpeed ?? 80;
+          const pspeed = s.boss.projectileSpeed;
           const vx = bdist > 1 ? (bdx / bdist) * pspeed : 0;
           const vy = bdist > 1 ? (bdy / bdist) * pspeed : pspeed;
           s.bullets.push({
@@ -1234,7 +1254,7 @@ export function GameCanvas({
             isPlayer: false,
             isBoss: true,
           });
-          s.boss.fireCooldown = bossCfg?.fireInterval ?? 3;
+          s.boss.fireCooldown = s.boss.fireInterval;
           // Trigger Throwing animation
           s.boss.animState = "throwing";
           s.boss.animAccum = 0;
@@ -1714,7 +1734,8 @@ export function GameCanvas({
             continue;
           }
           // Heart slicing: remove slices based on per-wave enemy bullet damage
-          s.currentSlices = Math.max(0, s.currentSlices - waveEnemyBulletDmg);
+          const bulletDmg = b.isBoss ? (s.boss?.projectileDamage ?? waveEnemyBulletDmg) : waveEnemyBulletDmg;
+          s.currentSlices = Math.max(0, s.currentSlices - bulletDmg);
           s.lives = Math.ceil(s.currentSlices / s.slicesPerHeart);
           onLivesChange(s.lives);
           if (onHealthDetailChange) onHealthDetailChange(s.currentSlices, s.maxSlices, s.slicesPerHeart);
@@ -1722,7 +1743,7 @@ export function GameCanvas({
           spawnEffect(s.activeEffects, "bullet", px + pw / 2, py + ph / 2, enemyBulletImpact);
           spawnParticles(px + pw / 2, py + ph / 2, "#00f0ff", 10);
           play("playerHit");
-          s.damageNumbers.push({ x: px + pw / 2 + (Math.random() - 0.5) * 10, y: py, value: String(waveEnemyBulletDmg), timer: 1.0, maxTimer: 1.0, color: siteDataRef.current.secretGame?.damageNumbers?.playerHitColor ?? "#ff4444" });
+          s.damageNumbers.push({ x: px + pw / 2 + (Math.random() - 0.5) * 10, y: py, value: String(bulletDmg), timer: 1.0, maxTimer: 1.0, color: siteDataRef.current.secretGame?.damageNumbers?.playerHitColor ?? "#ff4444" });
           if (s.currentSlices <= 0) {
             play("gameOver");
             onRunStatsChange?.(Math.round(s.totalDamageDealt));
@@ -1749,14 +1770,15 @@ export function GameCanvas({
           s.boss.y + bh > py
         ) {
           if (!isInvincible && !s.permShieldActive && !hasShield) {
-            s.currentSlices = Math.max(0, s.currentSlices - waveEnemyCollisionDmg);
+            const touchDmg = s.boss.collisionDamage;
+            s.currentSlices = Math.max(0, s.currentSlices - touchDmg);
             s.lives = Math.ceil(s.currentSlices / s.slicesPerHeart);
             onLivesChange(s.lives);
             if (onHealthDetailChange) onHealthDetailChange(s.currentSlices, s.maxSlices, s.slicesPerHeart);
             s.screenShake = 0.3;
             spawnParticles(px + pw / 2, py + ph / 2, "#ff006e", 10);
             play("playerHit");
-            s.damageNumbers.push({ x: px + pw / 2, y: py - 5, value: String(waveEnemyCollisionDmg), timer: 1.0, maxTimer: 1.0, color: siteDataRef.current.secretGame?.damageNumbers?.playerHitColor ?? "#ff4444" });
+            s.damageNumbers.push({ x: px + pw / 2, y: py - 5, value: String(touchDmg), timer: 1.0, maxTimer: 1.0, color: siteDataRef.current.secretGame?.damageNumbers?.playerHitColor ?? "#ff4444" });
             if (s.currentSlices <= 0) {
               play("gameOver");
               onRunStatsChange?.(Math.round(s.totalDamageDealt));

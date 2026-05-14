@@ -116,6 +116,7 @@ export default function SecretGameAdminPage() {
           mouseFollowOffsetX: sg.mouseFollowOffsetX,
           mouseFollowOffsetY: sg.mouseFollowOffsetY,
           bossHealthPerWaveGroup: sg.bossHealthPerWaveGroup ?? [],
+          bossDifficultyPerWaveGroup: sg.bossDifficultyPerWaveGroup ?? [],
           enemyDifficultyPerWaveGroup: sg.enemyDifficultyPerWaveGroup ?? [],
           sfxVolumes: sg.sfxVolumes ?? {},
           damageNumbers: sg.damageNumbers ?? {},
@@ -518,8 +519,56 @@ export default function SecretGameAdminPage() {
         <p className="text-xs text-neutral-500 mt-2">Boss appears every N waves. HP = Base + (BossNumber - 1) × HealthIncrease.</p>
       </Section>
 
-      <Section title="Boss HP Per Wave Group">
-        <p className="text-xs text-neutral-500 mb-3">Set a custom HP for each boss encounter. Boss 1 = waves 1–10, Boss 2 = waves 11–20, etc. Leave the array short and later bosses fall back to the formula above.</p>
+      <Section title="Boss Difficulty Per Wave Group">
+        <p className="text-xs text-neutral-500 mb-3">Override all boss stats for each boss encounter. Boss 1 = waves 1–10, Boss 2 = waves 11–20, etc. When set, replaces the defaults and formula for that boss.</p>
+        <div className="space-y-3">
+          {(settings.bossDifficultyPerWaveGroup ?? []).map((group, idx) => {
+            const waveFrom = idx * (settings.boss.interval ?? 10) + 1;
+            const waveTo = (idx + 1) * (settings.boss.interval ?? 10);
+            const updateGroup = (patch: Partial<typeof group>) => {
+              const next = [...(settings.bossDifficultyPerWaveGroup ?? [])];
+              next[idx] = { ...group, ...patch };
+              setSettings((prev) => prev ? { ...prev, bossDifficultyPerWaveGroup: next } : prev);
+            };
+            return (
+              <div key={idx} className="rounded-lg border border-[#1e1e1e] bg-[#0a0a0a] p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-neutral-300">Boss {idx + 1} (Wave {waveFrom}–{waveTo})</span>
+                  <button onClick={() => {
+                    const next = [...(settings.bossDifficultyPerWaveGroup ?? [])];
+                    next.splice(idx, 1);
+                    setSettings((prev) => prev ? { ...prev, bossDifficultyPerWaveGroup: next } : prev);
+                  }} className="p-1 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors" title="Remove this boss entry"><Trash2 className="w-3.5 h-3.5" /></button>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <NumberField label="HP" value={group.hp} onChange={(v) => updateGroup({ hp: v })} min={1} max={50000} step={100} />
+                  <NumberField label="Speed" value={group.speed} onChange={(v) => updateGroup({ speed: v })} min={0} max={300} step={5} />
+                  <NumberField label="Fire Interval (sec)" value={group.fireInterval} onChange={(v) => updateGroup({ fireInterval: v })} min={0.1} max={10} step={0.1} />
+                  <NumberField label="Projectile Speed" value={group.projectileSpeed} onChange={(v) => updateGroup({ projectileSpeed: v })} min={0} max={300} step={5} />
+                  <NumberField label="Projectile Damage" value={group.projectileDamage} onChange={(v) => updateGroup({ projectileDamage: v })} min={1} max={50} step={1} />
+                  <NumberField label="Collision Damage" value={group.collisionDamage} onChange={(v) => updateGroup({ collisionDamage: v })} min={1} max={50} step={1} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <button onClick={() => {
+          const current = settings.bossDifficultyPerWaveGroup ?? [];
+          const last = current.length > 0 ? current[current.length - 1] : null;
+          const nextGroup = last ? { ...last } : {
+            hp: (settings.boss?.baseHealth ?? 500) + current.length * (settings.boss?.healthIncrease ?? 500),
+            speed: settings.boss?.trackSpeed ?? 30,
+            fireInterval: settings.boss?.fireInterval ?? 3,
+            projectileSpeed: settings.boss?.projectileSpeed ?? 80,
+            projectileDamage: settings.enemyProjectileDamage ?? 1,
+            collisionDamage: settings.enemyCollisionDamage ?? 1,
+          };
+          setSettings((prev) => prev ? { ...prev, bossDifficultyPerWaveGroup: [...current, nextGroup] } : prev);
+        }} className="mt-3 flex items-center gap-1.5 rounded-lg border border-[#1e1e1e] bg-[#0a0a0a] px-3 py-2 text-xs text-neutral-300 hover:bg-[#1e1e1e] transition-colors"><Plus className="w-3.5 h-3.5" /> Add Boss Group</button>
+      </Section>
+
+      <Section title="Boss HP Per Wave Group (Legacy)">
+        <p className="text-xs text-neutral-500 mb-3">Simple HP overrides per boss. Only used if the full "Boss Difficulty Per Wave Group" above is empty for that boss.</p>
         <div className="space-y-2">
           {(settings.bossHealthPerWaveGroup ?? []).map((hp, idx) => {
             const waveFrom = idx * (settings.boss.interval ?? 10) + 1;
@@ -548,7 +597,7 @@ export default function SecretGameAdminPage() {
           const lastHp = current.length > 0 ? current[current.length - 1] : (settings.boss?.baseHealth ?? 500);
           const increment = settings.boss?.healthIncrease ?? 500;
           setSettings((prev) => prev ? { ...prev, bossHealthPerWaveGroup: [...current, lastHp + increment] } : prev);
-        }} className="mt-3 flex items-center gap-1.5 rounded-lg border border-[#1e1e1e] bg-[#0a0a0a] px-3 py-2 text-xs text-neutral-300 hover:bg-[#1e1e1e] transition-colors"><Plus className="w-3.5 h-3.5" /> Add Boss Group</button>
+        }} className="mt-3 flex items-center gap-1.5 rounded-lg border border-[#1e1e1e] bg-[#0a0a0a] px-3 py-2 text-xs text-neutral-300 hover:bg-[#1e1e1e] transition-colors"><Plus className="w-3.5 h-3.5" /> Add Boss HP Override</button>
       </Section>
 
       {(() => {
@@ -1008,17 +1057,20 @@ export default function SecretGameAdminPage() {
     </div>
   );
 
+  // Render tabs via direct function calls instead of JSX elements.
+  // This prevents React from unmounting/remounting inputs when the parent
+  // re-renders, which was causing number fields to lose focus after 1 keystroke.
   const tabContent: Record<TabId, React.ReactNode> = {
-    general: <GeneralTab />,
-    layout: <LayoutTab />,
-    enemy: <EnemyTab />,
-    boss: <BossTab />,
-    player: <PlayerTab />,
-    powerups: <PowerupsTab />,
-    roguelike: <RoguelikeTab />,
-    visuals: <VisualsTab />,
-    audio: <AudioTab />,
-    leaderboard: <LeaderboardTab />,
+    general: GeneralTab(),
+    layout: LayoutTab(),
+    enemy: EnemyTab(),
+    boss: BossTab(),
+    player: PlayerTab(),
+    powerups: PowerupsTab(),
+    roguelike: RoguelikeTab(),
+    visuals: VisualsTab(),
+    audio: AudioTab(),
+    leaderboard: LeaderboardTab(),
   };
 
   return (

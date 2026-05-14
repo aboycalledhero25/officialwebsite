@@ -422,6 +422,19 @@ export interface SecretGameSettings {
    */
   bossHealthPerWaveGroup?: number[];
   /**
+   * Per-boss full difficulty overrides. Index 0 = Boss 1, index 1 = Boss 2, etc.
+   * When a group config exists, ALL values in that group replace the defaults
+   * for that boss encounter. Leave entries undefined/missing to fall back.
+   */
+  bossDifficultyPerWaveGroup?: Array<{
+    hp: number;
+    speed: number;
+    fireInterval: number;
+    projectileSpeed: number;
+    projectileDamage: number;
+    collisionDamage: number;
+  }>;
+  /**
    * Per-wave-group enemy difficulty overrides. Index 0 = Waves 1–10, index 1 = Waves 11–20, etc.
    * When a group config exists, ALL values in that group replace the formula-based scaling
    * for every wave in that range. Leave entries undefined/missing to fall back to formulas.
