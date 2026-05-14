@@ -633,11 +633,18 @@ export function GameEditorPreview({
     const sprY = settings.player.y + playerSprite.offsetY;
     if (inRect(gx, gy, sprX, sprY, playerSprite.width, playerSprite.height)) return { type: "player" };
 
-    // Boss
+    // Boss (clickable on sprite bounds so the large visual is selectable)
     if (bossSettings.enabled) {
       const bx = settings.boss.x * xs;
       const by = settings.boss.y;
-      if (inRect(gx, gy, bx, by, bossSettings.width, bossSettings.height)) return { type: "boss" };
+      const bw = bossSettings.width;
+      const bh = bossSettings.height;
+      const sprCfg = (settings as any).roguelikeConfig?.sprites ?? {};
+      const sprW = bw * (sprCfg.bossWidthMult ?? 2.2);
+      const sprH = bh * (sprCfg.bossHeightMult ?? 2.2);
+      const sprX = bx + (sprCfg.bossOffsetX ?? -28);
+      const sprY = by + (sprCfg.bossOffsetY ?? -35);
+      if (inRect(gx, gy, sprX, sprY, sprW, sprH)) return { type: "boss" };
     }
 
     // Enemy hitboxes (clickable inner hitbox)
