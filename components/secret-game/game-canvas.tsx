@@ -2099,16 +2099,18 @@ export function GameCanvas({
     }
 
     // Draw player (custom sprite if loaded, else fallback)
+    const pSprX = s.playerX + spriteConfig.offsetX;
+    const pSprY = s.playerY + spriteConfig.offsetY;
     drawPlayerSprite(
       ctx,
-      s.playerX + spriteConfig.offsetX,
-      s.playerY + spriteConfig.offsetY,
+      pSprX,
+      pSprY,
       s.playerFacing,
       s.playerAnimAccum,
       spriteConfig.width,
       spriteConfig.height,
       spriteConfig.cols,
-      () => drawPlayer(ctx, s.playerX, s.playerY, s.frame),
+      () => drawPlayer(ctx, pSprX, pSprY, s.frame),
     );
 
     // Draw invincibility sparkles (Sonic-style) around the guitar
