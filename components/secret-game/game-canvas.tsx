@@ -1205,7 +1205,8 @@ export function GameCanvas({
         if (dd < bestDist) { bestDist = dd; aimX = b.x; aimY = b.y; hasThreat = true; }
       }
 
-      if (hasThreat && s.playerCooldown <= 0) {
+      const autoFireRange = siteData.secretGame?.autoFireRange ?? 0;
+      if (hasThreat && s.playerCooldown <= 0 && (autoFireRange <= 0 || bestDist <= autoFireRange * autoFireRange)) {
         const wideShot = s.activePowerUps.find((p) => p.type === "wideshot");
         const projectilePU = s.activePowerUps.find((p) => p.type === "projectile");
         const rapid = s.activePowerUps.find((p) => p.type === "rapid");

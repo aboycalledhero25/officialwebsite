@@ -63,6 +63,7 @@ interface Props {
   bulletSpawnOffsetY?: number;
   mouseFollowOffsetX?: number;
   mouseFollowOffsetY?: number;
+  autoFireRange?: number;
   spawnPoints?: [SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint];
   onChange: (next: GamePlatformSettings) => void;
   onBossChange?: (next: BossSettings) => void;
@@ -460,6 +461,7 @@ export function GameEditorPreview({
   bulletSpawnOffsetY,
   mouseFollowOffsetX,
   mouseFollowOffsetY,
+  autoFireRange,
   spawnPoints,
   onChange,
   onBossChange,
@@ -886,6 +888,25 @@ export function GameEditorPreview({
     ctx.textAlign = "center";
     ctx.fillText("Bullet", bsx, bsy - 10);
     ctx.restore();
+
+    // ── Auto-fire range ──
+    if (autoFireRange && autoFireRange > 0) {
+      ctx.save();
+      ctx.strokeStyle = "rgba(0, 240, 255, 0.35)";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.arc(bsx, bsy, autoFireRange, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = "rgba(0, 240, 255, 0.04)";
+      ctx.fill();
+      ctx.setLineDash([]);
+      ctx.fillStyle = "rgba(0, 240, 255, 0.5)";
+      ctx.font = "bold 7px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(`Range ${autoFireRange}`, bsx, bsy - autoFireRange - 4);
+      ctx.restore();
+    }
 
     // ── Temp Shield (REAL sprite) ──
     const shCX = pbx + playerSprite.offsetX + playerSprite.width / 2 + settings.shield.offsetX;

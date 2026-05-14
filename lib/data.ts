@@ -381,6 +381,11 @@ export interface SecretGameSettings {
   mouseFollowOffsetX?: number;
   mouseFollowOffsetY?: number;
   /**
+   * Auto-fire range: the player only fires when a threat (enemy, boss, or enemy projectile)
+   * is within this distance (in game-logical units). 0 or undefined = infinite range.
+   */
+  autoFireRange?: number;
+  /**
    * Permanent shield bubble appearance. The offset is relative to the player sprite centre.
    * Defaults to { offsetX: 0, offsetY: 0, radius: 20 }.
    */

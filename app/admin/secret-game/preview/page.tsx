@@ -172,6 +172,7 @@ export default function FullscreenPreviewPage() {
             bulletSpawnOffsetY={settings.bulletSpawnOffsetY}
             mouseFollowOffsetX={settings.mouseFollowOffsetX}
             mouseFollowOffsetY={settings.mouseFollowOffsetY}
+            autoFireRange={settings.autoFireRange}
             spawnPoints={plat.spawnPoints}
             onChange={updatePlatform}
             onBossChange={(next) => setSettings((prev) => prev ? { ...prev, boss: next } : prev)}

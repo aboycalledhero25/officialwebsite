@@ -137,6 +137,7 @@ export default function SecretGameAdminPage() {
           bulletSpawnOffsetY: sg.bulletSpawnOffsetY,
           mouseFollowOffsetX: sg.mouseFollowOffsetX,
           mouseFollowOffsetY: sg.mouseFollowOffsetY,
+          autoFireRange: sg.autoFireRange,
           bossHealthPerWaveGroup: sg.bossHealthPerWaveGroup ?? [],
           bossDifficultyPerWaveGroup: sg.bossDifficultyPerWaveGroup ?? [],
           enemyDifficultyPerWaveGroup: sg.enemyDifficultyPerWaveGroup ?? [],
@@ -728,6 +729,13 @@ export default function SecretGameAdminPage() {
         </div>
       </Section>
 
+      <Section title="Auto-Fire Range">
+        <p className="text-xs text-neutral-500 mb-3">The player only auto-fires when a threat (enemy, boss, or enemy projectile) is within this distance. Set to 0 for infinite range.</p>
+        <div className="grid grid-cols-2 gap-4">
+          <NumberField label="Range" value={settings.autoFireRange ?? 0} onChange={(v) => updateField("autoFireRange", Math.max(0, v))} min={0} max={500} step={10} />
+        </div>
+      </Section>
+
       <Section title="Mouse Follow Offset">
         <p className="text-xs text-neutral-500 mb-3">Where the mouse cursor sits relative to the player when using mouse/touch to move. Defaults to sprite centre. Use the Live Preview to drag the target dot.</p>
         <div className="grid grid-cols-2 gap-4">
@@ -1227,6 +1235,7 @@ export default function SecretGameAdminPage() {
                 bulletSpawnOffsetY={settings.bulletSpawnOffsetY}
                 mouseFollowOffsetX={settings.mouseFollowOffsetX}
                 mouseFollowOffsetY={settings.mouseFollowOffsetY}
+                autoFireRange={settings.autoFireRange}
                 spawnPoints={plat.spawnPoints}
                 onChange={updatePlatform}
                 onBossChange={(next) => setSettings((prev) => prev ? { ...prev, boss: next } : prev)}
