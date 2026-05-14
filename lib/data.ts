@@ -181,6 +181,13 @@ export interface GameEnemySettings {
   hitboxWidth?: number;   // hitbox width  in game units; defaults to cell width
   hitboxHeight?: number;  // hitbox height in game units; defaults to cell height
   /**
+   * Body collision box size — independent from the visual sprite.
+   * Defaults to width/height so existing data keeps working.
+   * Use these to make the enemy body smaller/larger without changing the sprite.
+   */
+  collisionWidth?: number;
+  collisionHeight?: number;
+  /**
    * Visual-only scale multiplier for the enemy sprite.
    * Does NOT affect the grid cell size or collision box.
    * 1 = sprite fills the cell, 2 = sprite is twice as large, etc.

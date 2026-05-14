@@ -45,6 +45,7 @@ type Sel =
   | { type: "boss" }
   | { type: "spawnPoint"; index: number }
   | { type: "enemyHitbox"; index: number }
+  | { type: "enemyBody"; index: number }
   | { type: "ui"; key: string };
 
 type Drag =
@@ -310,6 +311,16 @@ function Inspector({ sel, settings, playerSprite, bossSettings, playerHitbox, hi
           <Num label="Offset Y" value={en.hitboxOffsetY ?? 0} onChange={(v) => onChange({ ...settings, enemy: { ...en, hitboxOffsetY: v } })} />
           <Num label="Width" value={en.hitboxWidth ?? en.width} onChange={(v) => onChange({ ...settings, enemy: { ...en, hitboxWidth: Math.max(1, v) } })} min={1} max={200} />
           <Num label="Height" value={en.hitboxHeight ?? en.height} onChange={(v) => onChange({ ...settings, enemy: { ...en, hitboxHeight: Math.max(1, v) } })} min={1} max={200} />
+        </div>
+      );
+    }
+    case "enemyBody": {
+      const en = settings.enemy;
+      return (
+        <div className="rounded-lg border border-[#1e1e1e] bg-[#0a0a0a]/95 p-3 space-y-2">
+          <div className="text-[11px] font-semibold text-white">Enemy Body (S{sel.index + 1})</div>
+          <Num label="Collision Width" value={en.collisionWidth ?? en.width} onChange={(v) => onChange({ ...settings, enemy: { ...en, collisionWidth: Math.max(1, v) } })} min={1} max={200} />
+          <Num label="Collision Height" value={en.collisionHeight ?? en.height} onChange={(v) => onChange({ ...settings, enemy: { ...en, collisionHeight: Math.max(1, v) } })} min={1} max={200} />
         </div>
       );
     }
@@ -647,8 +658,24 @@ export function GameEditorPreview({
       if (inRect(gx, gy, sprX, sprY, sprW, sprH)) return { type: "boss" };
     }
 
-    // Enemy hitboxes (clickable inner hitbox)
+    // Enemy body (red collision box)
     const { enemy } = settings;
+    for (let i = 0; i < sps.length; i++) {
+      const sp = sps[i];
+      if (!sp.enabled) continue;
+      const sx = sp.x * xs;
+      const sy = sp.y;
+      const eew = enemy.width;
+      const eeh = enemy.height;
+      const ecw = enemy.collisionWidth ?? eew;
+      const ech = enemy.collisionHeight ?? eeh;
+      // Game positions enemy at sp.x*xScale - width/2, then uses collisionWidth/Height from that origin
+      const bodyX = sx - eew / 2;
+      const bodyY = sy;
+      if (inRect(gx, gy, bodyX, bodyY, ecw, ech)) return { type: "enemyBody", index: i };
+    }
+
+    // Enemy hitboxes (clickable inner hitbox)
     for (let i = 0; i < sps.length; i++) {
       const sp = sps[i];
       if (!sp.enabled) continue;
@@ -743,6 +770,19 @@ export function GameEditorPreview({
         if (near(hbx + hbw, hby + hbh)) return "se";
         return null;
       }
+      case "enemyBody": {
+        const sp = sps[el.index];
+        const sx = sp.x * xs;
+        const sy = sp.y;
+        const eew = settings.enemy.width;
+        const eeh = settings.enemy.height;
+        const ecw = settings.enemy.collisionWidth ?? eew;
+        const ech = settings.enemy.collisionHeight ?? eeh;
+        const bodyX = sx - eew / 2;
+        const bodyY = sy;
+        if (near(bodyX + ecw, bodyY + ech)) return "se";
+        return null;
+      }
       case "ui": {
         const u = (settings as any)[el.key];
         let ex = u.x * xs, ey = u.y, ew = u.size ?? 20, eh = u.size ?? 20;
@@ -823,13 +863,24 @@ export function GameEditorPreview({
           ctx, esprX, esprY, i % 3 as 0 | 1 | 2, "walking", "down", 0, esprW, esprH,
           () => drawEnemy(ctx, esprX, esprY, i % 3 as 0 | 1 | 2, 0, false, esprW, esprH),
         );
-        // Enemy collision box outline (full body)
+        // Enemy collision box outline (red body — uses collisionWidth/Height)
+        const ecw = enemy.collisionWidth ?? ew;
+        const ech = enemy.collisionHeight ?? eh;
+        const bodyX = sx - ew / 2;
+        const bodyY = sy;
+        const isBodySel = sel?.type === "enemyBody" && sel.index === i;
         ctx.save();
-        ctx.strokeStyle = "rgba(255, 60, 60, 0.4)";
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = isBodySel ? "#ff3333" : "rgba(255, 60, 60, 0.4)";
+        ctx.lineWidth = isBodySel ? 1.5 : 1;
         ctx.setLineDash([2, 2]);
-        ctx.strokeRect(sx - ew / 2, sy, ew, eh);
+        ctx.strokeRect(bodyX, bodyY, ecw, ech);
+        ctx.fillStyle = isBodySel ? "rgba(255, 50, 50, 0.12)" : "rgba(255, 60, 60, 0.04)";
+        ctx.fillRect(bodyX, bodyY, ecw, ech);
         ctx.setLineDash([]);
+        if (isBodySel) {
+          ctx.fillStyle = "#ff3333";
+          ctx.fillRect(bodyX + ecw - 3, bodyY + ech - 3, 6, 6);
+        }
         ctx.restore();
 
         // Enemy bullet-hitbox outline (inner hitbox)
@@ -1260,6 +1311,19 @@ export function GameEditorPreview({
           }
           break;
         }
+        case "enemyBody": {
+          if (drag.handle === "se") {
+            onChange({
+              ...settings,
+              enemy: {
+                ...settings.enemy,
+                collisionWidth: Math.max(1, (settings.enemy.collisionWidth ?? settings.enemy.width) + dx),
+                collisionHeight: Math.max(1, (settings.enemy.collisionHeight ?? settings.enemy.height) + dy),
+              },
+            });
+          }
+          break;
+        }
       }
     } else if (drag.kind === "move") {
       switch (drag.el.type) {
@@ -1354,7 +1418,7 @@ export function GameEditorPreview({
         onMouseLeave={onMouseUp}
       />
       {/* Inspector */}
-      <div className="absolute top-3 right-3 w-56 space-y-2 pointer-events-auto">
+      <div className="absolute top-3 right-3 w-56 space-y-2 pointer-events-auto max-h-[calc(100vh-24px)] overflow-y-auto">
         <Inspector
           sel={sel}
           settings={settings}
