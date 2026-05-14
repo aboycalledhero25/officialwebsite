@@ -364,7 +364,7 @@ export interface SecretGameSettings {
     nuke?: { cooldown?: number; bossHPReduction?: number; nukesPerStack?: number };
     speed?: { speedPerStack?: number };
     strength?: { damagePerStack?: number };
-    projectile?: { projectilesPerStack?: number; superBulletThreshold?: number; superBulletSizeMultiplier?: number };
+    projectile?: { projectilesPerStack?: number; superBulletThreshold?: number; superBulletSizeMultiplier?: number; redSize?: number; purpleSize?: number; goldSize?: number };
     luck?: { dropChancePerStack?: number };
     extraLife?: { heartsPerStack?: number };
     shield?: { duration?: number; cooldown?: number };

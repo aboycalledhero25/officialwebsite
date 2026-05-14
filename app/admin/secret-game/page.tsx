@@ -720,7 +720,7 @@ export default function SecretGameAdminPage() {
             const shield    = rc.shield      ?? { duration: 10, cooldown: 30 };
             const speed     = rc.speed       ?? { speedPerStack: 0.01 };
             const strength  = rc.strength    ?? { damagePerStack: 0.02 };
-            const proj      = rc.projectile  ?? { projectilesPerStack: 1, superBulletThreshold: 10, superBulletSizeMultiplier: 2.5 };
+            const proj      = rc.projectile  ?? { projectilesPerStack: 1, superBulletThreshold: 10, superBulletSizeMultiplier: 2.5, redSize: 10, purpleSize: 12, goldSize: 14 };
             const luck      = rc.luck        ?? { dropChancePerStack: 0.01 };
             const extraLife = rc.extraLife   ?? { heartsPerStack: 1 };
             const upRc = (key: string, val: object) =>
@@ -798,10 +798,12 @@ export default function SecretGameAdminPage() {
                 </div>
               </Section>
               <Section title="Super Bullet (perm upgrade — Projectile stacking)">
-                <p className="text-xs text-neutral-500 mb-3">When projectiles reach the threshold, they merge into a single super bullet. Tier 1 (Red) at threshold, Tier 2 (Purple) at 2×, Tier 3 (Gold) at 3×.</p>
-                <div className="grid grid-cols-2 gap-4">
-                  <NumberField label="Super Bullet Threshold" value={proj.superBulletThreshold ?? 10} onChange={(v) => upRc("projectile", { superBulletThreshold: v })} min={2} max={50} step={1} />
-                  <NumberField label="Size Multiplier" value={proj.superBulletSizeMultiplier ?? 2.5} onChange={(v) => upRc("projectile", { superBulletSizeMultiplier: v })} min={1} max={10} step={0.1} />
+                <p className="text-xs text-neutral-500 mb-3">Projectile stacks upgrade through tiers: Normal (1-4 picks) → Red (5-9) → Purple (10-14) → Gold (15-19). Each tier fires fewer, more powerful projectiles. Adjust the visual size of each tier below.</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  <NumberField label="Red Size (px)" value={proj.redSize ?? 10} onChange={(v) => upRc("projectile", { redSize: v })} min={1} max={50} step={1} />
+                  <NumberField label="Purple Size (px)" value={proj.purpleSize ?? 12} onChange={(v) => upRc("projectile", { purpleSize: v })} min={1} max={50} step={1} />
+                  <NumberField label="Gold Size (px)" value={proj.goldSize ?? 14} onChange={(v) => upRc("projectile", { goldSize: v })} min={1} max={50} step={1} />
+                  <NumberField label="Size Multiplier (legacy)" value={proj.superBulletSizeMultiplier ?? 2.5} onChange={(v) => upRc("projectile", { superBulletSizeMultiplier: v })} min={1} max={10} step={0.1} />
                 </div>
               </Section>
               <Section title="Virus (perm upgrade)">

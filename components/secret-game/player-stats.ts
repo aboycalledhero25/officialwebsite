@@ -132,7 +132,8 @@ export interface PlayerStats {
   superBulletTier: number;           // 0 = normal, 1 = red, 2 = purple, 3 = gold
   effectiveProjectileCount: number;  // actual projectiles fired per shot
   superBulletDamage: number;         // damage per super bullet (multiplied by damageMultiplier)
-  superBulletSize: number;           // size of the super bullet relative to normal
+  superBulletSize: number;           // size of the super bullet relative to normal (current tier)
+  superBulletSizes: [number, number, number]; // per-tier sizes: [red, purple, gold]
 
   // ─── Nuke ────────────────────────────────────────────────────────────
   hasNuke: boolean;
@@ -186,6 +187,12 @@ export function computePlayerStats(chosen: PermPowerUpState, override?: Roguelik
   let superBulletDmg = 1;
   let superSize = 1;
 
+  // Per-tier super-bullet sizes (admin-configurable, with legacy fallback)
+  const redSize    = pCfg.redSize    ?? (pCfg.superBulletSizeMultiplier ?? 2.5) * 4;
+  const purpleSize = pCfg.purpleSize ?? (pCfg.superBulletSizeMultiplier ?? 2.5) * 6;
+  const goldSize   = pCfg.goldSize   ?? (pCfg.superBulletSizeMultiplier ?? 2.5) * 8;
+  const superBulletSizes: [number, number, number] = [redSize, purpleSize, goldSize];
+
   if (projStack > 0) {
     if (projStack < tierSize) {
       // Normal: picks 1-4 → 2-5 projectiles
@@ -197,19 +204,19 @@ export function computePlayerStats(chosen: PermPowerUpState, override?: Roguelik
       effectiveProjCount = projStack - 4;
       superTier = 1;
       superBulletDmg = pCfg.redDamage ?? 5;
-      superSize = pCfg.superBulletSizeMultiplier ?? 2.5;
+      superSize = redSize;
     } else if (projStack < tierSize * 3) {
       // Purple: picks 10-14 → 1-5 purple projectiles
       effectiveProjCount = projStack - 9;
       superTier = 2;
       superBulletDmg = pCfg.purpleDamage ?? 10;
-      superSize = (pCfg.superBulletSizeMultiplier ?? 2.5) + 0.5;
+      superSize = purpleSize;
     } else if (projStack < tierSize * 4) {
       // Gold: picks 15-19 → 1-5 gold projectiles
       effectiveProjCount = projStack - 14;
       superTier = 3;
       superBulletDmg = pCfg.goldDamage ?? 20;
-      superSize = (pCfg.superBulletSizeMultiplier ?? 2.5) + 1.0;
+      superSize = goldSize;
     }
   }
 
@@ -226,6 +233,7 @@ export function computePlayerStats(chosen: PermPowerUpState, override?: Roguelik
     effectiveProjectileCount: effectiveProjCount,
     superBulletDamage: superBulletDmg,
     superBulletSize: superSize,
+    superBulletSizes,
 
     hasSeekerMissile: sk > 0,
     seekerMissileDamage: cfg.seeker.missileDamage,

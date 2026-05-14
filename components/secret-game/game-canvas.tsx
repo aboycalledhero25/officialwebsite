@@ -2083,7 +2083,7 @@ export function GameCanvas({
           const tier = b.superBulletTier;
           const color = tier >= 3 ? "#ffd700" : tier === 2 ? "#cc44ff" : "#ff2222";
           const glowColor = tier >= 3 ? "#ffaa00" : tier === 2 ? "#9900ff" : "#ff0000";
-          const sz = 4 * (1 + (tier - 1) * 0.5) * (playerStats2.superBulletSize / Math.max(1, playerStats2.superBulletTier));
+          const sz = playerStats2.superBulletSizes[tier - 1] ?? 10;
           ctx.save();
           ctx.shadowColor = glowColor;
           ctx.shadowBlur = 12;

@@ -583,7 +583,10 @@
         "purpleDamage": 10,
         "goldDamage": 20,
         "tierSize": 5,
-        "superBulletSizeMultiplier": 2.5
+        "superBulletSizeMultiplier": 2.5,
+        "redSize": 10,
+        "purpleSize": 12,
+        "goldSize": 14
       },
       "luck": {
         "dropChancePerStack": 0.05
