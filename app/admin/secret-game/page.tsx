@@ -7,6 +7,7 @@ import { updateSecretGameSettings, resetLeaderboard, getLeaderboard, deleteScore
 import { useRouter } from "next/navigation";
 import type { SecretGameSettings, GamePlatformSettings } from "@/lib/data";
 import { useAudioSfx, unlockAudio } from "@/components/secret-game/use-audio-sfx";
+import { POWER_UP_REGISTRY } from "@/components/secret-game/power-up-registry";
 
 const DEFAULT_PLATFORM: GamePlatformSettings = {
   player: { x: 115, y: 265 },
@@ -882,6 +883,48 @@ export default function SecretGameAdminPage() {
                       updateField("disabledPowerUps", next);
                     }}
                   />
+                );
+              })}
+            </div>
+          </Section>
+
+          {/* Max Stacks */}
+          <Section title="Max Stacks (per power-up)">
+            <p className="text-xs text-neutral-500 mb-3">
+              Maximum number of times each permanent power-up can be picked per run.
+              Set to -1 for unlimited. Defaults are shown in grey when not overridden.
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {POWER_UP_REGISTRY.filter((p) => p.canStack).map((p) => {
+                const current = settings.powerUpMaxStacks?.[p.id];
+                const isOverridden = current !== undefined;
+                return (
+                  <div key={p.id} className="flex flex-col gap-1">
+                    <label className="text-xs text-neutral-400 font-mono">{p.name}</label>
+                    <input
+                      type="number"
+                      value={isOverridden ? current : ""}
+                      placeholder={String(p.maxStacks)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const num = val === "" ? undefined : parseInt(val, 10);
+                        const next = { ...(settings.powerUpMaxStacks ?? {}) };
+                        if (num === undefined || isNaN(num)) {
+                          delete next[p.id];
+                        } else {
+                          next[p.id] = num;
+                        }
+                        updateField("powerUpMaxStacks", Object.keys(next).length > 0 ? next : undefined);
+                      }}
+                      className={[
+                        "w-full px-2 py-1.5 rounded border bg-black text-white text-sm font-mono focus:outline-none focus:ring-1 focus:ring-yellow-400",
+                        isOverridden ? "border-yellow-400/50" : "border-white/10",
+                      ].join(" ")}
+                      min={-1}
+                      max={100}
+                      step={1}
+                    />
+                  </div>
                 );
               })}
             </div>

@@ -499,6 +499,7 @@
     "disabledPowerUps": [
       "seeker"
     ],
+    "powerUpMaxStacks": {},
     "playerHitbox": {
       "offsetX": -3,
       "offsetY": -13,

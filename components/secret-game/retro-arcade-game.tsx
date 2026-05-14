@@ -147,7 +147,7 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
   // Generate 3 choices and play the fanfare whenever a reward screen is entered
   useEffect(() => {
     if (phase === "bossreward" || phase === "wavereward") {
-      setCurrentChoices(pickRandomChoices(chosenPowerUps, 3, disabledPowerUps));
+      setCurrentChoices(pickRandomChoices(chosenPowerUps, 3, disabledPowerUps, siteData.secretGame?.powerUpMaxStacks));
       playFile("/audio/powerup.mp3");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -274,18 +274,28 @@ export function getPowerUp(id: string): PowerUpDefinition | undefined {
 }
 
 /** Return all IDs that are still available (not maxed, not disabled). */
-export function getAvailableIds(chosen: PermPowerUpState, disabledIds: string[] = []): string[] {
+export function getAvailableIds(
+  chosen: PermPowerUpState,
+  disabledIds: string[] = [],
+  maxStacksOverrides?: Record<string, number>,
+): string[] {
   const disabledSet = new Set(disabledIds);
   return POWER_UP_REGISTRY.filter((p) => {
     if (disabledSet.has(p.id)) return false;
     const stacks = chosen[p.id] ?? 0;
-    return p.maxStacks === -1 || stacks < p.maxStacks;
+    const max = maxStacksOverrides?.[p.id] ?? p.maxStacks;
+    return max === -1 || stacks < max;
   }).map((p) => p.id);
 }
 
 /** Pick `count` random unique IDs from the available pool. */
-export function pickRandomChoices(chosen: PermPowerUpState, count = 3, disabledIds: string[] = []): string[] {
-  const available = getAvailableIds(chosen, disabledIds);
+export function pickRandomChoices(
+  chosen: PermPowerUpState,
+  count = 3,
+  disabledIds: string[] = [],
+  maxStacksOverrides?: Record<string, number>,
+): string[] {
+  const available = getAvailableIds(chosen, disabledIds, maxStacksOverrides);
   const shuffled = [...available].sort(() => Math.random() - 0.5);
   return shuffled.slice(0, Math.min(count, shuffled.length));
 }

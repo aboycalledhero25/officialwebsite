@@ -323,6 +323,12 @@ export interface SecretGameSettings {
    */
   disabledPowerUps?: string[];
   /**
+   * Per-power-up maximum stack overrides. Keys are power-up IDs (e.g. "bomb", "frenzy").
+   * Values are the max number of times a player can pick that power-up.
+   * -1 = unlimited. Omit a key to use the hardcoded default.
+   */
+  powerUpMaxStacks?: Record<string, number>;
+  /**
    * Player collision hitbox. Offset is relative to the player's game position (playerX/Y).
    * Defaults to { offsetX: 0, offsetY: 0, width: 10, height: 20 }.
    */
