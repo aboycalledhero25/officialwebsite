@@ -92,9 +92,9 @@ export default function FullscreenPreviewPage() {
   const plat = settings[platform];
 
   return (
-    <div className="h-screen flex flex-col bg-[#0a0a0a] text-white overflow-hidden">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between gap-4 border-b border-[#1e1e1e] bg-[#0a0a0a]/90 backdrop-blur px-4 py-3 shrink-0">
+    <div className="h-screen bg-[#0a0a0a] text-white overflow-hidden relative">
+      {/* Toolbar — absolute overlay so canvas fills full viewport like the game */}
+      <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between gap-4 border-b border-[#1e1e1e] bg-[#0a0a0a]/90 backdrop-blur px-4 py-3">
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.push("/admin/secret-game")}
@@ -143,13 +143,13 @@ export default function FullscreenPreviewPage() {
       </div>
 
       {saveError && (
-        <div className="shrink-0 bg-red-900/30 border-b border-red-800 text-red-300 text-xs px-4 py-1.5">
+        <div className="absolute top-[52px] left-0 right-0 z-50 bg-red-900/30 border-b border-red-800 text-red-300 text-xs px-4 py-1.5">
           Error: {saveError}
         </div>
       )}
 
-      {/* Canvas area — portrait phone frame for mobile */}
-      <div className="flex-1 relative overflow-hidden flex items-center justify-center">
+      {/* Canvas area — fills full viewport, toolbar is overlay */}
+      <div className="absolute inset-0 flex items-center justify-center">
         <div
           className="relative overflow-hidden"
           style={{

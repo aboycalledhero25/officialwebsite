@@ -2113,39 +2113,6 @@ export function GameCanvas({
       () => drawPlayer(ctx, pSprX, pSprY, s.frame),
     );
 
-    // ── Debug: draw player hitbox outline so it matches the preview ──
-    const hbCfg2 = siteData.secretGame?.playerHitbox;
-    const hbPoints2 = hbCfg2?.points;
-    const usePoly2 = hbPoints2 && hbPoints2.length >= 3;
-    ctx.save();
-    if (usePoly2 && hbPoints2) {
-      ctx.strokeStyle = "rgba(255,0,110,0.7)";
-      ctx.lineWidth = 1;
-      ctx.setLineDash([3, 3]);
-      ctx.beginPath();
-      ctx.moveTo(s.playerX + hbPoints2[0].x, s.playerY + hbPoints2[0].y);
-      for (let i = 1; i < hbPoints2.length; i++) {
-        ctx.lineTo(s.playerX + hbPoints2[i].x, s.playerY + hbPoints2[i].y);
-      }
-      ctx.closePath();
-      ctx.stroke();
-      ctx.fillStyle = "rgba(255,0,110,0.08)";
-      ctx.fill();
-    } else {
-      ctx.strokeStyle = "rgba(255,0,110,0.7)";
-      ctx.lineWidth = 1;
-      ctx.setLineDash([3, 3]);
-      const hbx = s.playerX + (hbCfg2?.offsetX ?? 0);
-      const hby = s.playerY + (hbCfg2?.offsetY ?? 0);
-      const hbw = hbCfg2?.width ?? PLAYER_W_BASE;
-      const hbh = hbCfg2?.height ?? PLAYER_H_BASE;
-      ctx.strokeRect(hbx, hby, hbw, hbh);
-      ctx.fillStyle = "rgba(255,0,110,0.08)";
-      ctx.fillRect(hbx, hby, hbw, hbh);
-    }
-    ctx.setLineDash([]);
-    ctx.restore();
-
     // Draw invincibility sparkles (Sonic-style) around the guitar
     if (s.activePowerUps.some((p) => p.type === "invincible")) {
       const sc = spriteConfig;
