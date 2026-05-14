@@ -50,21 +50,20 @@ export default function FullscreenPreviewPage() {
   const plat = settings[platform];
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white">
+    <div className="h-screen flex flex-col bg-[#0a0a0a] text-white overflow-hidden">
       {/* Toolbar */}
-      <div className="sticky top-0 z-50 flex items-center justify-between gap-4 border-b border-[#1e1e1e] bg-[#0a0a0a]/90 backdrop-blur px-4 py-3">
+      <div className="flex items-center justify-between gap-4 border-b border-[#1e1e1e] bg-[#0a0a0a]/90 backdrop-blur px-4 py-3 shrink-0">
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.push("/admin/secret-game")}
             className="flex items-center gap-2 rounded-lg bg-[#1e1e1e] hover:bg-[#2a2a2a] px-3 py-2 text-sm text-neutral-300 transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" /> Back to Editor
+            <ArrowLeft className="w-4 h-4" /> Back
           </button>
           <h1 className="text-sm font-semibold text-neutral-200">Live Preview</h1>
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Platform toggle */}
           <div className="flex gap-1 rounded-lg border border-[#1e1e1e] bg-[#141414] p-1">
             <button
               onClick={() => setPlatform("desktop")}
@@ -80,7 +79,6 @@ export default function FullscreenPreviewPage() {
             </button>
           </div>
 
-          {/* Zoom controls */}
           <div className="flex items-center gap-1">
             <button onClick={() => setPreviewZoom((z) => Math.max(0.25, parseFloat((z - 0.25).toFixed(2))))} className="p-1.5 rounded bg-[#1e1e1e] hover:bg-[#2a2a2a] text-neutral-300 transition-colors"><ZoomOut className="w-4 h-4" /></button>
             <span className="text-xs text-neutral-400 w-12 text-center">{Math.round(previewZoom * 100)}%</span>
@@ -90,38 +88,30 @@ export default function FullscreenPreviewPage() {
         </div>
       </div>
 
-      {/* Fullscreen preview */}
-      <div className="flex items-center justify-center p-4" style={{ minHeight: "calc(100vh - 64px)" }}>
-        <div
-          className="relative rounded-xl border border-[#1e1e1e] bg-[#141414] overflow-hidden"
-          style={{
-            width: platform === "desktop" ? "min(100%, 900px)" : "min(100%, 420px)",
-            height: platform === "desktop" ? "min(calc(100vh - 100px), 1200px)" : "min(calc(100vh - 100px), 900px)",
-          }}
-        >
-          <GameEditorPreview
-            settings={plat}
-            playerSprite={settings.playerSprite}
-            bossSettings={settings.boss}
-            platform={platform}
-            zoom={previewZoom}
-            hitboxPoints={settings.playerHitbox?.points}
-            bulletSpawnOffsetX={settings.bulletSpawnOffsetX}
-            bulletSpawnOffsetY={settings.bulletSpawnOffsetY}
-            mouseFollowOffsetX={settings.mouseFollowOffsetX}
-            mouseFollowOffsetY={settings.mouseFollowOffsetY}
-            spawnPoints={plat.spawnPoints}
-            onChange={updatePlatform}
-            onBossChange={(next) => setSettings((prev) => prev ? { ...prev, boss: next } : prev)}
-            onHitboxChange={(points) => setSettings((prev) => prev ? { ...prev, playerHitbox: { ...(prev.playerHitbox ?? {}), points } } : prev)}
-            onBulletSpawnChange={(ox, oy) => setSettings((prev) => prev ? { ...prev, bulletSpawnOffsetX: ox, bulletSpawnOffsetY: oy } : prev)}
-            onMouseFollowChange={(ox, oy) => setSettings((prev) => prev ? { ...prev, mouseFollowOffsetX: ox, mouseFollowOffsetY: oy } : prev)}
-            onSpawnPointsChange={(next) => updateField(`${platform}.spawnPoints`, next)}
-            onPlayerSpriteChange={(next) => setSettings((prev) => prev ? { ...prev, playerSprite: next } : prev)}
-            onPlayerHitboxChange={(next) => setSettings((prev) => prev ? { ...prev, playerHitbox: { ...(prev.playerHitbox ?? {}), ...next } } : prev)}
-            onPermShieldChange={(next) => setSettings((prev) => prev ? { ...prev, permShield: next } : prev)}
-          />
-        </div>
+      {/* Canvas fills remaining viewport */}
+      <div className="flex-1 relative overflow-hidden">
+        <GameEditorPreview
+          settings={plat}
+          playerSprite={settings.playerSprite}
+          bossSettings={settings.boss}
+          platform={platform}
+          zoom={previewZoom}
+          hitboxPoints={settings.playerHitbox?.points}
+          bulletSpawnOffsetX={settings.bulletSpawnOffsetX}
+          bulletSpawnOffsetY={settings.bulletSpawnOffsetY}
+          mouseFollowOffsetX={settings.mouseFollowOffsetX}
+          mouseFollowOffsetY={settings.mouseFollowOffsetY}
+          spawnPoints={plat.spawnPoints}
+          onChange={updatePlatform}
+          onBossChange={(next) => setSettings((prev) => prev ? { ...prev, boss: next } : prev)}
+          onHitboxChange={(points) => setSettings((prev) => prev ? { ...prev, playerHitbox: { ...(prev.playerHitbox ?? {}), points } } : prev)}
+          onBulletSpawnChange={(ox, oy) => setSettings((prev) => prev ? { ...prev, bulletSpawnOffsetX: ox, bulletSpawnOffsetY: oy } : prev)}
+          onMouseFollowChange={(ox, oy) => setSettings((prev) => prev ? { ...prev, mouseFollowOffsetX: ox, mouseFollowOffsetY: oy } : prev)}
+          onSpawnPointsChange={(next) => updateField(`${platform}.spawnPoints`, next)}
+          onPlayerSpriteChange={(next) => setSettings((prev) => prev ? { ...prev, playerSprite: next } : prev)}
+          onPlayerHitboxChange={(next) => setSettings((prev) => prev ? { ...prev, playerHitbox: { ...(prev.playerHitbox ?? {}), ...next } } : prev)}
+          onPermShieldChange={(next) => setSettings((prev) => prev ? { ...prev, permShield: next } : prev)}
+        />
       </div>
     </div>
   );
