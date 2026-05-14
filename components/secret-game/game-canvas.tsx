@@ -609,6 +609,19 @@ export function GameCanvas({
       const logW = CW / sc;
       const playAreaW = logW;
       const enemyCfg = settingsRef.current.enemy;
+      // DEBUG: log enemy hitbox config once per session to verify live updates
+      if (typeof window !== "undefined" && !(window as any).__enemyHitboxLogged) {
+        (window as any).__enemyHitboxLogged = true;
+        // eslint-disable-next-line no-console
+        console.log("[Game] Enemy config:", {
+          width: enemyCfg.width,
+          height: enemyCfg.height,
+          hitboxOffsetX: enemyCfg.hitboxOffsetX,
+          hitboxOffsetY: enemyCfg.hitboxOffsetY,
+          hitboxWidth: enemyCfg.hitboxWidth,
+          hitboxHeight: enemyCfg.hitboxHeight,
+        });
+      }
       const ew = enemyCfg.width;
       const eh = enemyCfg.height;
 
