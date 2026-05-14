@@ -42,9 +42,12 @@ const DEFAULT_PLATFORM: GamePlatformSettings = {
   boss: { x: 100, y: 20 },
   spawnPoints: [
     { x: 40, y: 10, enabled: true },
-    { x: 120, y: 10, enabled: true },
-    { x: 200, y: 10, enabled: true },
-  ] as [SpawnPoint, SpawnPoint, SpawnPoint],
+    { x: 90, y: 10, enabled: true },
+    { x: 150, y: 10, enabled: true },
+    { x: 60, y: 30, enabled: false },
+    { x: 120, y: 30, enabled: false },
+    { x: 180, y: 30, enabled: false },
+  ] as [SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint],
 };
 
 const TABS = [
@@ -385,7 +388,7 @@ export default function SecretGameAdminPage() {
       </Section>
 
       <Section title={`Enemy Spawn Points (${platform})`}>
-        <p className="text-xs text-neutral-500 mb-3">Three spawn points where horde enemies appear. Drag them in the preview to reposition.</p>
+        <p className="text-xs text-neutral-500 mb-3">Six spawn points where horde enemies appear. Drag them in the preview to reposition.</p>
         {plat.spawnPoints.map((sp, idx) => (
           <div key={idx} className="rounded-lg border border-[#1e1e1e] bg-[#0a0a0a] p-3 mb-2">
             <div className="flex items-center justify-between mb-2">

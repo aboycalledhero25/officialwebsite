@@ -61,13 +61,13 @@ interface Props {
   bulletSpawnOffsetY?: number;
   mouseFollowOffsetX?: number;
   mouseFollowOffsetY?: number;
-  spawnPoints?: [SpawnPoint, SpawnPoint, SpawnPoint];
+  spawnPoints?: [SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint];
   onChange: (next: GamePlatformSettings) => void;
   onBossChange?: (next: BossSettings) => void;
   onHitboxChange?: (points: HitboxPoint[]) => void;
   onBulletSpawnChange?: (ox: number, oy: number) => void;
   onMouseFollowChange?: (ox: number, oy: number) => void;
-  onSpawnPointsChange?: (next: [SpawnPoint, SpawnPoint, SpawnPoint]) => void;
+  onSpawnPointsChange?: (next: [SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint]) => void;
   onPlayerSpriteChange?: (next: PlayerSprite) => void;
   onPlayerHitboxChange?: (next: PlayerHitbox) => void;
   onPermShieldChange?: (next: GameShieldSettings) => void;
@@ -139,7 +139,7 @@ function Inspector({ sel, settings, playerSprite, bossSettings, hitboxPoints, bu
   const patchBossPos = (patch: any) => onChange({ ...settings, boss: { ...settings.boss, ...patch } });
   const patchShield = (patch: any) => onChange({ ...settings, shield: { ...settings.shield, ...patch } });
   const patchSpawn = (i: number, patch: any) => {
-    const next = [...settings.spawnPoints] as [SpawnPoint, SpawnPoint, SpawnPoint];
+    const next = [...settings.spawnPoints] as [SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint];
     next[i] = { ...next[i], ...patch };
     onChange({ ...settings, spawnPoints: next });
   };
@@ -1034,7 +1034,7 @@ export function GameEditorPreview({
             i === idx
               ? { ...sp, x: clamp(sp.x + dx / xs, 0, BASE_W), y: clamp(sp.y + dy, 0, BASE_H) }
               : sp
-          ) as [SpawnPoint, SpawnPoint, SpawnPoint];
+          ) as [SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint];
           onSpawnPointsChange?.(sps);
           break;
         }

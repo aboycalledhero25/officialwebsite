@@ -240,7 +240,7 @@ export interface GamePlatformSettings {
   /** Position and size of the HUD controls row (Pause / Mute / Fullscreen buttons). */
   controls?: { x: number; y: number; size: number };
   /** Three enemy spawn points for horde waves. */
-  spawnPoints: [SpawnPoint, SpawnPoint, SpawnPoint];
+  spawnPoints: [SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint];
   /** Per-platform overrides for projectile visual sizes. Falls back to global defaults when omitted. */
   projectileSizes?: {
     boss?: number;

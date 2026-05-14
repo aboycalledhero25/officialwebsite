@@ -713,8 +713,11 @@
       },
       "spawnPoints": [
         { "x": 40, "y": 10, "enabled": true },
-        { "x": 120, "y": 10, "enabled": true },
-        { "x": 200, "y": 10, "enabled": true }
+        { "x": 90, "y": 10, "enabled": true },
+        { "x": 150, "y": 10, "enabled": true },
+        { "x": 60, "y": 30, "enabled": false },
+        { "x": 120, "y": 30, "enabled": false },
+        { "x": 180, "y": 30, "enabled": false }
       ]
     },
     "mobile": {
@@ -802,8 +805,11 @@
       },
       "spawnPoints": [
         { "x": 40, "y": 10, "enabled": true },
-        { "x": 120, "y": 10, "enabled": true },
-        { "x": 200, "y": 10, "enabled": true }
+        { "x": 90, "y": 10, "enabled": true },
+        { "x": 150, "y": 10, "enabled": true },
+        { "x": 60, "y": 30, "enabled": false },
+        { "x": 120, "y": 30, "enabled": false },
+        { "x": 180, "y": 30, "enabled": false }
       ]
     }
   },
