@@ -44,6 +44,7 @@ type Sel =
   | { type: "permShield" }
   | { type: "boss" }
   | { type: "spawnPoint"; index: number }
+  | { type: "enemyHitbox"; index: number }
   | { type: "ui"; key: string };
 
 type Drag =
@@ -297,6 +298,18 @@ function Inspector({ sel, settings, playerSprite, bossSettings, playerHitbox, hi
           <div className="text-[11px] font-semibold text-white">Spawn {sel.index + 1}</div>
           <Num label="X" value={sp.x} onChange={(v) => patchSpawn(sel.index, { x: clamp(v, 0, BASE_W) })} min={0} max={BASE_W} />
           <Num label="Y" value={sp.y} onChange={(v) => patchSpawn(sel.index, { y: clamp(v, 0, BASE_H) })} min={0} max={BASE_H} />
+        </div>
+      );
+    }
+    case "enemyHitbox": {
+      const en = settings.enemy;
+      return (
+        <div className="rounded-lg border border-[#1e1e1e] bg-[#0a0a0a]/95 p-3 space-y-2">
+          <div className="text-[11px] font-semibold text-white">Enemy Hitbox (S{sel.index + 1})</div>
+          <Num label="Offset X" value={en.hitboxOffsetX ?? 0} onChange={(v) => onChange({ ...settings, enemy: { ...en, hitboxOffsetX: v } })} />
+          <Num label="Offset Y" value={en.hitboxOffsetY ?? 0} onChange={(v) => onChange({ ...settings, enemy: { ...en, hitboxOffsetY: v } })} />
+          <Num label="Width" value={en.hitboxWidth ?? en.width} onChange={(v) => onChange({ ...settings, enemy: { ...en, hitboxWidth: Math.max(1, v) } })} min={1} max={200} />
+          <Num label="Height" value={en.hitboxHeight ?? en.height} onChange={(v) => onChange({ ...settings, enemy: { ...en, hitboxHeight: Math.max(1, v) } })} min={1} max={200} />
         </div>
       );
     }
@@ -627,6 +640,22 @@ export function GameEditorPreview({
       if (inRect(gx, gy, bx, by, bossSettings.width, bossSettings.height)) return { type: "boss" };
     }
 
+    // Enemy hitboxes (clickable inner hitbox)
+    const { enemy } = settings;
+    for (let i = 0; i < sps.length; i++) {
+      const sp = sps[i];
+      if (!sp.enabled) continue;
+      const sx = sp.x * xs;
+      const sy = sp.y;
+      const eew = enemy.width;
+      const eeh = enemy.height;
+      const hbx = sx - eew / 2 + (enemy.hitboxOffsetX ?? 0);
+      const hby = sy + (enemy.hitboxOffsetY ?? 0);
+      const hbw = enemy.hitboxWidth ?? eew;
+      const hbh = enemy.hitboxHeight ?? eeh;
+      if (inRect(gx, gy, hbx, hby, hbw, hbh)) return { type: "enemyHitbox", index: i };
+    }
+
     // Spawn points (all, including disabled)
     for (let i = 0; i < sps.length; i++) {
       const sp = sps[i];
@@ -692,6 +721,19 @@ export function GameEditorPreview({
       case "spawnPoint": {
         const sp = sps[el.index];
         if (near(sp.x * xs, sp.y)) return "center";
+        return null;
+      }
+      case "enemyHitbox": {
+        const sp = sps[el.index];
+        const sx = sp.x * xs;
+        const sy = sp.y;
+        const eew = settings.enemy.width;
+        const eeh = settings.enemy.height;
+        const hbx = sx - eew / 2 + (settings.enemy.hitboxOffsetX ?? 0);
+        const hby = sy + (settings.enemy.hitboxOffsetY ?? 0);
+        const hbw = settings.enemy.hitboxWidth ?? eew;
+        const hbh = settings.enemy.hitboxHeight ?? eeh;
+        if (near(hbx + hbw, hby + hbh)) return "se";
         return null;
       }
       case "ui": {
@@ -774,13 +816,33 @@ export function GameEditorPreview({
           ctx, esprX, esprY, i % 3 as 0 | 1 | 2, "walking", "down", 0, esprW, esprH,
           () => drawEnemy(ctx, esprX, esprY, i % 3 as 0 | 1 | 2, 0, false, esprW, esprH),
         );
-        // Enemy collision box outline
+        // Enemy collision box outline (full body)
         ctx.save();
         ctx.strokeStyle = "rgba(255, 60, 60, 0.4)";
         ctx.lineWidth = 1;
         ctx.setLineDash([2, 2]);
         ctx.strokeRect(sx - ew / 2, sy, ew, eh);
         ctx.setLineDash([]);
+        ctx.restore();
+
+        // Enemy bullet-hitbox outline (inner hitbox)
+        const ehbX = sx - ew / 2 + (enemy.hitboxOffsetX ?? 0);
+        const ehbY = sy + (enemy.hitboxOffsetY ?? 0);
+        const ehbW = enemy.hitboxWidth ?? ew;
+        const ehbH = enemy.hitboxHeight ?? eh;
+        const isEhbSel = sel?.type === "enemyHitbox" && sel.index === i;
+        ctx.save();
+        ctx.strokeStyle = isEhbSel ? "#ffcc00" : "rgba(255, 200, 0, 0.5)";
+        ctx.lineWidth = isEhbSel ? 1.5 : 1;
+        ctx.setLineDash([3, 3]);
+        ctx.strokeRect(ehbX, ehbY, ehbW, ehbH);
+        ctx.fillStyle = isEhbSel ? "rgba(255, 204, 0, 0.12)" : "rgba(255, 200, 0, 0.06)";
+        ctx.fillRect(ehbX, ehbY, ehbW, ehbH);
+        ctx.setLineDash([]);
+        if (isEhbSel) {
+          ctx.fillStyle = "#ffcc00";
+          ctx.fillRect(ehbX + ehbW - 3, ehbY + ehbH - 3, 6, 6);
+        }
         ctx.restore();
       }
       // Spawn point marker
@@ -1178,6 +1240,19 @@ export function GameEditorPreview({
           }
           break;
         }
+        case "enemyHitbox": {
+          if (drag.handle === "se") {
+            onChange({
+              ...settings,
+              enemy: {
+                ...settings.enemy,
+                hitboxWidth: Math.max(1, (settings.enemy.hitboxWidth ?? settings.enemy.width) + dx),
+                hitboxHeight: Math.max(1, (settings.enemy.hitboxHeight ?? settings.enemy.height) + dy),
+              },
+            });
+          }
+          break;
+        }
       }
     } else if (drag.kind === "move") {
       switch (drag.el.type) {
@@ -1239,6 +1314,17 @@ export function GameEditorPreview({
           const nx = clamp(u.x + dx / xs, 0, BASE_W);
           const ny = clamp(u.y + dy, 0, BASE_H);
           onChange({ ...settings, [drag.el.key]: { ...u, x: nx, y: ny } });
+          break;
+        }
+        case "enemyHitbox": {
+          onChange({
+            ...settings,
+            enemy: {
+              ...settings.enemy,
+              hitboxOffsetX: (settings.enemy.hitboxOffsetX ?? 0) + dx,
+              hitboxOffsetY: (settings.enemy.hitboxOffsetY ?? 0) + dy,
+            },
+          });
           break;
         }
       }
