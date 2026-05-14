@@ -1250,11 +1250,9 @@ export function GameCanvas({
       const bpx = s.playerX + (siteData.secretGame?.bulletSpawnOffsetX ?? PLAYER_W_BASE / 2) + dirOffX;
       const bpy = s.playerY + (siteData.secretGame?.bulletSpawnOffsetY ?? PLAYER_H_BASE / 2) + dirOffY;
 
-      // Find closest threat
-      let bestDist = Infinity;
-      let aimX = bpx;
-      let aimY = bpy - 10;
-      let hasThreat = false;
+      // Find all threats and sort by distance so each bullet can target a different one
+      type Threat = { x: number; y: number; distSq: number };
+      const threats: Threat[] = [];
 
       // Check alive enemies
       for (const e of s.enemies) {
@@ -1263,20 +1261,23 @@ export function GameCanvas({
         const ey = e.y + eh / 2;
         const ddx = ex - bpx;
         const ddy = ey - bpy;
-        const dd = ddx * ddx + ddy * ddy;
-        if (dd < bestDist) { bestDist = dd; aimX = ex; aimY = ey; hasThreat = true; }
+        threats.push({ x: ex, y: ey, distSq: ddx * ddx + ddy * ddy });
       }
 
       // Check boss
       if (s.boss && s.boss.health > 0) {
-        const bw2 = siteData.secretGame?.boss?.width ?? 40;
-        const bh2 = siteData.secretGame?.boss?.height ?? 30;
-        const bx2 = s.boss.x + bw2 / 2;
-        const by2 = s.boss.y + bh2 / 2;
+        const bossCfg2 = siteData.secretGame?.boss;
+        const bw2 = bossCfg2?.width ?? 40;
+        const bh2 = bossCfg2?.height ?? 30;
+        const bhbx2 = s.boss.x + (bossCfg2?.hitboxOffsetX ?? 0);
+        const bhby2 = s.boss.y + (bossCfg2?.hitboxOffsetY ?? 0);
+        const bhbw2 = bossCfg2?.hitboxWidth ?? bw2;
+        const bhbh2 = bossCfg2?.hitboxHeight ?? bh2;
+        const bx2 = bhbx2 + bhbw2 / 2;
+        const by2 = bhby2 + bhbh2 / 2;
         const ddx = bx2 - bpx;
         const ddy = by2 - bpy;
-        const dd = ddx * ddx + ddy * ddy;
-        if (dd < bestDist) { bestDist = dd; aimX = bx2; aimY = by2; hasThreat = true; }
+        threats.push({ x: bx2, y: by2, distSq: ddx * ddx + ddy * ddy });
       }
 
       // Check enemy projectiles
@@ -1284,9 +1285,12 @@ export function GameCanvas({
         if (b.isPlayer) continue;
         const ddx = b.x - bpx;
         const ddy = b.y - bpy;
-        const dd = ddx * ddx + ddy * ddy;
-        if (dd < bestDist) { bestDist = dd; aimX = b.x; aimY = b.y; hasThreat = true; }
+        threats.push({ x: b.x, y: b.y, distSq: ddx * ddx + ddy * ddy });
       }
+
+      threats.sort((a, b) => a.distSq - b.distSq);
+      const bestDist = threats[0]?.distSq ?? Infinity;
+      const hasThreat = threats.length > 0;
 
       const autoFireRange = siteData.secretGame?.autoFireRange ?? 0;
       if (hasThreat && s.playerCooldown <= 0 && (autoFireRange <= 0 || bestDist <= autoFireRange * autoFireRange)) {
@@ -1298,20 +1302,13 @@ export function GameCanvas({
           ? Math.min(playerStats.reloadTime, Math.max(0.06, 0.12 - 0.02 * (rapidStacks - 1)))
           : playerStats.reloadTime;
 
-        const dx = aimX - bpx;
-        const dy = aimY - bpy;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const speed = BULLET_SPEED_BASE;
-        let vx = 0, vy = -speed;
-        if (dist > 1) { vx = (dx / dist) * speed; vy = (dy / dist) * speed; }
-
         const permProj = playerStats.projectileCount - 1;
         let totalBullets = wideShot ? (2 + wideShot.stacks + permProj) : playerStats.projectileCount;
         if (projectilePU) {
           totalBullets += projectilePU.stacks;
         }
         totalBullets = Math.min(totalBullets, 3);
-        const baseAngle = Math.atan2(vy, vx);
+        const speed = BULLET_SPEED_BASE;
 
         const fireBulletNow = (angle: number) => {
           s.bullets.push({
@@ -1325,17 +1322,25 @@ export function GameCanvas({
           });
         };
 
-        if (totalBullets > 1) {
-          const spread = wideShot ? 0.26 : 0.1;
-          for (let i = 0; i < totalBullets; i++) {
-            const angle = baseAngle - spread + (spread * 2 * i) / (totalBullets - 1);
-            fireBulletNow(angle);
+        // Each bullet targets a different threat (1st bullet → closest, 2nd → 2nd closest, etc.)
+        for (let i = 0; i < totalBullets; i++) {
+          const target = threats[Math.min(i, threats.length - 1)];
+          const tdx = target.x - bpx;
+          const tdy = target.y - bpy;
+          const tdist = Math.sqrt(tdx * tdx + tdy * tdy);
+          let angle = -Math.PI / 2; // default straight up
+          if (tdist > 1) {
+            angle = Math.atan2(tdy, tdx);
           }
-          play("shoot");
-        } else {
-          fireBulletNow(baseAngle);
-          play("shoot");
+          // Wide shot adds a small spread even when multi-targeting
+          if (totalBullets > 1 && wideShot) {
+            const spread = 0.13;
+            const spreadOffset = -spread + (spread * 2 * i) / (totalBullets - 1);
+            angle += spreadOffset;
+          }
+          fireBulletNow(angle);
         }
+        play("shoot");
 
         s.playerCooldown = baseCooldown;
       }
