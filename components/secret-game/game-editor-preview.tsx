@@ -10,7 +10,25 @@ import type {
   PlayerHitbox,
   GameShieldSettings,
 } from "@/lib/data";
-import { drawEnemy, drawBoss, drawPlayer } from "./draw-sprites";
+import {
+  drawEnemy,
+  drawBoss,
+  drawPlayer,
+  draw8BitHealthBar,
+  drawPowerUp,
+} from "./draw-sprites";
+import {
+  loadBossSkin,
+  drawBossSprite,
+} from "./boss-sprites";
+import {
+  loadEnemySprites,
+  drawEnemySprite,
+} from "./enemy-sprites";
+import {
+  loadPlayerSprite,
+  drawPlayerSprite,
+} from "./player-sprite";
 
 const BASE_W = 240;
 const BASE_H = 320;
@@ -225,6 +243,128 @@ function Inspector({ sel, settings, playerSprite, bossSettings, hitboxPoints, bu
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   Canvas HUD drawing helpers (matching game-hud.tsx exactly)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function drawPixelHeart(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number, fillFraction: number) {
+  const s = size / 7;
+  const rects = [
+    [1, 0, 1, 1], [5, 0, 1, 1],
+    [0, 1, 7, 3],
+    [1, 4, 5, 1],
+    [2, 5, 3, 1],
+    [3, 6, 1, 1],
+  ];
+  ctx.save();
+  // Empty outline
+  ctx.fillStyle = "rgba(255,0,110,0.2)";
+  for (const [rx, ry, rw, rh] of rects) {
+    ctx.fillRect(cx + rx * s - size / 2, cy + ry * s - size / 2, rw * s, rh * s);
+  }
+  // Filled portion
+  if (fillFraction > 0) {
+    const clipW = size * fillFraction;
+    ctx.beginPath();
+    ctx.rect(cx - size / 2, cy - size / 2, clipW, size);
+    ctx.clip();
+    ctx.fillStyle = "#ff006e";
+    for (const [rx, ry, rw, rh] of rects) {
+      ctx.fillRect(cx + rx * s - size / 2, cy + ry * s - size / 2, rw * s, rh * s);
+    }
+  }
+  ctx.restore();
+}
+
+function drawHUDOnCanvas(
+  ctx: CanvasRenderingContext2D,
+  settings: GamePlatformSettings,
+  bossSettings: BossSettings,
+  lives: number,
+  score: number,
+  wave: number,
+  logW: number,
+) {
+  const xs = logW / BASE_W;
+
+  // Score
+  const sp = settings.score;
+  if (sp?.visible) {
+    const sx = sp.x * xs;
+    const sy = sp.y;
+    const sz = sp.size ?? 14;
+    ctx.fillStyle = "#888";
+    ctx.font = `bold ${sz * 0.5}px monospace`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.fillText("SCORE", sx, sy);
+    ctx.fillStyle = "#00f0ff";
+    ctx.font = `bold ${sz}px monospace`;
+    ctx.shadowColor = "#004444";
+    ctx.shadowBlur = 0;
+    ctx.fillText(score.toString().padStart(6, "0"), sx, sy + sz * 0.5);
+    ctx.shadowColor = "transparent";
+  }
+
+  // Wave
+  const wp = settings.wave;
+  if (wp?.visible) {
+    const wx = wp.x * xs;
+    const wy = wp.y;
+    const wz = wp.size ?? 14;
+    ctx.fillStyle = "#888";
+    ctx.font = `bold ${wz * 0.5}px monospace`;
+    ctx.textAlign = "left";
+    ctx.fillText("WAVE", wx, wy);
+    ctx.fillStyle = "#fcee0a";
+    ctx.font = `bold ${wz}px monospace`;
+    ctx.shadowColor = "#444400";
+    ctx.fillText(String(wave), wx, wy + wz * 0.5);
+    ctx.shadowColor = "transparent";
+  }
+
+  // Hearts
+  const hp = settings.hearts;
+  if (hp?.visible) {
+    const hx = hp.x * xs;
+    const hy = hp.y;
+    const hs = (hp.size ?? 28) * 0.7;
+    const bgW = hs + 4 + ctx.measureText(`×${lives}`).width;
+    ctx.fillStyle = "rgba(0,0,0,0.6)";
+    ctx.fillRect(hx, hy, bgW + 4, hs + 4);
+    drawPixelHeart(ctx, hx + hs / 2 + 2, hy + hs / 2 + 2, hs, 1);
+    ctx.fillStyle = "#ff006e";
+    ctx.font = `bold ${hs * 0.65}px monospace`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText(`×${lives}`, hx + hs + 6, hy + hs / 2 + 2);
+  }
+
+  // Power-ups (placeholder - no active powerups in preview)
+  const pup = settings.powerUps;
+  if (pup?.visible) {
+    const px = pup.x * xs;
+    const py = pup.y;
+    const psz = pup.size ?? 8;
+    ctx.fillStyle = "rgba(0,0,0,0.4)";
+    ctx.fillRect(px, py, 40, psz * 2);
+    ctx.fillStyle = "#666";
+    ctx.font = `bold ${psz}px monospace`;
+    ctx.textAlign = "left";
+    ctx.fillText("POWERUPS", px, py + psz);
+  }
+
+  // Boss health bar
+  const bhb = settings.bossHealthBar;
+  if (bossSettings.enabled && bhb?.visible) {
+    const bx = bhb.x * xs;
+    const by = bhb.y;
+    const bh = bhb.size ?? 6;
+    const bw = bh * 10;
+    draw8BitHealthBar(ctx, bx, by, bw, bh, bossSettings.baseHealth ?? 500, bossSettings.baseHealth ?? 500, "BOSS", "#ff0000");
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    Main component
    ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -258,8 +398,9 @@ export function GameEditorPreview({
   const [hover, setHover] = useState<Sel | null>(null);
   const [drag, setDrag] = useState<Drag>({ kind: "none" });
 
-  // Asset state
-  const [assets, setAssets] = useState({ player: false, shield: false, bg: false });
+  // Track which assets are ready
+  const [assetsReady, setAssetsReady] = useState(false);
+  const rafRef = useRef<number>(0);
 
   // ── Measure container ──
   useEffect(() => {
@@ -276,19 +417,46 @@ export function GameEditorPreview({
     return () => { ro.disconnect(); window.removeEventListener("resize", measure); };
   }, [zoom]);
 
-  // ── Load assets ──
+  // ── Load game assets ──
   useEffect(() => {
-    const loadImg = (src: string, key: "player" | "shield" | "bg") => {
-      const img = new Image();
-      img.src = src;
-      img.onload = () => setAssets((a) => ({ ...a, [key]: true }));
-      img.onerror = () => setAssets((a) => ({ ...a, [key]: true })); // don't block on missing
-      return img;
-    };
-    loadImg("/player/player.png", "player");
-    loadImg("/shield/shield.png", "shield");
-    loadImg(platform === "mobile" ? "/images/stage_mobile.png" : "/images/stage.png", "bg");
+    loadPlayerSprite();
+    loadEnemySprites();
+    loadBossSkin(1);
+
+    // Load shield image
+    const shieldImg = new Image();
+    shieldImg.src = "/shield/shield.png";
+
+    // Load background
+    const bgImg = new Image();
+    bgImg.src = platform === "mobile" ? "/background/stage_mobile.png" : "/background/stage.png";
+
+    // Poll for asset readiness then switch to continuous RAF
+    let checks = 0;
+    const timer = setInterval(() => {
+      checks++;
+      // After ~2 seconds assume everything is loaded or failed
+      if (checks > 20) {
+        setAssetsReady(true);
+        clearInterval(timer);
+      }
+    }, 100);
+
+    return () => clearInterval(timer);
   }, [platform]);
+
+  // ── Continuous render loop so sprites appear when loaded ──
+  useEffect(() => {
+    let frame = 0;
+    const loop = () => {
+      frame++;
+      draw();
+      rafRef.current = requestAnimationFrame(loop);
+    };
+    rafRef.current = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(rafRef.current);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Helpers ──
   const getScale = useCallback(() => (dims.h > 0 ? dims.h / BASE_H : 1), [dims.h]);
@@ -303,7 +471,7 @@ export function GameEditorPreview({
     const sc = getScale();
     const logW = dims.w / sc;
     const xs = logW / BASE_W;
-    const T = 8; // threshold
+    const T = 8;
 
     // UI elements (topmost)
     const uiKeys = ["hearts", "arrowKeys", "fireButton", "score", "wave", "powerUps", "bossHealthBar", "controls"];
@@ -438,19 +606,32 @@ export function GameEditorPreview({
     ctx.save();
     ctx.scale(sc, sc);
 
-    // ── Background ──
-    ctx.fillStyle = "#0a0a0a";
-    ctx.fillRect(0, 0, logW, BASE_H);
-
-    // Starfield
-    ctx.fillStyle = "rgba(255,255,255,0.3)";
-    for (let i = 0; i < 80; i++) {
-      const sx = ((i * 37 + 13) % (logW + 10)) - 5;
-      const sy = ((i * 53 + 7) % (BASE_H + 10)) - 5;
-      ctx.fillRect(sx, sy, 1, 1);
+    // ── Background stage image ──
+    const bgKey = platform === "mobile" ? "/background/stage_mobile.png" : "/background/stage.png";
+    // Use a module-level cache for the background image
+    const bgImg = (GameEditorPreview as any).__bgCache?.[bgKey];
+    if (bgImg && bgImg.complete && bgImg.naturalWidth > 0) {
+      const imgW = bgImg.naturalWidth;
+      const imgH = bgImg.naturalHeight;
+      const bgScale = Math.max(logW / imgW, BASE_H / imgH);
+      const drawW = imgW * bgScale;
+      const drawH = imgH * bgScale;
+      const offX = (logW - drawW) / 2;
+      const offY = (BASE_H - drawH) / 2;
+      ctx.drawImage(bgImg, offX, offY, drawW, drawH);
+    } else {
+      ctx.fillStyle = "#0a0a0a";
+      ctx.fillRect(0, 0, logW, BASE_H);
+      // Starfield fallback
+      ctx.fillStyle = "rgba(255,255,255,0.3)";
+      for (let i = 0; i < 80; i++) {
+        const sx = ((i * 37 + 13) % (logW + 10)) - 5;
+        const sy = ((i * 53 + 7) % (BASE_H + 10)) - 5;
+        ctx.fillRect(sx, sy, 1, 1);
+      }
     }
 
-    // ── Spawn points + enemy reps ──
+    // ── Spawn points + enemy reps (real sprites) ──
     const sps = spawnPoints ?? settings.spawnPoints;
     const { enemy } = settings;
     for (let i = 0; i < sps.length; i++) {
@@ -458,13 +639,20 @@ export function GameEditorPreview({
       const sx = sp.x * xs;
       const sy = sp.y;
       if (sp.enabled) {
-        const ew = enemy.width, eh = enemy.height;
+        const ew = enemy.width;
+        const eh = enemy.height;
         const ess = enemy.spriteScale ?? 1;
-        const esprW = ew * ess, esprH = eh * ess;
+        const esprW = ew * ess;
+        const esprH = eh * ess;
         const esprX = sx - ew / 2 - (esprW - ew) / 2;
         const esprY = sy - (esprH - eh) / 2;
-        drawEnemy(ctx, esprX, esprY, i % 3 as 0 | 1 | 2, 0, false, esprW, esprH);
+        // Use REAL enemy sprite
+        drawEnemySprite(
+          ctx, esprX, esprY, i % 3 as 0 | 1 | 2, "walking", "down", 0, esprW, esprH,
+          () => drawEnemy(ctx, esprX, esprY, i % 3 as 0 | 1 | 2, 0, false, esprW, esprH),
+        );
       }
+      // Spawn point marker
       ctx.beginPath();
       ctx.arc(sx, sy, 5, 0, Math.PI * 2);
       ctx.fillStyle = sp.enabled ? "rgba(255,0,110,0.5)" : "rgba(100,100,100,0.3)";
@@ -478,19 +666,19 @@ export function GameEditorPreview({
       ctx.fillText(`S${i + 1}`, sx, sy - 10);
     }
 
-    // ── Player ──
+    // ── Player (REAL sprite sheet) ──
     const pbx = settings.player.x * xs;
     const pby = settings.player.y;
     const psx = pbx + playerSprite.offsetX;
     const psy = pby + playerSprite.offsetY;
 
-    // Try real sprite first
-    const playerImg = document.querySelector<HTMLImageElement>(`img[src="/player/player.png"]`);
-    // Actually load it properly via a ref-like approach - we'll use a module cache
-    // For now, use the procedural fallback which looks like a guitar
-    drawPlayer(ctx, psx, psy, 0);
+    drawPlayerSprite(
+      ctx, psx, psy, "down", 0,
+      playerSprite.width, playerSprite.height, playerSprite.cols ?? 12,
+      () => drawPlayer(ctx, psx, psy, 0),
+    );
 
-    // Player selection outline
+    // Player selection outline + handle
     if (sel?.type === "player") {
       ctx.save();
       ctx.strokeStyle = "#fff";
@@ -498,7 +686,6 @@ export function GameEditorPreview({
       ctx.setLineDash([4, 4]);
       ctx.strokeRect(psx, psy, playerSprite.width, playerSprite.height);
       ctx.setLineDash([]);
-      // Resize handle
       ctx.fillStyle = "#fff";
       ctx.fillRect(psx + playerSprite.width - 3, psy + playerSprite.height - 3, 6, 6);
       ctx.restore();
@@ -509,19 +696,45 @@ export function GameEditorPreview({
     const hx = pbx + (hb.offsetX ?? 0);
     const hy = pby + (hb.offsetY ?? 0);
     const hw = hb.width ?? 10, hh = hb.height ?? 20;
-    ctx.save();
-    ctx.strokeStyle = sel?.type === "hitbox" ? "#fff" : "rgba(255,0,110,0.7)";
-    ctx.lineWidth = 1;
-    ctx.setLineDash([3, 3]);
-    ctx.strokeRect(hx, hy, hw, hh);
-    ctx.fillStyle = "rgba(255,0,110,0.08)";
-    ctx.fillRect(hx, hy, hw, hh);
-    ctx.setLineDash([]);
-    if (sel?.type === "hitbox") {
-      ctx.fillStyle = "#fff";
-      ctx.fillRect(hx + hw - 3, hy + hh - 3, 6, 6);
+
+    // Draw polygon hitbox if points provided
+    if (hitboxPoints && hitboxPoints.length >= 3) {
+      ctx.save();
+      ctx.strokeStyle = sel?.type === "hitbox" ? "#fff" : "rgba(255,0,110,0.7)";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(pbx + hitboxPoints[0].x, pby + hitboxPoints[0].y);
+      for (let i = 1; i < hitboxPoints.length; i++) {
+        ctx.lineTo(pbx + hitboxPoints[i].x, pby + hitboxPoints[i].y);
+      }
+      ctx.closePath();
+      ctx.stroke();
+      ctx.fillStyle = "rgba(255,0,110,0.08)";
+      ctx.fill();
+      ctx.setLineDash([]);
+      // Draw points
+      ctx.fillStyle = sel?.type === "hitbox" ? "#fff" : "#ff006e";
+      for (const p of hitboxPoints) {
+        ctx.fillRect(pbx + p.x - 1.5, pby + p.y - 1.5, 3, 3);
+      }
+      ctx.restore();
+    } else {
+      // Rect hitbox fallback
+      ctx.save();
+      ctx.strokeStyle = sel?.type === "hitbox" ? "#fff" : "rgba(255,0,110,0.7)";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.strokeRect(hx, hy, hw, hh);
+      ctx.fillStyle = "rgba(255,0,110,0.08)";
+      ctx.fillRect(hx, hy, hw, hh);
+      ctx.setLineDash([]);
+      if (sel?.type === "hitbox") {
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(hx + hw - 3, hy + hh - 3, 6, 6);
+      }
+      ctx.restore();
     }
-    ctx.restore();
 
     // ── Bullet spawn ──
     const bsoX = bulletSpawnOffsetX ?? 5;
@@ -544,60 +757,107 @@ export function GameEditorPreview({
     ctx.fillText("Bullet", bsx, bsy - 10);
     ctx.restore();
 
-    // ── Temp Shield ──
+    // ── Temp Shield (REAL sprite) ──
     const shCX = pbx + playerSprite.offsetX + playerSprite.width / 2 + settings.shield.offsetX;
     const shCY = pby + playerSprite.offsetY + playerSprite.height / 2 + settings.shield.offsetY;
-    ctx.save();
-    ctx.strokeStyle = sel?.type === "shield" ? "#fff" : "rgba(0,240,255,0.6)";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(shCX, shCY, settings.shield.radius, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.fillStyle = "rgba(0,240,255,0.06)";
-    ctx.fill();
+    const shR = settings.shield.radius;
+
+    // Draw shield spritesheet if available
+    const shieldImg = (GameEditorPreview as any).__shieldImg;
+    if (shieldImg && shieldImg.complete && shieldImg.naturalWidth > 0) {
+      const SHIELD_COLS = 5;
+      const SHIELD_ROWS = 5;
+      const fw = shieldImg.naturalWidth / SHIELD_COLS;
+      const fh = shieldImg.naturalHeight / SHIELD_ROWS;
+      const size = shR * 2;
+      const frameIdx = 12; // mid-animation frame for preview
+      const col = frameIdx % SHIELD_COLS;
+      const row = Math.floor(frameIdx / SHIELD_COLS);
+      ctx.save();
+      ctx.globalAlpha = 0.9;
+      ctx.drawImage(shieldImg, col * fw, row * fh, fw, fh, shCX - shR, shCY - shR, size, size);
+      ctx.restore();
+    } else {
+      ctx.save();
+      ctx.strokeStyle = sel?.type === "shield" ? "#fff" : "rgba(0,240,255,0.6)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(shCX, shCY, shR, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = "rgba(0,240,255,0.06)";
+      ctx.fill();
+      ctx.restore();
+    }
     if (sel?.type === "shield") {
       ctx.fillStyle = "#fff";
       ctx.beginPath();
-      ctx.arc(shCX + settings.shield.radius, shCY, 4, 0, Math.PI * 2);
+      ctx.arc(shCX + shR, shCY, 4, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.fillStyle = "#00f0ff";
     ctx.font = "bold 8px monospace";
     ctx.textAlign = "center";
-    ctx.fillText("Shield", shCX, shCY - settings.shield.radius - 4);
-    ctx.restore();
+    ctx.fillText("Shield", shCX, shCY - shR - 4);
 
-    // ── Perm Shield ──
+    // ── Perm Shield (REAL sprite) ──
     const psh = (settings as any).permShield;
     if (psh) {
       const pcx = pbx + playerSprite.offsetX + playerSprite.width / 2 + (psh.offsetX ?? 0);
       const pcy = pby + playerSprite.offsetY + playerSprite.height / 2 + (psh.offsetY ?? 0);
       const pr = (psh.radius ?? 20) * (psh.size ?? 1);
-      ctx.save();
-      ctx.strokeStyle = sel?.type === "permShield" ? "#fff" : "rgba(0,240,255,0.35)";
-      ctx.lineWidth = 2;
-      ctx.setLineDash([4, 4]);
-      ctx.beginPath();
-      ctx.arc(pcx, pcy, pr, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.fillStyle = "rgba(0,240,255,0.04)";
-      ctx.fill();
+
+      if (shieldImg && shieldImg.complete && shieldImg.naturalWidth > 0) {
+        const SHIELD_COLS = 5;
+        const SHIELD_ROWS = 5;
+        const fw = shieldImg.naturalWidth / SHIELD_COLS;
+        const fh = shieldImg.naturalHeight / SHIELD_ROWS;
+        const size = pr * 2;
+        const frameIdx = 20;
+        const col = frameIdx % SHIELD_COLS;
+        const row = Math.floor(frameIdx / SHIELD_COLS);
+        ctx.save();
+        ctx.globalAlpha = 0.7;
+        ctx.setLineDash([4, 4]);
+        ctx.drawImage(shieldImg, col * fw, row * fh, fw, fh, pcx - pr, pcy - pr, size, size);
+        ctx.setLineDash([]);
+        ctx.restore();
+      } else {
+        ctx.save();
+        ctx.strokeStyle = sel?.type === "permShield" ? "#fff" : "rgba(0,240,255,0.35)";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.arc(pcx, pcy, pr, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = "rgba(0,240,255,0.04)";
+        ctx.fill();
+        ctx.restore();
+      }
       ctx.fillStyle = "#00f0ff";
       ctx.font = "bold 8px monospace";
       ctx.textAlign = "center";
       ctx.fillText("Perm", pcx, pcy - pr - 4);
-      ctx.restore();
     }
 
-    // ── Boss ──
+    // ── Boss (REAL sprite) ──
     if (bossSettings.enabled) {
       const bx = settings.boss.x * xs;
       const by = settings.boss.y;
       const bw = bossSettings.width;
       const bh = bossSettings.height;
-      drawBoss(ctx, bx, by, bw, bh, 0, 0, 1);
 
+      const sprCfg = (settings as any).roguelikeConfig?.sprites ?? {};
+      const sprW = bw * (sprCfg.bossWidthMult ?? 2.2);
+      const sprH = bh * (sprCfg.bossHeightMult ?? 2.2);
+      const sprX = bx + (sprCfg.bossOffsetX ?? -28);
+      const sprY = by + (sprCfg.bossOffsetY ?? -35);
+
+      drawBossSprite(ctx, sprX, sprY, sprW, sprH, 1, "walking", 0, 0, () => {
+        drawBoss(ctx, bx, by, bw, bh, 0, 0, 1);
+      });
+
+      // Boss hitbox outline
       ctx.save();
       ctx.strokeStyle = sel?.type === "boss" ? "#fff" : "#ff006e";
       ctx.lineWidth = 2;
@@ -613,37 +873,7 @@ export function GameEditorPreview({
       ctx.restore();
     }
 
-    // ── UI Elements ──
-    const uiKeys = ["hearts", "arrowKeys", "fireButton", "score", "wave", "powerUps", "bossHealthBar", "controls"];
-    for (const key of uiKeys) {
-      const el = (settings as any)[key];
-      if (!el || el.visible === false) continue;
-      const ex = el.x * xs, ey = el.y;
-      let ew = el.size ?? 20, eh = el.size ?? 20;
-      if (key === "touchArea") { ew = el.width; eh = el.height; }
-      if (key === "controls") { ew = (el.size ?? 24) * 3; eh = el.size ?? 24; }
-      if (key === "bossHealthBar") { ew = (el.size ?? 6) * 10; eh = el.size ?? 6; }
-      const isSel = sel?.type === "ui" && sel.key === key;
-      ctx.save();
-      ctx.strokeStyle = isSel ? "#fff" : "rgba(0,240,255,0.35)";
-      ctx.lineWidth = 1;
-      ctx.setLineDash([3, 3]);
-      ctx.strokeRect(ex, ey, ew, eh);
-      ctx.setLineDash([]);
-      ctx.fillStyle = isSel ? "rgba(0,240,255,0.12)" : "rgba(0,240,255,0.04)";
-      ctx.fillRect(ex, ey, ew, eh);
-      ctx.fillStyle = isSel ? "#fff" : "rgba(0,240,255,0.5)";
-      ctx.font = "8px monospace";
-      ctx.textAlign = "left";
-      ctx.fillText(key, ex + 2, ey + 10);
-      if (isSel) {
-        ctx.fillStyle = "#fff";
-        ctx.fillRect(ex + ew - 3, ey + eh - 3, 6, 6);
-      }
-      ctx.restore();
-    }
-
-    // ── Mouse-follow cursor ──
+    // ── Aim cursor (mouse-follow) ──
     const mfoX = mouseFollowOffsetX ?? (playerSprite.offsetX + playerSprite.width / 2);
     const mfoY = mouseFollowOffsetY ?? (playerSprite.offsetY + playerSprite.height / 2);
     const mfx = pbx + mfoX;
@@ -657,15 +887,42 @@ export function GameEditorPreview({
     ctx.stroke();
     ctx.setLineDash([]);
     ctx.fillStyle = "#ffcc00";
-    ctx.font = "8px monospace";
+    ctx.font = "bold 8px monospace";
     ctx.textAlign = "center";
     ctx.fillText("Aim", mfx, mfy - 8);
     ctx.restore();
 
-    ctx.restore();
-  }, [dims, settings, playerSprite, bossSettings, sel, spawnPoints, bulletSpawnOffsetX, bulletSpawnOffsetY, mouseFollowOffsetX, mouseFollowOffsetY, assets]);
+    // ── HUD overlays drawn on canvas (matching game-hud.tsx) ──
+    drawHUDOnCanvas(ctx, settings, bossSettings, 3, 123456, 5, logW);
 
-  useEffect(() => { draw(); }, [draw]);
+    // ── UI element outlines (for editing) ──
+    const uiKeys = ["hearts", "arrowKeys", "fireButton", "score", "wave", "powerUps", "bossHealthBar", "controls"];
+    for (const key of uiKeys) {
+      const el = (settings as any)[key];
+      if (!el || el.visible === false) continue;
+      const ex = el.x * xs, ey = el.y;
+      let ew = el.size ?? 20, eh = el.size ?? 20;
+      if (key === "touchArea") { ew = el.width; eh = el.height; }
+      if (key === "controls") { ew = (el.size ?? 24) * 3; eh = el.size ?? 24; }
+      if (key === "bossHealthBar") { ew = (el.size ?? 6) * 10; eh = el.size ?? 6; }
+      const isSel = sel?.type === "ui" && sel.key === key;
+      ctx.save();
+      ctx.strokeStyle = isSel ? "#fff" : "rgba(0,240,255,0.25)";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.strokeRect(ex, ey, ew, eh);
+      ctx.setLineDash([]);
+      ctx.fillStyle = isSel ? "rgba(0,240,255,0.08)" : "rgba(0,240,255,0.02)";
+      ctx.fillRect(ex, ey, ew, eh);
+      if (isSel) {
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(ex + ew - 3, ey + eh - 3, 6, 6);
+      }
+      ctx.restore();
+    }
+
+    ctx.restore();
+  }, [dims, settings, playerSprite, bossSettings, sel, spawnPoints, bulletSpawnOffsetX, bulletSpawnOffsetY, mouseFollowOffsetX, mouseFollowOffsetY, hitboxPoints, platform, assetsReady]);
 
   // ── Mouse events ──
   const onMouseDown = useCallback((e: React.MouseEvent) => {
@@ -676,7 +933,6 @@ export function GameEditorPreview({
     const py = e.clientY - rect.top;
     const { x: gx, y: gy } = pixToGame(px, py);
 
-    // Check handle first if something is selected
     if (sel) {
       const h = getHandle(sel, gx, gy);
       if (h) {
@@ -812,6 +1068,7 @@ export function GameEditorPreview({
       <canvas
         ref={canvasRef}
         className="block w-full h-full"
+        style={{ imageRendering: "pixelated" }}
         onMouseDown={onMouseDown}
         onMouseMove={onMouseMove}
         onMouseUp={onMouseUp}
@@ -839,3 +1096,18 @@ export function GameEditorPreview({
   );
 }
 
+/* ── Static image caches ─────────────────────────────────────────────────── */
+
+const __bgCache: Record<string, HTMLImageElement> = {};
+const __shieldImg = new Image();
+__shieldImg.src = "/shield/shield.png";
+
+// Pre-load backgrounds
+["/background/stage.png", "/background/stage_mobile.png"].forEach((src) => {
+  const img = new Image();
+  img.src = src;
+  __bgCache[src] = img;
+});
+
+(GameEditorPreview as any).__bgCache = __bgCache;
+(GameEditorPreview as any).__shieldImg = __shieldImg;

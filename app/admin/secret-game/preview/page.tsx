@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ZoomIn, ZoomOut, Monitor, Smartphone } from "lucide-react";
+import { ArrowLeft, ZoomIn, ZoomOut, Monitor, Smartphone, Save, Check } from "lucide-react";
 import { GameEditorPreview } from "@/components/secret-game/game-editor-preview";
+import { updateSecretGameSettings } from "@/lib/actions";
 import type { SecretGameSettings, GamePlatformSettings } from "@/lib/data";
 
 export default function FullscreenPreviewPage() {
@@ -12,11 +13,16 @@ export default function FullscreenPreviewPage() {
   const [platform, setPlatform] = useState<"desktop" | "mobile">("desktop");
   const [previewZoom, setPreviewZoom] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saveOk, setSaveOk] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [fullData, setFullData] = useState<Record<string, unknown> | null>(null);
 
   useEffect(() => {
     fetch("/api/admin/data")
       .then((r) => r.json())
       .then((data) => {
+        setFullData(data);
         setSettings(data.secretGame ?? null);
         setLoading(false);
       })
@@ -38,6 +44,20 @@ export default function FullscreenPreviewPage() {
       return next;
     });
   }, []);
+
+  const handleSave = useCallback(async () => {
+    if (!settings) return;
+    setSaving(true); setSaveError(null); setSaveOk(false);
+    try {
+      await updateSecretGameSettings(settings);
+      try {
+        const freshPayload = { ...(fullData ?? {}), secretGame: settings };
+        await fetch("/api/admin/data", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(freshPayload) });
+      } catch {}
+      setSaveOk(true); setTimeout(() => setSaveOk(false), 3000); router.refresh();
+    } catch (err) { setSaveError(err instanceof Error ? err.message : String(err)); }
+    finally { setSaving(false); }
+  }, [settings, fullData, router]);
 
   if (loading || !settings) {
     return (
@@ -64,6 +84,7 @@ export default function FullscreenPreviewPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Platform toggle */}
           <div className="flex gap-1 rounded-lg border border-[#1e1e1e] bg-[#141414] p-1">
             <button
               onClick={() => setPlatform("desktop")}
@@ -79,14 +100,31 @@ export default function FullscreenPreviewPage() {
             </button>
           </div>
 
+          {/* Zoom controls */}
           <div className="flex items-center gap-1">
             <button onClick={() => setPreviewZoom((z) => Math.max(0.25, parseFloat((z - 0.25).toFixed(2))))} className="p-1.5 rounded bg-[#1e1e1e] hover:bg-[#2a2a2a] text-neutral-300 transition-colors"><ZoomOut className="w-4 h-4" /></button>
             <span className="text-xs text-neutral-400 w-12 text-center">{Math.round(previewZoom * 100)}%</span>
             <button onClick={() => setPreviewZoom((z) => Math.min(4, parseFloat((z + 0.25).toFixed(2))))} className="p-1.5 rounded bg-[#1e1e1e] hover:bg-[#2a2a2a] text-neutral-300 transition-colors"><ZoomIn className="w-4 h-4" /></button>
             <button onClick={() => setPreviewZoom(1)} className="ml-1 px-2 py-1 rounded bg-[#1e1e1e] hover:bg-[#2a2a2a] text-neutral-400 text-xs transition-colors">Reset</button>
           </div>
+
+          {/* Save */}
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${saveOk ? "bg-green-600 text-white" : "bg-[#1e1e1e] hover:bg-[#2a2a2a] text-neutral-300"}`}
+          >
+            {saveOk ? <Check className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
+            {saveOk ? "Saved" : saving ? "Saving…" : "Save"}
+          </button>
         </div>
       </div>
+
+      {saveError && (
+        <div className="shrink-0 bg-red-900/30 border-b border-red-800 text-red-300 text-xs px-4 py-1.5">
+          Error: {saveError}
+        </div>
+      )}
 
       {/* Canvas fills remaining viewport */}
       <div className="flex-1 relative overflow-hidden">
