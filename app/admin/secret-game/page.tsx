@@ -671,6 +671,7 @@ export default function SecretGameAdminPage() {
             <NumberField label="Orb Damage" value={orbital.damage ?? 30} onChange={(v) => upRc("orbital", { damage: v })} min={1} max={500} step={5} />
             <NumberField label="Orbit Speed (rad/s)" value={orbital.orbitSpeed ?? 2.5} onChange={(v) => upRc("orbital", { orbitSpeed: v })} min={0.1} max={20} step={0.1} />
             <NumberField label="Orb Size (px)" value={orbital.orbSize ?? 8} onChange={(v) => upRc("orbital", { orbSize: v })} min={2} max={30} step={1} />
+            <NumberField label="Hitbox Size (px)" value={orbital.hitboxSize ?? 8} onChange={(v) => upRc("orbital", { hitboxSize: v })} min={1} max={50} step={1} />
             <NumberField label="Orbit Radius (px)" value={orbital.orbitRadius ?? 35} onChange={(v) => upRc("orbital", { orbitRadius: v })} min={10} max={100} step={1} />
             <NumberField label="Active Duration (s)" value={orbital.duration ?? 10} onChange={(v) => upRc("orbital", { duration: v })} min={1} max={60} step={1} />
             <NumberField label="Cooldown (s)" value={orbital.cooldown ?? 10} onChange={(v) => upRc("orbital", { cooldown: v })} min={1} max={60} step={1} />

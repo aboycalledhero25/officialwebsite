@@ -965,7 +965,7 @@ export function GameCanvas({
             const pcy2 = s.playerY + PLAYER_H_BASE / 2;
             const ox = pcx2 + Math.cos(angle) * playerStats.orbitalRadius;
             const oy = pcy2 + Math.sin(angle) * playerStats.orbitalRadius;
-            const oR = playerStats.orbitalOrbSize;
+            const oR = playerStats.orbitalHitboxSize;
             for (const e of s.enemies) {
               if (!e.alive) continue;
               // Circle vs AABB
@@ -999,7 +999,7 @@ export function GameCanvas({
               const bh2 = siteData.secretGame?.boss?.height ?? 30;
               const nearBX = Math.max(s.boss.x, Math.min(ox, s.boss.x + bw2));
               const nearBY = Math.max(s.boss.y, Math.min(oy, s.boss.y + bh2));
-              if (Math.hypot(ox - nearBX, oy - nearBY) <= oR && (s.boss.orbitalHitCooldown ?? 0) <= 0) {
+              if (Math.hypot(ox - nearBX, oy - nearBY) <= playerStats.orbitalHitboxSize && (s.boss.orbitalHitCooldown ?? 0) <= 0) {
                 const dmg = playerStats.orbitalDamage;
                 s.boss.health -= dmg;
                 s.totalDamageDealt += dmg;

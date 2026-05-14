@@ -94,7 +94,8 @@ export interface PlayerStats {
   hasOrbital: boolean;
   orbitalDamage: number;
   orbitalOrbitSpeed: number;   // radians per second
-  orbitalOrbSize: number;      // radius of each orb in game units
+  orbitalOrbSize: number;      // radius of each orb in game units (visual)
+  orbitalHitboxSize: number;   // collision radius of each orb
   orbitalCooldown: number;     // seconds cooldown after duration expires
   orbitalRadius: number;       // distance from player centre
   orbitalDuration: number;     // seconds orbs are active
@@ -248,6 +249,7 @@ export function computePlayerStats(chosen: PermPowerUpState, override?: Roguelik
     orbitalDamage:   cfg.orbital.damage,
     orbitalOrbitSpeed: cfg.orbital.orbitSpeed,
     orbitalOrbSize:  cfg.orbital.orbSize,
+    orbitalHitboxSize: cfg.orbital.hitboxSize,
     orbitalCooldown: cfg.orbital.cooldown,
     orbitalRadius:   cfg.orbital.orbitRadius,
     orbitalDuration: cfg.orbital.duration,
