@@ -697,7 +697,7 @@ export function GameEditorPreview({
     }
 
     return null;
-  }, [settings, playerSprite, bossSettings, bulletSpawnOffsetX, bulletSpawnOffsetY, spawnPoints, getScale, dims.w]);
+  }, [settings, playerSprite, bossSettings, bulletSpawnOffsetX, bulletSpawnOffsetY, spawnPoints, getScale, dims.w, hitboxPoints, playerHitbox, sel]);
 
   // ── Handle detection ──
   const getHandle = useCallback((el: Sel, gx: number, gy: number): string | null => {
@@ -795,7 +795,7 @@ export function GameEditorPreview({
       default:
         return null;
     }
-  }, [settings, playerSprite, bossSettings, spawnPoints, getScale, dims.w]);
+  }, [settings, playerSprite, bossSettings, spawnPoints, getScale, dims.w, hitboxPoints, playerHitbox, sps]);
 
   // ── Draw ──
   const draw = useCallback(() => {
@@ -1402,7 +1402,7 @@ export function GameEditorPreview({
     }
 
     setDrag((prev) => prev.kind === "none" ? prev : { ...prev, sx: gx, sy: gy });
-  }, [drag, getScale, dims.w, settings, playerSprite, bossSettings, spawnPoints, bulletSpawnOffsetX, bulletSpawnOffsetY, onChange, onBossChange, onBulletSpawnChange, onSpawnPointsChange, onPlayerSpriteChange, onPlayerHitboxChange, onPermShieldChange, onHitboxChange, hitboxPoints, hitTest, getHandle, pixToGame, sel]);
+  }, [drag, getScale, dims.w, settings, playerSprite, bossSettings, spawnPoints, bulletSpawnOffsetX, bulletSpawnOffsetY, onChange, onBossChange, onBulletSpawnChange, onSpawnPointsChange, onPlayerSpriteChange, onPlayerHitboxChange, onPermShieldChange, onHitboxChange, hitboxPoints, playerHitbox, hitTest, getHandle, pixToGame, sel]);
 
   const onMouseUp = useCallback(() => setDrag({ kind: "none" }), []);
 
