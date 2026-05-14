@@ -43,6 +43,7 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
   const [muted, setMuted] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const [activePowerUps, setActivePowerUps] = useState<{ type: "rapid" | "shield" | "wideshot" | "extralife" | "invincible" | "projectile"; timer: number; stacks: number }[]>([]);
+  const [songUnlockNeedsTap, setSongUnlockNeedsTap] = useState(false);
 
   // ── Roguelike permanent power-up state ──────────────────────────────
   const [chosenPowerUps, setChosenPowerUps] = useState<PermPowerUpState>({});
@@ -227,15 +228,16 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
 
   // ── Wave 100 song unlock ────────────────────────────────────────────
   const songUnlockStartedRef = useRef(false);
+  const songAudioRef = useRef<HTMLAudioElement | null>(null);
   useEffect(() => {
     if (phase !== "songunlock") {
       songUnlockStartedRef.current = false;
+      setSongUnlockNeedsTap(false);
       return;
     }
     if (songUnlockStartedRef.current) return;
     songUnlockStartedRef.current = true;
 
-    let audio: HTMLAudioElement | null = null;
     let cancelled = false;
     const wasMuted = muted;
 
@@ -244,46 +246,39 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
     setAudioMuted(true);
     setMusicMuted(true);
 
-    const run = async () => {
-      try {
-        const res = await fetch("/api/audio/reward");
-        if (!res.ok) throw new Error("Audio unavailable");
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        audio = new Audio(url);
-        audio.volume = 1;
+    const audio = new Audio("/api/audio/reward");
+    audio.volume = 1;
+    songAudioRef.current = audio;
 
-        audio.addEventListener("ended", () => {
-          if (cancelled) return;
-          URL.revokeObjectURL(url);
-          // Restore previous mute state
-          setMuted(wasMuted);
-          setAudioMuted(wasMuted);
-          setMusicMuted(wasMuted);
-          // Proceed to power-up reward screen
-          setPhase("wavereward");
-        });
-
-        await audio.play();
-      } catch {
-        if (!cancelled) {
-          setMuted(wasMuted);
-          setAudioMuted(wasMuted);
-          setMusicMuted(wasMuted);
-          setPhase("wavereward");
-        }
-      }
+    const cleanup = () => {
+      if (cancelled) return;
+      setMuted(wasMuted);
+      setAudioMuted(wasMuted);
+      setMusicMuted(wasMuted);
+      setPhase("wavereward");
     };
 
-    run();
+    audio.addEventListener("ended", cleanup);
+    audio.addEventListener("error", cleanup);
+
+    const tryPlay = () => {
+      if (!audio || cancelled) return;
+      audio.play().then(() => {
+        setSongUnlockNeedsTap(false);
+      }).catch(() => {
+        // Autoplay blocked on mobile — wait for user tap
+        setSongUnlockNeedsTap(true);
+      });
+    };
+
+    tryPlay();
 
     return () => {
       cancelled = true;
-      if (audio) {
-        audio.pause();
-        audio.src = "";
-        audio.load();
-      }
+      songAudioRef.current = null;
+      audio.pause();
+      audio.src = "";
+      audio.load();
     };
   }, [phase, setAudioMuted, setMusicMuted]);
 
@@ -400,7 +395,14 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
 
       {/* Song unlock overlay — wave 100 reward */}
       {phase === "songunlock" && (
-        <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-in fade-in duration-700">
+        <div
+          className="absolute inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-in fade-in duration-700"
+          onClick={() => {
+            if (songUnlockNeedsTap) {
+              songAudioRef.current?.play().catch(() => {});
+            }
+          }}
+        >
           <div className="flex flex-col items-center gap-5 text-center px-6 max-w-lg">
             <div className="text-4xl md:text-5xl font-black tracking-widest uppercase text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]">
               Congratulations!
@@ -411,11 +413,18 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
             <div className="text-white/90 text-lg md:text-xl leading-relaxed">
               Here&apos;s a new song - Can&apos;t Let Her Go
             </div>
-            <div className="flex gap-2 mt-6">
-              <span className="w-3 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: "0s" }} />
-              <span className="w-3 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
-              <span className="w-3 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: "0.4s" }} />
-            </div>
+            {songUnlockNeedsTap && (
+              <div className="mt-2 px-6 py-3 bg-[#ff006e]/20 border border-[#ff006e]/40 rounded-sm text-[#ff006e] font-bold text-sm uppercase tracking-widest animate-pulse cursor-pointer">
+                Tap to play
+              </div>
+            )}
+            {!songUnlockNeedsTap && (
+              <div className="flex gap-2 mt-6">
+                <span className="w-3 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: "0s" }} />
+                <span className="w-3 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
+                <span className="w-3 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: "0.4s" }} />
+              </div>
+            )}
           </div>
         </div>
       )}
