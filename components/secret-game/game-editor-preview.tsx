@@ -57,6 +57,7 @@ interface Props {
   bossSettings: BossSettings;
   platform: "desktop" | "mobile";
   zoom?: number;
+  playerHitbox?: PlayerHitbox;
   hitboxPoints?: HitboxPoint[];
   bulletSpawnOffsetX?: number;
   bulletSpawnOffsetY?: number;
@@ -121,11 +122,12 @@ function Num({ label, value, onChange, min, max, step = 1 }: {
 
 /* ── Inspector panel ─────────────────────────────────────────────────────── */
 
-function Inspector({ sel, settings, playerSprite, bossSettings, hitboxPoints, bulletSpawnOffsetX, bulletSpawnOffsetY, onChange, onBossChange, onBulletSpawnChange, onPlayerSpriteChange, onPlayerHitboxChange, onPermShieldChange, onHitboxChange }: {
+function Inspector({ sel, settings, playerSprite, bossSettings, playerHitbox, hitboxPoints, bulletSpawnOffsetX, bulletSpawnOffsetY, onChange, onBossChange, onBulletSpawnChange, onPlayerSpriteChange, onPlayerHitboxChange, onPermShieldChange, onHitboxChange }: {
   sel: Sel | null;
   settings: GamePlatformSettings;
   playerSprite: PlayerSprite;
   bossSettings: BossSettings;
+  playerHitbox?: PlayerHitbox;
   hitboxPoints?: HitboxPoint[];
   bulletSpawnOffsetX?: number;
   bulletSpawnOffsetY?: number;
@@ -174,7 +176,7 @@ function Inspector({ sel, settings, playerSprite, bossSettings, hitboxPoints, bu
       );
     case "hitbox":
     case "hitboxVertex": {
-      const hb = (settings as any).playerHitbox ?? {};
+      const hb = playerHitbox ?? {};
       const poly = hitboxPoints ?? [];
       const isPoly = poly.length >= 3;
       return (
@@ -452,6 +454,7 @@ export function GameEditorPreview({
   bossSettings,
   platform,
   zoom = 1,
+  playerHitbox,
   hitboxPoints,
   bulletSpawnOffsetX,
   bulletSpawnOffsetY,
@@ -589,7 +592,7 @@ export function GameEditorPreview({
     }
 
     // Hitbox (polygon or rect)
-    const hb = (settings as any).playerHitbox ?? {};
+    const hb = playerHitbox ?? {};
     const pbx2 = settings.player.x * xs;
     const pby2 = settings.player.y;
     if (hitboxPoints && hitboxPoints.length >= 3) {
@@ -647,7 +650,7 @@ export function GameEditorPreview({
         return null;
       }
       case "hitbox": {
-        const hb = (settings as any).playerHitbox ?? {};
+        const hb = playerHitbox ?? {};
         if (hitboxPoints && hitboxPoints.length >= 3) {
           // Check if near any vertex
           for (let i = 0; i < hitboxPoints.length; i++) {
@@ -810,7 +813,7 @@ export function GameEditorPreview({
     }
 
     // ── Hitbox ──
-    const hb = (settings as any).playerHitbox ?? {};
+    const hb = playerHitbox ?? {};
     const hx = pbx + (hb.offsetX ?? 0);
     const hy = pby + (hb.offsetY ?? 0);
     const hw = hb.width ?? 10, hh = hb.height ?? 20;
@@ -1109,7 +1112,7 @@ export function GameEditorPreview({
           }
           break;
         case "hitbox": {
-          const hb = (settings as any).playerHitbox ?? {};
+          const hb = playerHitbox ?? {};
           if (hitboxPoints && hitboxPoints.length >= 3 && drag.handle.startsWith("v")) {
             const vi = parseInt(drag.handle.slice(1));
             const next = [...hitboxPoints];
@@ -1160,7 +1163,7 @@ export function GameEditorPreview({
             const next = hitboxPoints.map((p) => ({ x: p.x + dx, y: p.y + dy }));
             onHitboxChange?.(next);
           } else {
-            const hb = (settings as any).playerHitbox ?? {};
+            const hb = playerHitbox ?? {};
             onPlayerHitboxChange?.({ ...hb, offsetX: (hb.offsetX ?? 0) + dx, offsetY: (hb.offsetY ?? 0) + dy });
           }
           break;
@@ -1235,6 +1238,7 @@ export function GameEditorPreview({
           settings={settings}
           playerSprite={playerSprite}
           bossSettings={bossSettings}
+          playerHitbox={playerHitbox}
           hitboxPoints={hitboxPoints}
           bulletSpawnOffsetX={bulletSpawnOffsetX}
           bulletSpawnOffsetY={bulletSpawnOffsetY}

@@ -166,6 +166,7 @@ export default function FullscreenPreviewPage() {
             bossSettings={settings.boss}
             platform={platform}
             zoom={previewZoom}
+            playerHitbox={settings.playerHitbox}
             hitboxPoints={settings.playerHitbox?.points}
             bulletSpawnOffsetX={settings.bulletSpawnOffsetX}
             bulletSpawnOffsetY={settings.bulletSpawnOffsetY}
