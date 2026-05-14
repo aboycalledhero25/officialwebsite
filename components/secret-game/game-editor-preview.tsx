@@ -606,11 +606,10 @@ export function GameEditorPreview({
       if (inRect(gx, gy, bx, by, bossSettings.width, bossSettings.height)) return { type: "boss" };
     }
 
-    // Spawn points
+    // Spawn points (all, including disabled)
     const sps = spawnPoints ?? settings.spawnPoints;
     for (let i = 0; i < sps.length; i++) {
       const sp = sps[i];
-      if (!sp.enabled) continue;
       if (dist(gx, gy, sp.x * xs, sp.y) < 10) return { type: "spawnPoint", index: i };
     }
 

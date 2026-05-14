@@ -44,11 +44,25 @@ const DEFAULT_PLATFORM: GamePlatformSettings = {
     { x: 40, y: 10, enabled: true },
     { x: 90, y: 10, enabled: true },
     { x: 150, y: 10, enabled: true },
-    { x: 60, y: 30, enabled: false },
-    { x: 120, y: 30, enabled: false },
-    { x: 180, y: 30, enabled: false },
+    { x: 60, y: 30, enabled: true },
+    { x: 120, y: 30, enabled: true },
+    { x: 180, y: 30, enabled: true },
   ] as [SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint],
 };
+
+function padSpawnPoints(sp: any[]): [SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint] {
+  const defaults: [SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint] = [
+    { x: 40, y: 10, enabled: true },
+    { x: 90, y: 10, enabled: true },
+    { x: 150, y: 10, enabled: true },
+    { x: 60, y: 30, enabled: true },
+    { x: 120, y: 30, enabled: true },
+    { x: 180, y: 30, enabled: true },
+  ];
+  if (!Array.isArray(sp) || sp.length === 0) return defaults;
+  if (sp.length >= 6) return sp as [SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint];
+  return [...sp, ...defaults.slice(sp.length)] as [SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint];
+}
 
 const TABS = [
   { id: "general",     label: "General",     icon: Settings },
@@ -129,8 +143,8 @@ export default function SecretGameAdminPage() {
           waveConfigs: sg.waveConfigs ?? [{ spawnCount: 8, spawnRate: 1, spawnDelay: 1 }, { spawnCount: 12, spawnRate: 1.2, spawnDelay: 0.5 }, { spawnCount: 16, spawnRate: 1.4, spawnDelay: 0.5 }],
           sfxVolumes: sg.sfxVolumes ?? {},
           damageNumbers: sg.damageNumbers ?? {},
-          desktop: { ...DEFAULT_PLATFORM, ...sg.desktop, enemy: { ...DEFAULT_PLATFORM.enemy, ...(sg.desktop?.enemy ?? {}) } },
-          mobile:  { ...DEFAULT_PLATFORM, ...sg.mobile,  enemy: { ...DEFAULT_PLATFORM.enemy, ...(sg.mobile?.enemy  ?? {}) } },
+          desktop: { ...DEFAULT_PLATFORM, ...sg.desktop, enemy: { ...DEFAULT_PLATFORM.enemy, ...(sg.desktop?.enemy ?? {}) }, spawnPoints: padSpawnPoints(sg.desktop?.spawnPoints) },
+          mobile:  { ...DEFAULT_PLATFORM, ...sg.mobile,  enemy: { ...DEFAULT_PLATFORM.enemy, ...(sg.mobile?.enemy  ?? {}) }, spawnPoints: padSpawnPoints(sg.mobile?.spawnPoints) },
         };
         setSettings(merged);
         setLoading(false);
