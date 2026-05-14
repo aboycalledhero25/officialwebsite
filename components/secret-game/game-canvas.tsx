@@ -111,6 +111,7 @@ export function GameCanvas({
   const playerImageRef = useRef<HTMLImageElement | null>(null);
   const shieldImageRef = useRef<HTMLImageElement | null>(null);
   const orbsImageRef = useRef<HTMLImageElement | null>(null);
+  const stageBgRef = useRef<HTMLImageElement | null>(null);
   useKeyboardControls();
   const { play, playFile, setMuted, isMuted } = useAudioSfx();
   const siteData = useSiteData();
@@ -155,6 +156,11 @@ export function GameCanvas({
     orbsImg.src = "/projectiles/spritesheets/orbs.png";
     orbsImg.onload = () => {
       orbsImageRef.current = orbsImg;
+    };
+    const stageImg = new Image();
+    stageImg.src = "/background/stage.png";
+    stageImg.onload = () => {
+      stageBgRef.current = stageImg;
     };
     // Start loading all enemy sprite sheets and effect GIFs in the background
     loadEnemySprites();
@@ -1874,9 +1880,14 @@ export function GameCanvas({
     ctx.save();
     ctx.scale(sc, sc);
 
-    // Fill background so transparent areas don't show the page behind the canvas
-    ctx.fillStyle = "#0a0a0a";
-    ctx.fillRect(0, 0, logW, logH);
+    // Draw stage background image if loaded, otherwise fall back to dark fill
+    const stageImg = stageBgRef.current;
+    if (stageImg && stageImg.complete && stageImg.naturalWidth > 0) {
+      ctx.drawImage(stageImg, 0, 0, logW, logH);
+    } else {
+      ctx.fillStyle = "#0a0a0a";
+      ctx.fillRect(0, 0, logW, logH);
+    }
 
     // Screen shake
     if (s.screenShake > 0) {
