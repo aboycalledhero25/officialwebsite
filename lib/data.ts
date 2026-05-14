@@ -274,6 +274,10 @@ export interface BossSettings {
   width: number;
   height: number;
   scoreReward: number;
+  hitboxOffsetX?: number;
+  hitboxOffsetY?: number;
+  hitboxWidth?: number;
+  hitboxHeight?: number;
 }
 
 export interface SpawnPoint {

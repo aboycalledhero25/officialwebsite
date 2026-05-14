@@ -598,6 +598,16 @@ export default function SecretGameAdminPage() {
         <p className="text-xs text-neutral-500 mt-2">Boss appears every N waves. HP = Base + (BossNumber - 1) × HealthIncrease.</p>
       </Section>
 
+      <Section title="Boss Hitbox">
+        <p className="text-xs text-neutral-500 mb-3">Collision box for player-bullet vs boss detection. Offset is from the top-left of the boss sprite. Defaults to the full sprite size.</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <NumberField label="Offset X" value={settings.boss.hitboxOffsetX ?? 0} onChange={(v) => updateField("boss.hitboxOffsetX", v)} min={-100} max={100} step={1} />
+          <NumberField label="Offset Y" value={settings.boss.hitboxOffsetY ?? 0} onChange={(v) => updateField("boss.hitboxOffsetY", v)} min={-100} max={100} step={1} />
+          <NumberField label="Width" value={settings.boss.hitboxWidth ?? settings.boss.width} onChange={(v) => updateField("boss.hitboxWidth", v)} min={1} max={200} step={1} />
+          <NumberField label="Height" value={settings.boss.hitboxHeight ?? settings.boss.height} onChange={(v) => updateField("boss.hitboxHeight", v)} min={1} max={200} step={1} />
+        </div>
+      </Section>
+
       <Section title="Boss Difficulty Per Wave Group">
         <p className="text-xs text-neutral-500 mb-3">Override all boss stats for each boss encounter. Boss 1 = waves 1–10, Boss 2 = waves 11–20, etc. When set, replaces the defaults and formula for that boss.</p>
         <div className="space-y-3">

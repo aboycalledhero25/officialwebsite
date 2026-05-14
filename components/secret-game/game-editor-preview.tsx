@@ -43,6 +43,7 @@ type Sel =
   | { type: "shield" }
   | { type: "permShield" }
   | { type: "boss" }
+  | { type: "bossHitbox" }
   | { type: "spawnPoint"; index: number }
   | { type: "enemyHitbox"; index: number }
   | { type: "enemyBody"; index: number }
@@ -290,6 +291,16 @@ function Inspector({ sel, settings, playerSprite, bossSettings, playerHitbox, hi
           <Num label="Y" value={settings.boss.y} onChange={(v) => patchBossPos({ y: clamp(v, 0, BASE_H) })} min={0} max={BASE_H} />
           <Num label="Width" value={bossSettings.width} onChange={(v) => onBossChange?.({ ...bossSettings, width: Math.max(10, v) })} min={10} max={200} />
           <Num label="Height" value={bossSettings.height} onChange={(v) => onBossChange?.({ ...bossSettings, height: Math.max(10, v) })} min={10} max={200} />
+        </div>
+      );
+    case "bossHitbox":
+      return (
+        <div className="rounded-lg border border-[#1e1e1e] bg-[#0a0a0a]/95 p-3 space-y-2">
+          <div className="text-[11px] font-semibold text-white">Boss Hitbox</div>
+          <Num label="Offset X" value={bossSettings.hitboxOffsetX ?? 0} onChange={(v) => onBossChange?.({ ...bossSettings, hitboxOffsetX: v })} />
+          <Num label="Offset Y" value={bossSettings.hitboxOffsetY ?? 0} onChange={(v) => onBossChange?.({ ...bossSettings, hitboxOffsetY: v })} />
+          <Num label="Width" value={bossSettings.hitboxWidth ?? bossSettings.width} onChange={(v) => onBossChange?.({ ...bossSettings, hitboxWidth: Math.max(1, v) })} min={1} max={200} />
+          <Num label="Height" value={bossSettings.hitboxHeight ?? bossSettings.height} onChange={(v) => onBossChange?.({ ...bossSettings, hitboxHeight: Math.max(1, v) })} min={1} max={200} />
         </div>
       );
     case "spawnPoint": {
@@ -644,6 +655,17 @@ export function GameEditorPreview({
     const sprY = settings.player.y + playerSprite.offsetY;
     if (inRect(gx, gy, sprX, sprY, playerSprite.width, playerSprite.height)) return { type: "player" };
 
+    // Boss hitbox (check before boss sprite)
+    if (bossSettings.enabled) {
+      const bx = settings.boss.x * xs;
+      const by = settings.boss.y;
+      const bhbx = bx + (bossSettings.hitboxOffsetX ?? 0);
+      const bhby = by + (bossSettings.hitboxOffsetY ?? 0);
+      const bhbw = bossSettings.hitboxWidth ?? bossSettings.width;
+      const bhbh = bossSettings.hitboxHeight ?? bossSettings.height;
+      if (inRect(gx, gy, bhbx, bhby, bhbw, bhbh)) return { type: "bossHitbox" };
+    }
+
     // Boss (clickable on sprite bounds so the large visual is selectable)
     if (bossSettings.enabled) {
       const bx = settings.boss.x * xs;
@@ -658,8 +680,23 @@ export function GameEditorPreview({
       if (inRect(gx, gy, sprX, sprY, sprW, sprH)) return { type: "boss" };
     }
 
-    // Enemy body (red collision box)
+    // Enemy hitboxes (check before enemy body so inner hitbox is selectable)
     const { enemy } = settings;
+    for (let i = 0; i < sps.length; i++) {
+      const sp = sps[i];
+      if (!sp.enabled) continue;
+      const sx = sp.x * xs;
+      const sy = sp.y;
+      const eew = enemy.width;
+      const eeh = enemy.height;
+      const hbx = sx - eew / 2 + (enemy.hitboxOffsetX ?? 0);
+      const hby = sy + (enemy.hitboxOffsetY ?? 0);
+      const hbw = enemy.hitboxWidth ?? eew;
+      const hbh = enemy.hitboxHeight ?? eeh;
+      if (inRect(gx, gy, hbx, hby, hbw, hbh)) return { type: "enemyHitbox", index: i };
+    }
+
+    // Enemy body (red collision box)
     for (let i = 0; i < sps.length; i++) {
       const sp = sps[i];
       if (!sp.enabled) continue;
@@ -673,21 +710,6 @@ export function GameEditorPreview({
       const bodyX = sx - eew / 2;
       const bodyY = sy;
       if (inRect(gx, gy, bodyX, bodyY, ecw, ech)) return { type: "enemyBody", index: i };
-    }
-
-    // Enemy hitboxes (clickable inner hitbox)
-    for (let i = 0; i < sps.length; i++) {
-      const sp = sps[i];
-      if (!sp.enabled) continue;
-      const sx = sp.x * xs;
-      const sy = sp.y;
-      const eew = enemy.width;
-      const eeh = enemy.height;
-      const hbx = sx - eew / 2 + (enemy.hitboxOffsetX ?? 0);
-      const hby = sy + (enemy.hitboxOffsetY ?? 0);
-      const hbw = enemy.hitboxWidth ?? eew;
-      const hbh = enemy.hitboxHeight ?? eeh;
-      if (inRect(gx, gy, hbx, hby, hbw, hbh)) return { type: "enemyHitbox", index: i };
     }
 
     // Spawn points (all, including disabled)
@@ -750,6 +772,16 @@ export function GameEditorPreview({
         const bx = settings.boss.x * xs;
         const by = settings.boss.y;
         if (near(bx + bossSettings.width, by + bossSettings.height)) return "se";
+        return null;
+      }
+      case "bossHitbox": {
+        const bx = settings.boss.x * xs;
+        const by = settings.boss.y;
+        const bhbx = bx + (bossSettings.hitboxOffsetX ?? 0);
+        const bhby = by + (bossSettings.hitboxOffsetY ?? 0);
+        const bhbw = bossSettings.hitboxWidth ?? bossSettings.width;
+        const bhbh = bossSettings.hitboxHeight ?? bossSettings.height;
+        if (near(bhbx + bhbw, bhby + bhbh)) return "se";
         return null;
       }
       case "spawnPoint": {
@@ -1136,19 +1168,43 @@ export function GameEditorPreview({
         drawBoss(ctx, bx, by, bw, bh, 0, 0, 1);
       });
 
-      // Boss hitbox outline
+      // Boss sprite outline (visual bounds)
       ctx.save();
-      ctx.strokeStyle = sel?.type === "boss" ? "#fff" : "#ff006e";
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = sel?.type === "boss" ? "#fff" : "rgba(255,0,110,0.4)";
+      ctx.lineWidth = 1;
       ctx.setLineDash([4, 4]);
       ctx.strokeRect(bx, by, bw, bh);
       ctx.setLineDash([]);
-      ctx.fillStyle = "rgba(255,0,110,0.08)";
+      ctx.fillStyle = sel?.type === "boss" ? "rgba(255,0,110,0.08)" : "rgba(255,0,110,0.03)";
       ctx.fillRect(bx, by, bw, bh);
       if (sel?.type === "boss") {
         ctx.fillStyle = "#fff";
         ctx.fillRect(bx + bw - 3, by + bh - 3, 6, 6);
       }
+      ctx.restore();
+
+      // Boss hitbox outline (collision box — separate from sprite)
+      const bhbx = bx + (bossSettings.hitboxOffsetX ?? 0);
+      const bhby = by + (bossSettings.hitboxOffsetY ?? 0);
+      const bhbw = bossSettings.hitboxWidth ?? bw;
+      const bhbh = bossSettings.hitboxHeight ?? bh;
+      const isHbSel = sel?.type === "bossHitbox";
+      ctx.save();
+      ctx.strokeStyle = isHbSel ? "#fff" : "#ff6600";
+      ctx.lineWidth = isHbSel ? 2 : 1.5;
+      ctx.setLineDash([3, 3]);
+      ctx.strokeRect(bhbx, bhby, bhbw, bhbh);
+      ctx.setLineDash([]);
+      ctx.fillStyle = isHbSel ? "rgba(255,102,0,0.12)" : "rgba(255,102,0,0.06)";
+      ctx.fillRect(bhbx, bhby, bhbw, bhbh);
+      if (isHbSel) {
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(bhbx + bhbw - 3, bhby + bhbh - 3, 6, 6);
+      }
+      ctx.fillStyle = isHbSel ? "#ff6600" : "rgba(255,102,0,0.7)";
+      ctx.font = "bold 8px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText("Boss HB", bhbx + bhbw / 2, bhby - 6);
       ctx.restore();
     }
 
@@ -1290,6 +1346,15 @@ export function GameEditorPreview({
             onBossChange?.({ ...bossSettings, width: Math.max(10, bossSettings.width + dx), height: Math.max(10, bossSettings.height + dy) });
           }
           break;
+        case "bossHitbox":
+          if (drag.handle === "se") {
+            onBossChange?.({
+              ...bossSettings,
+              hitboxWidth: Math.max(1, (bossSettings.hitboxWidth ?? bossSettings.width) + dx),
+              hitboxHeight: Math.max(1, (bossSettings.hitboxHeight ?? bossSettings.height) + dy),
+            });
+          }
+          break;
         case "ui": {
           const u = (settings as any)[drag.el.key];
           if (drag.handle === "se") {
@@ -1368,6 +1433,14 @@ export function GameEditorPreview({
           const nx = clamp(settings.boss.x + dx / xs, 0, BASE_W);
           const ny = clamp(settings.boss.y + dy, 0, BASE_H);
           onChange({ ...settings, boss: { ...settings.boss, x: nx, y: ny } });
+          break;
+        }
+        case "bossHitbox": {
+          onBossChange?.({
+            ...bossSettings,
+            hitboxOffsetX: (bossSettings.hitboxOffsetX ?? 0) + dx,
+            hitboxOffsetY: (bossSettings.hitboxOffsetY ?? 0) + dy,
+          });
           break;
         }
         case "spawnPoint": {

@@ -818,10 +818,15 @@ export function GameCanvas({
               by = target.y + enemyCfgRef.height / 2;
             } else if (s.boss) {
               // No regular enemies — target the boss directly
-              const bossW = siteData.secretGame?.boss?.width ?? 40;
-              const bossH = siteData.secretGame?.boss?.height ?? 30;
-              bx = s.boss.x + bossW / 2;
-              by = s.boss.y + bossH / 2;
+              const bossCfg3 = siteData.secretGame?.boss;
+              const bossW = bossCfg3?.width ?? 40;
+              const bossH = bossCfg3?.height ?? 30;
+              const bhbx3 = s.boss.x + (bossCfg3?.hitboxOffsetX ?? 0);
+              const bhby3 = s.boss.y + (bossCfg3?.hitboxOffsetY ?? 0);
+              const bhbw3 = bossCfg3?.hitboxWidth ?? bossW;
+              const bhbh3 = bossCfg3?.hitboxHeight ?? bossH;
+              bx = bhbx3 + bhbw3 / 2;
+              by = bhby3 + bhbh3 / 2;
             } else {
               bx = Math.random() * playAreaW;
               by = BASE_H * 0.4;
@@ -885,8 +890,15 @@ export function GameCanvas({
               spawnParticles(lx, ly, "#00f0ff", 8);
               spawnParticles(lx, ly, "#ffffff", 4);
             } else if (s.boss) {
-              lx = s.boss.x + Math.random() * (siteData.secretGame?.boss?.width ?? 40);
-              ly = s.boss.y + (siteData.secretGame?.boss?.height ?? 30) / 2;
+              const bossCfg3 = siteData.secretGame?.boss;
+              const bossW = bossCfg3?.width ?? 40;
+              const bossH = bossCfg3?.height ?? 30;
+              const bhbx3 = s.boss.x + (bossCfg3?.hitboxOffsetX ?? 0);
+              const bhby3 = s.boss.y + (bossCfg3?.hitboxOffsetY ?? 0);
+              const bhbw3 = bossCfg3?.hitboxWidth ?? bossW;
+              const bhbh3 = bossCfg3?.hitboxHeight ?? bossH;
+              lx = bhbx3 + Math.random() * bhbw3;
+              ly = bhby3 + bhbh3 / 2;
               s.boss.health -= playerStats.lightningDamage;
               s.boss.hitFlash = 0.1;
               if (s.boss.animState === "walking") { s.boss.animState = "hurt"; s.boss.animAccum = 0; }
@@ -1096,9 +1108,14 @@ export function GameCanvas({
               targetY = targetEnemy.y + eh / 2;
             } else if (s.boss) {
               // No enemies — target the boss
-              const bw2 = siteData.secretGame?.boss?.width ?? 40;
-              const bh2 = siteData.secretGame?.boss?.height ?? 30;
-              targetX = s.boss.x + bw2 / 2; targetY = s.boss.y + bh2 / 2;
+              const bossCfg2 = siteData.secretGame?.boss;
+              const bw2 = bossCfg2?.width ?? 40;
+              const bh2 = bossCfg2?.height ?? 30;
+              const bhbx2 = s.boss.x + (bossCfg2?.hitboxOffsetX ?? 0);
+              const bhby2 = s.boss.y + (bossCfg2?.hitboxOffsetY ?? 0);
+              const bhbw2 = bossCfg2?.hitboxWidth ?? bw2;
+              const bhbh2 = bossCfg2?.hitboxHeight ?? bh2;
+              targetX = bhbx2 + bhbw2 / 2; targetY = bhby2 + bhbh2 / 2;
             }
             let mvx = 0, mvy = -missileSpeed;
             if (targetX !== null && targetY !== null) {
@@ -1168,10 +1185,15 @@ export function GameCanvas({
             }
             // Orbital vs boss
             if (s.boss) {
-              const bw2 = siteData.secretGame?.boss?.width ?? 40;
-              const bh2 = siteData.secretGame?.boss?.height ?? 30;
-              const nearBX = Math.max(s.boss.x, Math.min(ox, s.boss.x + bw2));
-              const nearBY = Math.max(s.boss.y, Math.min(oy, s.boss.y + bh2));
+              const bossCfg2 = siteData.secretGame?.boss;
+              const bw2 = bossCfg2?.width ?? 40;
+              const bh2 = bossCfg2?.height ?? 30;
+              const bhbx2 = s.boss.x + (bossCfg2?.hitboxOffsetX ?? 0);
+              const bhby2 = s.boss.y + (bossCfg2?.hitboxOffsetY ?? 0);
+              const bhbw2 = bossCfg2?.hitboxWidth ?? bw2;
+              const bhbh2 = bossCfg2?.hitboxHeight ?? bh2;
+              const nearBX = Math.max(bhbx2, Math.min(ox, bhbx2 + bhbw2));
+              const nearBY = Math.max(bhby2, Math.min(oy, bhby2 + bhbh2));
               if (Math.hypot(ox - nearBX, oy - nearBY) <= playerStats.orbitalHitboxSize && (s.boss.orbitalHitCooldown ?? 0) <= 0) {
                 const dmg = playerStats.orbitalDamage;
                 s.boss.health -= dmg;
@@ -1564,9 +1586,20 @@ export function GameCanvas({
               const d = Math.hypot(ex - b.x, ey - b.y);
               if (d < nearDist) { nearDist = d; nearX = ex; nearY = ey; }
             }
-            if (s.boss && (nearX === null || Math.hypot(s.boss.x + (siteData.secretGame?.boss?.width ?? 40) / 2 - b.x, s.boss.y + (siteData.secretGame?.boss?.height ?? 30) / 2 - b.y) < nearDist)) {
-              nearX = s.boss.x + (siteData.secretGame?.boss?.width ?? 40) / 2;
-              nearY = s.boss.y + (siteData.secretGame?.boss?.height ?? 30) / 2;
+            if (s.boss) {
+              const bossCfg3 = siteData.secretGame?.boss;
+              const bossW = bossCfg3?.width ?? 40;
+              const bossH = bossCfg3?.height ?? 30;
+              const bhbx3 = s.boss.x + (bossCfg3?.hitboxOffsetX ?? 0);
+              const bhby3 = s.boss.y + (bossCfg3?.hitboxOffsetY ?? 0);
+              const bhbw3 = bossCfg3?.hitboxWidth ?? bossW;
+              const bhbh3 = bossCfg3?.hitboxHeight ?? bossH;
+              const bossCx = bhbx3 + bhbw3 / 2;
+              const bossCy = bhby3 + bhbh3 / 2;
+              if (nearX === null || Math.hypot(bossCx - b.x, bossCy - b.y) < nearDist) {
+                nearX = bossCx;
+                nearY = bossCy;
+              }
             }
           }
           if (nearX !== null && nearY !== null) {
@@ -1779,14 +1812,18 @@ export function GameCanvas({
       if (s.boss && bossCfg?.enabled) {
         const bw = bossCfg?.width ?? 40;
         const bh = bossCfg?.height ?? 30;
+        const bhbx = s.boss.x + (bossCfg?.hitboxOffsetX ?? 0);
+        const bhby = s.boss.y + (bossCfg?.hitboxOffsetY ?? 0);
+        const bhbw = bossCfg?.hitboxWidth ?? bw;
+        const bhbh = bossCfg?.hitboxHeight ?? bh;
         for (let bi = s.bullets.length - 1; bi >= 0; bi--) {
           const b = s.bullets[bi];
           if (!b.isPlayer) continue;
           if (
-            b.x >= s.boss.x &&
-            b.x <= s.boss.x + bw &&
-            b.y >= s.boss.y &&
-            b.y <= s.boss.y + bh
+            b.x >= bhbx &&
+            b.x <= bhbx + bhbw &&
+            b.y >= bhby &&
+            b.y <= bhby + bhbh
           ) {
             s.bullets.splice(bi, 1);
             // Apply damage: missile uses superBulletDamage, super bullet uses multiplier, else base
@@ -1910,15 +1947,19 @@ export function GameCanvas({
       if (s.boss && bossCfg?.enabled) {
         const bw = bossCfg?.width ?? 40;
         const bh = bossCfg?.height ?? 30;
+        const bhbx = s.boss.x + (bossCfg?.hitboxOffsetX ?? 0);
+        const bhby = s.boss.y + (bossCfg?.hitboxOffsetY ?? 0);
+        const bhbw = bossCfg?.hitboxWidth ?? bw;
+        const bhbh = bossCfg?.hitboxHeight ?? bh;
         let bossHit: boolean;
         if (usePolygon && hbPoints) {
-          bossHit = enemyRectIntersectsPolygon(s.boss.x, s.boss.y, bw, bh);
+          bossHit = enemyRectIntersectsPolygon(bhbx, bhby, bhbw, bhbh);
         } else {
           bossHit = (
-            s.boss.x < px + pw &&
-            s.boss.x + bw > px &&
-            s.boss.y < py + ph &&
-            s.boss.y + bh > py
+            bhbx < px + pw &&
+            bhbx + bhbw > px &&
+            bhby < py + ph &&
+            bhby + bhbh > py
           );
         }
         if (bossHit) {
