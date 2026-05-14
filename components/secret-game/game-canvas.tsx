@@ -1910,14 +1910,6 @@ export function GameCanvas({
       ctx.translate(shakeX, shakeY);
     }
 
-    // Stars parallax — spread across full logical width
-    ctx.fillStyle = "rgba(255,255,255,0.4)";
-    for (let i = 0; i < 60; i++) {
-      const sx = ((i * 37 + s.frame * 0.2) % (logW + 20)) - 10;
-      const sy = ((i * 53) % (logH + 20)) - 10;
-      ctx.fillRect(sx, sy, 1, 1);
-    }
-
     // Draw power-ups
     const puSize = siteData.secretGame?.powerUpSize ?? 8;
     for (const pu of s.powerups) {
