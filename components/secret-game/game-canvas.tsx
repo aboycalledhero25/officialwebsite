@@ -1870,6 +1870,10 @@ export function GameCanvas({
     ctx.save();
     ctx.scale(sc, sc);
 
+    // Fill background so transparent areas don't show the page behind the canvas
+    ctx.fillStyle = "#0a0a0a";
+    ctx.fillRect(0, 0, logW, logH);
+
     // Screen shake
     if (s.screenShake > 0) {
       const shakeX = (Math.random() - 0.5) * 4;
@@ -2072,7 +2076,8 @@ export function GameCanvas({
         const angle = s.orbitalBaseAngle + (oi / playerStats2.orbitalOrbCount) * Math.PI * 2;
         const ox = pcx3 + Math.cos(angle) * playerStats2.orbitalRadius;
         const oy = pcy3 + Math.sin(angle) * playerStats2.orbitalRadius;
-        const oR = playerStats2.orbitalOrbSize; // hitbox radius — sprite drawn at oR*2 × oR*2
+        const platProjSizes = siteData.secretGame?.[_renderPlatform]?.projectileSizes;
+        const oR = platProjSizes?.orbital ?? playerStats2.orbitalOrbSize; // hitbox radius — sprite drawn at oR*2 × oR*2
         const pulse = 0.8 + Math.sin(s.frame * 0.2 + oi * 2.1) * 0.2;
         ctx.save();
         ctx.globalAlpha = pulse;
@@ -2102,7 +2107,13 @@ export function GameCanvas({
           const tier = b.superBulletTier;
           const color = tier >= 3 ? "#ffd700" : tier === 2 ? "#cc44ff" : "#ff2222";
           const glowColor = tier >= 3 ? "#ffaa00" : tier === 2 ? "#9900ff" : "#ff0000";
-          const sz = playerStats2.superBulletSizes[tier - 1] ?? 10;
+          const platProjSizes = siteData.secretGame?.[_renderPlatform]?.projectileSizes;
+          const tierSizes = [
+            platProjSizes?.superRed ?? playerStats2.superBulletSizes[0],
+            platProjSizes?.superPurple ?? playerStats2.superBulletSizes[1],
+            platProjSizes?.superGold ?? playerStats2.superBulletSizes[2],
+          ];
+          const sz = tierSizes[tier - 1] ?? 10;
           ctx.save();
           ctx.shadowColor = glowColor;
           ctx.shadowBlur = 12;
@@ -2113,7 +2124,8 @@ export function GameCanvas({
           ctx.restore();
         } else if (b.isSeeker) {
           // Seeker missile: red with trail
-          const ssz = playerStats2.seekerMissileSize ?? 6;
+          const platProjSizes = siteData.secretGame?.[_renderPlatform]?.projectileSizes;
+          const ssz = platProjSizes?.seeker ?? playerStats2.seekerMissileSize ?? 6;
           const bodyW = ssz;
           const bodyH = ssz * (8 / 6);
           const tipW = ssz * (4 / 6);
@@ -2126,10 +2138,13 @@ export function GameCanvas({
           ctx.fillRect(b.x - tipW / 2, b.y - tipW / 2, tipW, tipW);
           ctx.restore();
         } else {
-          drawPlayerBullet(ctx, b.x, b.y, s.frame);
+          const platProjSizes = siteData.secretGame?.[_renderPlatform]?.projectileSizes;
+          const bulletSize = platProjSizes?.playerBullet ?? 4;
+          drawPlayerBullet(ctx, b.x, b.y, s.frame, bulletSize);
         }
       } else if (b.isBoss) {
-        const pSize = siteData.secretGame?.boss?.projectileSize ?? 10;
+        const platProjSizes = siteData.secretGame?.[_renderPlatform]?.projectileSizes;
+        const pSize = platProjSizes?.boss ?? siteData.secretGame?.boss?.projectileSize ?? 10;
         drawBossProjectile(ctx, b.x, b.y, s.frame, pSize);
       } else {
         const enemyProjSize = enemyCfg?.projectileSize ?? 10;

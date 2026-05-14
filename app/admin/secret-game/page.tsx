@@ -407,6 +407,25 @@ export default function SecretGameAdminPage() {
         </div>
       </Section>
 
+      <Section title="Projectile Sizes (Platform Override)">
+        <p className="text-xs text-neutral-500 mb-3">Override projectile visual sizes for {platform}. Falls back to global defaults when left at 0.</p>
+        {(() => {
+          const ps = plat.projectileSizes ?? {};
+          const upPs = (patch: Partial<NonNullable<typeof plat.projectileSizes>>) => updateField(`${platform}.projectileSizes`, { ...ps, ...patch });
+          return (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <NumberField label="Boss Projectile" value={ps.boss ?? 0} onChange={(v) => upPs({ boss: v || undefined })} min={0} max={100} step={1} />
+              <NumberField label="Player Bullet" value={ps.playerBullet ?? 0} onChange={(v) => upPs({ playerBullet: v || undefined })} min={0} max={30} step={1} />
+              <NumberField label="Super Red" value={ps.superRed ?? 0} onChange={(v) => upPs({ superRed: v || undefined })} min={0} max={50} step={1} />
+              <NumberField label="Super Purple" value={ps.superPurple ?? 0} onChange={(v) => upPs({ superPurple: v || undefined })} min={0} max={50} step={1} />
+              <NumberField label="Super Gold" value={ps.superGold ?? 0} onChange={(v) => upPs({ superGold: v || undefined })} min={0} max={50} step={1} />
+              <NumberField label="Seeker Missile" value={ps.seeker ?? 0} onChange={(v) => upPs({ seeker: v || undefined })} min={0} max={50} step={1} />
+              <NumberField label="Orbital Orb" value={ps.orbital ?? 0} onChange={(v) => upPs({ orbital: v || undefined })} min={0} max={50} step={1} />
+            </div>
+          );
+        })()}
+      </Section>
+
       <Section title="Enemy HP Scaling">
         <div className="grid grid-cols-2 gap-4">
           <NumberField label="Base HP (Wave 1)" value={settings.enemyBaseHp ?? 1} onChange={(v) => updateField("enemyBaseHp", v)} min={1} max={50} step={1} />

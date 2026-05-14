@@ -8,7 +8,7 @@ import { TwitchProvider } from "@/components/twitch-status";
 import { getData, getGuitarColors } from "@/lib/data-server";
 import { auth } from "@/lib/auth";
 import { AdminWrapper } from "@/components/edit-mode/admin-wrapper";
-import { GuitarBackground } from "@/components/guitar-background";
+import { GuitarBackgroundWrapper } from "@/components/guitar-background-wrapper";
 import { BackgroundConfigProvider } from "@/components/background-config";
 
 const inter = Inter({
@@ -122,7 +122,7 @@ export default async function RootLayout({
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <BackgroundConfigProvider>
-          <GuitarBackground isAdmin={isAdmin} defaultColors={guitarColors} />
+          <GuitarBackgroundWrapper isAdmin={isAdmin} defaultColors={guitarColors} />
         </BackgroundConfigProvider>
         <div className="relative z-10 flex flex-col flex-1">
           <DataProvider initialData={data}>
