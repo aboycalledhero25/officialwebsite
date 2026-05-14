@@ -330,6 +330,8 @@ function Inspector({ sel, settings, playerSprite, bossSettings, playerHitbox, hi
       return (
         <div className="rounded-lg border border-[#1e1e1e] bg-[#0a0a0a]/95 p-3 space-y-2">
           <div className="text-[11px] font-semibold text-white">Enemy Body (S{sel.index + 1})</div>
+          <Num label="Offset X" value={en.collisionOffsetX ?? 0} onChange={(v) => onChange({ ...settings, enemy: { ...en, collisionOffsetX: v } })} />
+          <Num label="Offset Y" value={en.collisionOffsetY ?? 0} onChange={(v) => onChange({ ...settings, enemy: { ...en, collisionOffsetY: v } })} />
           <Num label="Collision Width" value={en.collisionWidth ?? en.width} onChange={(v) => onChange({ ...settings, enemy: { ...en, collisionWidth: Math.max(1, v) } })} min={1} max={200} />
           <Num label="Collision Height" value={en.collisionHeight ?? en.height} onChange={(v) => onChange({ ...settings, enemy: { ...en, collisionHeight: Math.max(1, v) } })} min={1} max={200} />
         </div>
@@ -515,6 +517,16 @@ export function GameEditorPreview({
   const [sel, setSel] = useState<Sel | null>(null);
   const [hover, setHover] = useState<Sel | null>(null);
   const [drag, setDrag] = useState<Drag>({ kind: "none" });
+
+  // Refs to avoid stale closures during fast drags
+  const settingsRef = useRef(settings);
+  const bossSettingsRef = useRef(bossSettings);
+  const playerHitboxRef = useRef(playerHitbox);
+  const hitboxPointsRef = useRef(hitboxPoints);
+  useEffect(() => { settingsRef.current = settings; }, [settings]);
+  useEffect(() => { bossSettingsRef.current = bossSettings; }, [bossSettings]);
+  useEffect(() => { playerHitboxRef.current = playerHitbox; }, [playerHitbox]);
+  useEffect(() => { hitboxPointsRef.current = hitboxPoints; }, [hitboxPoints]);
 
   // Normalise spawn points to exactly 6 (defensive: handles old 3-point saves)
   const sps = useMemo((): [SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint] => {
@@ -706,9 +718,8 @@ export function GameEditorPreview({
       const eeh = enemy.height;
       const ecw = enemy.collisionWidth ?? eew;
       const ech = enemy.collisionHeight ?? eeh;
-      // Game positions enemy at sp.x*xScale - width/2, then uses collisionWidth/Height from that origin
-      const bodyX = sx - eew / 2;
-      const bodyY = sy;
+      const bodyX = sx - eew / 2 + (enemy.collisionOffsetX ?? 0);
+      const bodyY = sy + (enemy.collisionOffsetY ?? 0);
       if (inRect(gx, gy, bodyX, bodyY, ecw, ech)) return { type: "enemyBody", index: i };
     }
 
@@ -810,8 +821,8 @@ export function GameEditorPreview({
         const eeh = settings.enemy.height;
         const ecw = settings.enemy.collisionWidth ?? eew;
         const ech = settings.enemy.collisionHeight ?? eeh;
-        const bodyX = sx - eew / 2;
-        const bodyY = sy;
+        const bodyX = sx - eew / 2 + (settings.enemy.collisionOffsetX ?? 0);
+        const bodyY = sy + (settings.enemy.collisionOffsetY ?? 0);
         if (near(bodyX + ecw, bodyY + ech)) return "se";
         return null;
       }
@@ -898,8 +909,8 @@ export function GameEditorPreview({
         // Enemy collision box outline (red body — uses collisionWidth/Height)
         const ecw = enemy.collisionWidth ?? ew;
         const ech = enemy.collisionHeight ?? eh;
-        const bodyX = sx - ew / 2;
-        const bodyY = sy;
+        const bodyX = sx - ew / 2 + (enemy.collisionOffsetX ?? 0);
+        const bodyY = sy + (enemy.collisionOffsetY ?? 0);
         const isBodySel = sel?.type === "enemyBody" && sel.index === i;
         ctx.save();
         ctx.strokeStyle = isBodySel ? "#ff3333" : "rgba(255, 60, 60, 0.4)";
@@ -1389,6 +1400,19 @@ export function GameEditorPreview({
           }
           break;
         }
+        case "enemyHitbox": {
+          if (drag.handle === "se") {
+            onChange({
+              ...settings,
+              enemy: {
+                ...settings.enemy,
+                hitboxWidth: Math.max(1, (settings.enemy.hitboxWidth ?? settings.enemy.width) + dx),
+                hitboxHeight: Math.max(1, (settings.enemy.hitboxHeight ?? settings.enemy.height) + dy),
+              },
+            });
+          }
+          break;
+        }
       }
     } else if (drag.kind === "move") {
       switch (drag.el.type) {
@@ -1461,24 +1485,27 @@ export function GameEditorPreview({
           break;
         }
         case "enemyHitbox": {
+          const cur = settingsRef.current;
           onChange({
-            ...settings,
+            ...cur,
             enemy: {
-              ...settings.enemy,
-              hitboxOffsetX: (settings.enemy.hitboxOffsetX ?? 0) + dx,
-              hitboxOffsetY: (settings.enemy.hitboxOffsetY ?? 0) + dy,
+              ...cur.enemy,
+              hitboxOffsetX: (cur.enemy.hitboxOffsetX ?? 0) + dx,
+              hitboxOffsetY: (cur.enemy.hitboxOffsetY ?? 0) + dy,
             },
           });
           break;
         }
         case "enemyBody": {
-          const idx = (drag.el as Extract<Sel, { type: "enemyBody" }>).index;
-          const nextSps = sps.map((sp: SpawnPoint, i: number) =>
-            i === idx
-              ? { ...sp, x: clamp(sp.x + dx / xs, 0, BASE_W), y: clamp(sp.y + dy, 0, BASE_H) }
-              : sp
-          ) as [SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint];
-          onSpawnPointsChange?.(nextSps);
+          const cur = settingsRef.current;
+          onChange({
+            ...cur,
+            enemy: {
+              ...cur.enemy,
+              collisionOffsetX: (cur.enemy.collisionOffsetX ?? 0) + dx,
+              collisionOffsetY: (cur.enemy.collisionOffsetY ?? 0) + dy,
+            },
+          });
           break;
         }
       }

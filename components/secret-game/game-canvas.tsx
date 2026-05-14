@@ -626,6 +626,8 @@ export function GameCanvas({
       const eh = enemyCfg.height;
       const ecw = enemyCfg.collisionWidth ?? ew;
       const ech = enemyCfg.collisionHeight ?? eh;
+      const ecbOffX = enemyCfg.collisionOffsetX ?? 0;
+      const ecbOffY = enemyCfg.collisionOffsetY ?? 0;
 
       // ── Player hitbox (used by all collision sections) ─────────────────
       const hbCfg = siteData.secretGame?.playerHitbox;
@@ -1995,15 +1997,17 @@ export function GameCanvas({
         for (const e of s.enemies) {
           if (!e.alive) continue;
           // Check enemy body against player hitbox (polygon or rect)
+          const ecbx = e.x + ecbOffX;
+          const ecby = e.y + ecbOffY;
           let bodyHit: boolean;
           if (usePolygon && hbPoints) {
-            bodyHit = enemyRectIntersectsPolygon(e.x, e.y, ecw, ech);
+            bodyHit = enemyRectIntersectsPolygon(ecbx, ecby, ecw, ech);
           } else {
             bodyHit = (
-              e.x < px + pw &&
-              e.x + ecw > px &&
-              e.y < py + ph &&
-              e.y + ech > py
+              ecbx < px + pw &&
+              ecbx + ecw > px &&
+              ecby < py + ph &&
+              ecby + ech > py
             );
           }
           if (bodyHit) {

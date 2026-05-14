@@ -187,6 +187,8 @@ export interface GameEnemySettings {
    */
   collisionWidth?: number;
   collisionHeight?: number;
+  collisionOffsetX?: number;
+  collisionOffsetY?: number;
   /**
    * Visual-only scale multiplier for the enemy sprite.
    * Does NOT affect the grid cell size or collision box.

@@ -296,6 +296,16 @@ export default function SecretGameAdminPage() {
         </div>
       </Section>
 
+      <Section title={`Enemy Body (${platform})`}>
+        <p className="text-xs text-neutral-500 mb-3">Collision box for enemy-vs-player body contact. Offset is from the top-left of the grid cell. Defaults to the full cell size.</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <NumberField label="Offset X" value={(plat.enemy as {collisionOffsetX?:number}).collisionOffsetX ?? 0} onChange={(v) => updateField(`${platform}.enemy.collisionOffsetX`, v)} min={-100} max={100} step={1} />
+          <NumberField label="Offset Y" value={(plat.enemy as {collisionOffsetY?:number}).collisionOffsetY ?? 0} onChange={(v) => updateField(`${platform}.enemy.collisionOffsetY`, v)} min={-100} max={100} step={1} />
+          <NumberField label="Width" value={(plat.enemy as {collisionWidth?:number}).collisionWidth ?? plat.enemy.width} onChange={(v) => updateField(`${platform}.enemy.collisionWidth`, v)} min={1} max={200} step={1} />
+          <NumberField label="Height" value={(plat.enemy as {collisionHeight?:number}).collisionHeight ?? plat.enemy.height} onChange={(v) => updateField(`${platform}.enemy.collisionHeight`, v)} min={1} max={200} step={1} />
+        </div>
+      </Section>
+
       <Section title="Lives (Hearts)">
         <div className="flex items-center gap-4 mb-3">
           <Toggle label="Visible" checked={plat.hearts.visible} onChange={(v) => updateField(`${platform}.hearts.visible`, v)} />
