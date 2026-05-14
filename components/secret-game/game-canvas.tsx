@@ -40,7 +40,7 @@ import {
   type ActiveEffect,
 } from "./effect-sprites";
 
-export type GamePhase = "menu" | "playing" | "paused" | "gameover" | "levelcomplete" | "bossreward" | "wavereward";
+export type GamePhase = "menu" | "playing" | "paused" | "gameover" | "levelcomplete" | "bossreward" | "wavereward" | "songunlock";
 
 /* ── Base resolution (reference coordinate system) ── */
 const BASE_H = 320;
@@ -1772,6 +1772,10 @@ export function GameCanvas({
       // ── Wave complete? ──
       if (aliveEnemies.length === 0 && !s.boss) {
         play("levelComplete");
+        if (s.wave === 100) {
+          onPhaseChange("songunlock");
+          return;
+        }
         // If wave rewards are enabled, go straight to the power-up selection screen;
         // otherwise show the brief "Wave X Clear!" overlay then auto-advance.
         // Default waveRewardEnabled to true so the screen shows even if the field is

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { submitScore, getLeaderboard } from "@/lib/actions";
 
-export type OverlayPhase = "menu" | "playing" | "paused" | "gameover" | "levelcomplete" | "bossreward" | "wavereward";
+export type OverlayPhase = "menu" | "playing" | "paused" | "gameover" | "levelcomplete" | "bossreward" | "wavereward" | "songunlock";
 
 export interface LeaderboardEntry {
   name: string;
@@ -223,7 +223,7 @@ export function GameOverlay({
             autoFocus
           >
             <div className="text-5xl md:text-6xl font-black tracking-widest uppercase text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]">
-              Game Over
+              The Show's Over. Thank you, Goodnight!
             </div>
             <div className="flex flex-col items-center gap-1">
               <span className="text-white/80 text-lg">
@@ -345,7 +345,7 @@ export function GameOverlay({
     }
   })();
 
-  if (phase === "playing" || phase === "bossreward" || phase === "wavereward") return null;
+  if (phase === "playing" || phase === "bossreward" || phase === "wavereward" || phase === "songunlock") return null;
 
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
