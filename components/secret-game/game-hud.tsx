@@ -7,7 +7,7 @@ const BASE_H = 320;
 const BASE_W = 240;
 
 interface ActivePowerUp {
-  type: "rapid" | "shield" | "wideshot" | "extralife" | "invincible";
+  type: "rapid" | "shield" | "wideshot" | "extralife" | "invincible" | "projectile";
   timer: number;
   stacks?: number;
 }
@@ -70,6 +70,7 @@ function PowerUpLabel({ type, size, stacks }: { type: ActivePowerUp["type"]; siz
     rapid: { text: "RAPID", color: "#ff8800" },
     shield: { text: "SHIELD", color: "#00f0ff" },
     wideshot: { text: "WIDE", color: "#fcee0a" },
+    projectile: { text: "PROJ", color: "#ff6600" },
     extralife: { text: "LIFE", color: "#ff006e" },
     invincible: { text: "STAR", color: "#ffd700" },
   };
@@ -178,6 +179,7 @@ export function GameHUD({ score, lives, wave, muted, activePowerUps, onPause, on
     rapid: settingsDurations?.rapid ?? 5,
     shield: 0,
     wideshot: settingsDurations?.wideShot ?? 4,
+    projectile: settingsDurations?.projectile ?? 4,
     extralife: 0,
     invincible: settingsDurations?.invincible ?? 4,
   };

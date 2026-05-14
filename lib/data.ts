@@ -276,6 +276,7 @@ export interface GameImpactSettings {
 export interface GamePowerUpDropRates {
   rapid: number;
   wideshot: number;
+  projectile: number;
   extralife: number;
   invincible: number;
 }
@@ -291,6 +292,7 @@ export interface SecretGameSettings {
   powerUpDurations: {
     rapid: number;
     wideShot: number;
+    projectile: number;
     invincible: number;
   };
   /** Base enemy HP at wave 1 (default 1 = one-hit kill) */

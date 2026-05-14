@@ -474,6 +474,7 @@
     "powerUpDurations": {
       "rapid": 6,
       "wideShot": 6,
+      "projectile": 6,
       "invincible": 6
     },
     "enemyBaseHp": 5,
@@ -490,6 +491,7 @@
     "powerUpDropRates": {
       "rapid": 1,
       "wideshot": 1,
+      "projectile": 1,
       "extralife": 1,
       "invincible": 1,
       "shield": 0

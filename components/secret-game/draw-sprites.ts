@@ -759,7 +759,7 @@ export function drawPowerUp(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
-  type: "rapid" | "shield" | "wideshot" | "extralife" | "invincible" | "choice",
+  type: "rapid" | "shield" | "wideshot" | "extralife" | "invincible" | "choice" | "projectile",
   frame: number,
   size = 8
 ) {
@@ -775,6 +775,7 @@ export function drawPowerUp(
     rapid:    { core: "#ffa500", glow: "rgba(255, 165, 0,", bright: "#ffdd44" },
     shield:   { core: "#00f0ff", glow: "rgba(0, 240, 255,", bright: "#ffffff" },
     wideshot: { core: "#fcee0a", glow: "rgba(252, 238, 10,", bright: "#ffffff" },
+    projectile: { core: "#ff6600", glow: "rgba(255, 102, 0,", bright: "#ffaa00" },
     extralife:{ core: "#ff006e", glow: "rgba(255, 0, 110,", bright: "#ff88bb" },
     invincible:{ core: "#ffd700", glow: "rgba(255, 215, 0,", bright: "#ffffff" },
     choice:   { core: "#00CED1", glow: "rgba(0, 206, 209,", bright: "#80FFFF" },
@@ -843,6 +844,20 @@ export function drawPowerUp(
         ctx.fillRect(cx - 1 * s, cy - 3 * s, 2 * s, 1 * s);
         ctx.fillRect(cx - 2 * s, cy - 1 * s, 1 * s, 1 * s);
         ctx.fillRect(cx + 1 * s, cy - 1 * s, 1 * s, 1 * s);
+      }
+      break;
+    }
+    case "projectile": {
+      // Bullet stack (orange)
+      ctx.fillStyle = c.core;
+      ctx.fillRect(cx - 1 * s, cy - 3 * s, 2 * s, 2 * s);
+      ctx.fillRect(cx - 2 * s, cy - 1 * s, 4 * s, 2 * s);
+      ctx.fillRect(cx - 1 * s, cy + 1 * s, 2 * s, 2 * s);
+      // Bright highlight
+      ctx.fillStyle = c.bright;
+      if (frame % 5 < 2) {
+        ctx.fillRect(cx - 1 * s, cy - 2 * s, 2 * s, 1 * s);
+        ctx.fillRect(cx - 1 * s, cy, 2 * s, 1 * s);
       }
       break;
     }

@@ -73,7 +73,7 @@ export default function SecretGameAdminPage() {
           powerUpSpawnChance: sg.powerUpSpawnChance ?? 0.12,
           bossProjectileDropRate: sg.bossProjectileDropRate ?? 0.15,
           powerUpSize: sg.powerUpSize ?? 8,
-          powerUpDurations: sg.powerUpDurations ?? { rapid: 5, wideShot: 4, invincible: 4 },
+          powerUpDurations: sg.powerUpDurations ?? { rapid: 5, wideShot: 4, projectile: 4, invincible: 4 },
           enemyBaseHp: sg.enemyBaseHp ?? 1,
           enemyHpPerWave: sg.enemyHpPerWave ?? 0,
           enemyCollisionDamage: sg.enemyCollisionDamage ?? 1,
@@ -82,7 +82,7 @@ export default function SecretGameAdminPage() {
           enemyProjectileDamagePerWave: sg.enemyProjectileDamagePerWave ?? 0,
           enemyProjectileSpeedPerWave: sg.enemyProjectileSpeedPerWave ?? 0,
           impacts: sg.impacts ?? { playerBullet: { w: 28, h: 28 }, enemyBullet: { w: 20, h: 20 } },
-          powerUpDropRates: sg.powerUpDropRates ?? { rapid: 1, wideshot: 1, extralife: 1, invincible: 1 },
+          powerUpDropRates: sg.powerUpDropRates ?? { rapid: 1, wideshot: 1, projectile: 1, extralife: 1, invincible: 1 },
           waveRewardEnabled: sg.waveRewardEnabled ?? true,
           enemyChoiceDropChance: sg.enemyChoiceDropChance ?? 0.05,
           disabledPowerUps: sg.disabledPowerUps ?? [],
@@ -531,6 +531,14 @@ export default function SecretGameAdminPage() {
                   step={1}
                 />
                 <NumberField
+                  label="Projectile (sec)"
+                  value={settings.powerUpDurations.projectile ?? 4}
+                  onChange={(v) => updateField("powerUpDurations.projectile", v)}
+                  min={1}
+                  max={60}
+                  step={1}
+                />
+                <NumberField
                   label="Invincible (sec)"
                   value={settings.powerUpDurations.invincible}
                   onChange={(v) => updateField("powerUpDurations.invincible", v)}
@@ -640,6 +648,7 @@ export default function SecretGameAdminPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               <NumberField label="Rapid Fire" value={settings.powerUpDropRates?.rapid ?? 1} onChange={(v) => updateField("powerUpDropRates.rapid", v)} min={0} max={100} step={1} />
               <NumberField label="Wide Shot" value={settings.powerUpDropRates?.wideshot ?? 1} onChange={(v) => updateField("powerUpDropRates.wideshot", v)} min={0} max={100} step={1} />
+              <NumberField label="Projectile" value={settings.powerUpDropRates?.projectile ?? 1} onChange={(v) => updateField("powerUpDropRates.projectile", v)} min={0} max={100} step={1} />
               <NumberField label="Extra Life" value={settings.powerUpDropRates?.extralife ?? 1} onChange={(v) => updateField("powerUpDropRates.extralife", v)} min={0} max={100} step={1} />
               <NumberField label="Invincible" value={settings.powerUpDropRates?.invincible ?? 1} onChange={(v) => updateField("powerUpDropRates.invincible", v)} min={0} max={100} step={1} />
             </div>

@@ -55,7 +55,7 @@ const PLAYER_H_BASE = 20;
 /* ── Power-up constants ── */
 const POWERUP_DRIFT_SPEED = 20;
 
-type PowerUpType = "rapid" | "shield" | "wideshot" | "extralife" | "invincible" | "choice";
+type PowerUpType = "rapid" | "shield" | "wideshot" | "extralife" | "invincible" | "choice" | "projectile";
 
 interface PowerUp {
   x: number;
@@ -1044,6 +1044,7 @@ export function GameCanvas({
       if (firing && s.playerCooldown <= 0) {
         // Temp power-ups still apply on top of perm stats
         const wideShot = s.activePowerUps.find((p) => p.type === "wideshot");
+        const projectilePU = s.activePowerUps.find((p) => p.type === "projectile");
         const rapid = s.activePowerUps.find((p) => p.type === "rapid");
         const rapidStacks = rapid?.stacks ?? 0;
         // Temp rapid overrides perm reload if shorter
@@ -1068,7 +1069,12 @@ export function GameCanvas({
 
         // Determine total bullet count: wideshot overrides projectileCount spread
         const permProj = playerStats.projectileCount - 1; // extra perm projectiles
-        const totalBullets = wideShot ? (2 + wideShot.stacks + permProj) : playerStats.projectileCount;
+        let totalBullets = wideShot ? (2 + wideShot.stacks + permProj) : playerStats.projectileCount;
+        // Projectile temp power-up adds bonus bullets, capped at 3 total
+        if (projectilePU) {
+          totalBullets += projectilePU.stacks;
+        }
+        totalBullets = Math.min(totalBullets, 3);
         const baseAngle = Math.atan2(vy, vx);
 
         const fireBulletNow = (angle: number) => {
@@ -1252,9 +1258,10 @@ export function GameCanvas({
             const duration =
               pu.type === "rapid" ? (durations?.rapid ?? 5) :
               pu.type === "invincible" ? (durations?.invincible ?? 4) :
+              pu.type === "projectile" ? (durations?.projectile ?? 4) :
               (durations?.wideShot ?? 4);
             const existing = s.activePowerUps.find((p) => p.type === pu.type);
-            const noStackTypes: PowerUpType[] = ["shield", "invincible"];
+            const noStackTypes: PowerUpType[] = ["shield", "invincible", "projectile"];
             const maxStack = 5;
 
             if (existing) {
@@ -1274,12 +1281,17 @@ export function GameCanvas({
             }
             // Track shield initial duration for animation timing
             if (pu.type === "shield") s.shieldDuration = duration;
+            // Projectile temp: recalculate bonus to fill up to cap of 3
+            if (pu.type === "projectile" && existing) {
+              existing.stacks = Math.max(0, 3 - playerStats.projectileCount);
+            }
             if (onPowerUpChange) onPowerUpChange(s.activePowerUps);
           }
           const puColor =
             pu.type === "rapid" ? "#ff8800" :
             pu.type === "shield" ? "#00f0ff" :
             pu.type === "wideshot" ? "#fcee0a" :
+            pu.type === "projectile" ? "#ff6600" :
             pu.type === "invincible" ? "#ffd700" : "#ff006e";
           spawnParticles(pu.x + powerUpSize / 2, pu.y + powerUpSize / 2, puColor, 6);
           s.powerups.splice(i, 1);
@@ -1371,9 +1383,14 @@ export function GameCanvas({
       const dropRateEntries: { type: PowerUpType; weight: number }[] = [
         { type: "rapid",      weight: dropRates?.rapid      ?? 1 },
         { type: "wideshot",   weight: dropRates?.wideshot   ?? 1 },
+        { type: "projectile", weight: dropRates?.projectile ?? 1 },
         { type: "extralife",  weight: dropRates?.extralife  ?? 1 },
         { type: "invincible", weight: dropRates?.invincible ?? 1 },
       ];
+      const filteredDropRateEntries = dropRateEntries.filter((e) => {
+        if (e.type === "projectile" && playerStats.projectileCount >= 3) return false;
+        return true;
+      });
       const totalDropWeight = dropRateEntries.reduce((s, e) => s + Math.max(0, e.weight), 0);
       const pickDropType = (): PowerUpType => {
         if (totalDropWeight <= 0) return "rapid";
@@ -1510,7 +1527,7 @@ export function GameCanvas({
             if (eb.isBoss) {
               const spawnChance = siteData.secretGame?.bossProjectileDropRate ?? 0.15;
               if (Math.random() < spawnChance) {
-                const types: PowerUpType[] = ["rapid", "wideshot", "extralife", "invincible"];
+                const types: PowerUpType[] = ["rapid", "wideshot", "projectile", "extralife", "invincible"];
                 const type = types[Math.floor(Math.random() * types.length)];
                 const pSize = siteData.secretGame?.powerUpSize ?? 8;
                 s.powerups.push({
