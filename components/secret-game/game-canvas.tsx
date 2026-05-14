@@ -159,15 +159,18 @@ export function GameCanvas({
       orbsImageRef.current = orbsImg;
     };
     const stageImg = new Image();
-    stageImg.src = "/background/stage.png";
     stageImg.onload = () => {
       setStageBgDesktop(stageImg);
     };
+    stageImg.src = "/background/stage.png";
+    if (stageImg.complete) setStageBgDesktop(stageImg);
+
     const stageMobileImg = new Image();
-    stageMobileImg.src = "/background/stage_mobile.png";
     stageMobileImg.onload = () => {
       setStageBgMobile(stageMobileImg);
     };
+    stageMobileImg.src = "/background/stage_mobile.png";
+    if (stageMobileImg.complete) setStageBgMobile(stageMobileImg);
     // Start loading all enemy sprite sheets and effect GIFs in the background
     loadEnemySprites();
     loadEffectSprites();
@@ -1886,10 +1889,9 @@ export function GameCanvas({
     ctx.save();
     ctx.scale(sc, sc);
 
-    // Draw stage background image if loaded, otherwise fall back to dark fill
+    // Draw stage background image (cover behaviour)
     const activeStageBg = isMobileAtMount ? stageBgMobile : stageBgDesktop;
     if (activeStageBg && activeStageBg.complete && activeStageBg.naturalWidth > 0) {
-      // Cover behaviour: fill the logical canvas while preserving aspect ratio
       const imgW = activeStageBg.naturalWidth;
       const imgH = activeStageBg.naturalHeight;
       const scale = Math.max(logW / imgW, logH / imgH);
@@ -1898,9 +1900,6 @@ export function GameCanvas({
       const offsetX = (logW - drawW) / 2;
       const offsetY = (logH - drawH) / 2;
       ctx.drawImage(activeStageBg, offsetX, offsetY, drawW, drawH);
-    } else {
-      ctx.fillStyle = "#0a0a0a";
-      ctx.fillRect(0, 0, logW, logH);
     }
 
     // Screen shake
