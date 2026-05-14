@@ -1214,6 +1214,9 @@ export default function SecretGameAdminPage() {
                 onBulletSpawnChange={(ox, oy) => setSettings((prev) => prev ? { ...prev, bulletSpawnOffsetX: ox, bulletSpawnOffsetY: oy } : prev)}
                 onMouseFollowChange={(ox, oy) => setSettings((prev) => prev ? { ...prev, mouseFollowOffsetX: ox, mouseFollowOffsetY: oy } : prev)}
                 onSpawnPointsChange={(next) => updateField(`${platform}.spawnPoints`, next)}
+                onPlayerSpriteChange={(next) => setSettings((prev) => prev ? { ...prev, playerSprite: next } : prev)}
+                onPlayerHitboxChange={(next) => setSettings((prev) => prev ? { ...prev, playerHitbox: { ...(prev.playerHitbox ?? {}), ...next } } : prev)}
+                onPermShieldChange={(next) => setSettings((prev) => prev ? { ...prev, permShield: next } : prev)}
               />
             </div>
           </div>
