@@ -31,6 +31,7 @@ import {
   isAnimComplete,
   animDuration,
   type EnemyAnimState,
+  type EnemyFacing,
 } from "./enemy-sprites";
 import {
   loadEffectSprites,
@@ -207,6 +208,7 @@ export function GameCanvas({
       animState: EnemyAnimState;
       animAccum: number;    // seconds elapsed in current anim
       dying: boolean;       // true while death anim plays (alive=false)
+      facing: EnemyFacing;  // directional sprite facing
       orbitalHitCooldown: number; // prevents orbital from dealing damage every frame
     }[],
     bullets: [] as {
@@ -227,7 +229,6 @@ export function GameCanvas({
     }[],
     powerups: [] as PowerUp[],
     activePowerUps: [] as ActivePowerUp[],
-    enemyDir: 1,
     enemySpeed: 18,
     enemyDropAccum: 0,
     enemyFireChance: 0.003,
@@ -438,6 +439,7 @@ export function GameCanvas({
             animState: "walking",
             animAccum: Math.random() * 2.5, // stagger start frame so grid doesn't look uniform
             dying: false,
+            facing: "down",
             orbitalHitCooldown: 0, // prevents orbital from dealing damage every frame
           });
         }
@@ -492,7 +494,6 @@ export function GameCanvas({
     s.powerups = [];
     s.activePowerUps = [];
     s.boss = null;
-    s.enemyDir = 1;
     s.enemyDropAccum = 0;
     s.enemyProjectileSpeed = 60;
     s.enemyProjectileDamage = 1;
@@ -1124,6 +1125,23 @@ export function GameCanvas({
         if (sharedAim.aiming && sharedAim.x != null && sharedAim.y != null) {
           aimX = sharedAim.x * (logW / BASE_W);
           aimY = sharedAim.y;
+        } else {
+          // Auto-target closest alive enemy
+          const aliveEnemies2 = s.enemies.filter((e) => e.alive);
+          if (aliveEnemies2.length > 0) {
+            let closest = aliveEnemies2[0];
+            let bestDist = Infinity;
+            for (const e of aliveEnemies2) {
+              const ex = e.x + ew / 2;
+              const ey = e.y + eh / 2;
+              const ddx = ex - px;
+              const ddy = ey - py;
+              const dd = ddx * ddx + ddy * ddy;
+              if (dd < bestDist) { bestDist = dd; closest = e; }
+            }
+            aimX = closest.x + ew / 2;
+            aimY = closest.y + eh / 2;
+          }
         }
         const dx = aimX - px;
         const dy = aimY - py;
@@ -1171,31 +1189,34 @@ export function GameCanvas({
         s.playerCooldown = baseCooldown;
       }
 
-      // ── Enemy movement ──
+      // ── Enemy movement (individual tracking) ──
       const edgeMargin = 4;
-      let hitEdge = false;
-      const moveAmount = s.enemySpeed * dt;
-
-      // Check if next move would hit edge BEFORE moving
+      const pCx = s.playerX + PLAYER_W_BASE / 2;
+      const pCy = s.playerY + PLAYER_H_BASE / 2;
       for (const e of s.enemies) {
         if (!e.alive) continue;
-        const nextX = e.x + s.enemyDir * moveAmount;
-        if (nextX <= edgeMargin || nextX + ew >= playAreaW - edgeMargin) {
-          hitEdge = true;
-          break;
+        // Determine direction to player
+        const ex = e.x + ew / 2;
+        const ey = e.y + eh / 2;
+        const dx = pCx - ex;
+        const dy = pCy - ey;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        let vx = 0;
+        let vy = 0;
+        if (dist > 1) {
+          vx = (dx / dist) * s.enemySpeed;
+          vy = (dy / dist) * s.enemySpeed;
         }
-      }
-
-      if (hitEdge) {
-        // Reverse direction only — no descent
-        s.enemyDir *= -1;
-      } else {
-        // Safe to move horizontally
-        for (const e of s.enemies) {
-          if (!e.alive) continue;
-          e.x += s.enemyDir * moveAmount;
-          // Hard clamp to keep enemies on screen at all times
-          e.x = Math.max(edgeMargin, Math.min(playAreaW - edgeMargin - ew, e.x));
+        e.x += vx * dt;
+        e.y += vy * dt;
+        // Clamp to play area
+        e.x = Math.max(edgeMargin, Math.min(playAreaW - edgeMargin - ew, e.x));
+        e.y = Math.max(edgeMargin, Math.min(BASE_H - edgeMargin - eh, e.y));
+        // Update facing for sprite rendering
+        if (Math.abs(dx) > Math.abs(dy)) {
+          e.facing = dx > 0 ? "right" : "left";
+        } else {
+          e.facing = dy < 0 ? "up" : "down";
         }
       }
 
@@ -1206,11 +1227,21 @@ export function GameCanvas({
       aliveEnemies.forEach((e) => {
         e.cooldown -= dt;
         if (e.cooldown <= 0 && Math.random() < s.enemyFireChance) {
+          const bx = e.x + ew / 2;
+          const by = e.y + eh;
+          const ex = s.playerX + PLAYER_W_BASE / 2;
+          const ey = s.playerY + PLAYER_H_BASE / 2;
+          const bdx = ex - bx;
+          const bdy = ey - by;
+          const bdist = Math.sqrt(bdx * bdx + bdy * bdy);
+          const pspeed = waveEnemyProjSpeed;
+          const bvx = bdist > 1 ? (bdx / bdist) * pspeed : 0;
+          const bvy = bdist > 1 ? (bdy / bdist) * pspeed : pspeed;
           s.bullets.push({
-            x: e.x + ew / 2,
-            y: e.y + eh,
-            vx: 0,
-            vy: waveEnemyProjSpeed,
+            x: bx,
+            y: by,
+            vx: bvx,
+            vy: bvy,
             isPlayer: false,
             projectileIndex: e.projectileIndex,
           });
@@ -1982,7 +2013,7 @@ export function GameCanvas({
       const sprX = e.x - (sprW - enemyCfg.width)  / 2;
       const sprY = e.y - (sprH - enemyCfg.height) / 2;
       drawEnemySprite(
-        ctx, sprX, sprY, e.variant, e.animState, e.animAccum,
+        ctx, sprX, sprY, e.variant, e.animState, e.facing, e.animAccum,
         sprW, sprH,
         // Procedural fallback while sprites are loading
         () => drawEnemy(ctx, sprX, sprY, e.variant, s.frame, e.cooldown > 0.75, sprW, sprH),

@@ -6,11 +6,14 @@
  *   Hurt    : 5 cols × 2 rows = 10 frames
  *   Dying   : 5 cols × 2 rows = 10 frames
  *
- * Files live in public/enemies/spritesheets/<Name><Anim>.png
- * e.g. ThugWalking.png, Thug2Hurt.png, Thug3Dying.png
+ * Files live in public/enemies/spritesheets/<Name><Dir><Anim>.png
+ * e.g. ThugWalking.png (down), ThugLWalking.png (left), ThugRWalking.png (right), ThugBWalking.png (up/back)
+ *      ThugHurt.png, ThugLHurt.png, ThugRHurt.png, ThugBHurt.png
+ *      ThugDying.png (no direction)
  */
 
 export type EnemyAnimState = "walking" | "hurt" | "dying";
+export type EnemyFacing = "down" | "left" | "right" | "up";
 
 interface AnimMeta {
   cols: number;
@@ -35,24 +38,47 @@ const ANIM_SUFFIX: Record<EnemyAnimState, AnimSuffix> = {
   dying:   "Dying",
 };
 
-/** Singleton image cache: key = "Thug_Walking", "Thug2_Hurt", etc. */
+/** Direction prefix for sprite filenames: down = "", left = "L", right = "R", up = "B" */
+const FACING_PREFIX: Record<EnemyFacing, string> = {
+  down:  "",
+  left:  "L",
+  right: "R",
+  up:    "B",
+};
+
+/** Singleton image cache: key = "Thug_down_Walking", "Thug2_left_Hurt", etc. */
 const imageCache: Partial<Record<string, HTMLImageElement>> = {};
 let spritesLoaded = false;
 
 /**
  * Call once at component mount (client-side only).
- * Starts loading all 9 sprite sheets in the background.
+ * Starts loading all directional sprite sheets in the background.
  */
 export function loadEnemySprites(): void {
   if (typeof window === "undefined" || spritesLoaded) return;
   spritesLoaded = true;
+
   for (const name of VARIANT_NAMES) {
     for (const suffix of ["Walking", "Hurt", "Dying"] as AnimSuffix[]) {
-      const key = `${name}_${suffix}`;
-      if (imageCache[key]) continue;
-      const img = new Image();
-      img.src = `/enemies/spritesheets/${name}${suffix}.png`;
-      imageCache[key] = img;
+      // Dying has no directional variants
+      if (suffix === "Dying") {
+        const key = `${name}_down_${suffix}`;
+        if (imageCache[key]) continue;
+        const img = new Image();
+        img.src = `/enemies/spritesheets/${name}${suffix}.png`;
+        imageCache[key] = img;
+        continue;
+      }
+
+      // Walking and Hurt have 4 directional variants each
+      for (const facing of ["down", "left", "right", "up"] as EnemyFacing[]) {
+        const dirPrefix = FACING_PREFIX[facing];
+        const key = `${name}_${facing}_${suffix}`;
+        if (imageCache[key]) continue;
+        const img = new Image();
+        img.src = `/enemies/spritesheets/${name}${dirPrefix}${suffix}.png`;
+        imageCache[key] = img;
+      }
     }
   }
 }
@@ -85,12 +111,15 @@ export function drawEnemySprite(
   y: number,
   variant: 0 | 1 | 2,
   state: EnemyAnimState,
+  facing: EnemyFacing,
   animAccum: number,
   w: number,
   h: number,
   fallback: () => void,
 ): void {
-  const key = `${VARIANT_NAMES[variant]}_${ANIM_SUFFIX[state]}`;
+  // Dying has no directional variant, always use "down"
+  const effectiveFacing: EnemyFacing = state === "dying" ? "down" : facing;
+  const key = `${VARIANT_NAMES[variant]}_${effectiveFacing}_${ANIM_SUFFIX[state]}`;
   const img = imageCache[key];
 
   if (!img || !img.complete || img.naturalWidth === 0) {
