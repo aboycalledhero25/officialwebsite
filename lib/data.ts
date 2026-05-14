@@ -279,6 +279,10 @@ export interface WaveConfig {
   spawnCount: number;
   spawnRate: number;
   spawnDelay: number;
+  /** HP for each enemy spawned in this wave. Overrides formula scaling. */
+  enemyHp?: number;
+  /** Damage dealt by enemy projectiles in this wave. Overrides formula scaling. */
+  enemyProjectileDamage?: number;
 }
 
 /** Configurable sizes for GIF impact effects (in game coordinate units, 240×320 space) */

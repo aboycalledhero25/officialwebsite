@@ -416,17 +416,18 @@ export function GameCanvas({
     }
 
     // Scale difficulty with wave (capped for infinite playability)
+    const waveConfig = siteData.secretGame?.waveConfigs?.[w - 1];
     if (groupConfig) {
       s.enemySpeed = groupConfig.speed;
       s.enemyFireChance = groupConfig.fireRate;
       s.enemyProjectileSpeed = groupConfig.projectileSpeed;
-      s.enemyProjectileDamage = groupConfig.projectileDamage;
+      s.enemyProjectileDamage = waveConfig?.enemyProjectileDamage ?? groupConfig.projectileDamage;
       s.enemyCollisionDamage = groupConfig.collisionDamage;
     } else {
       s.enemySpeed = Math.min(cfg.speed + (w - 1) * 1.2, 90);
       s.enemyFireChance = Math.min(cfg.fireRate * (1 + (w - 1) * 0.025), 0.012);
       s.enemyProjectileSpeed = cfg.projectileSpeed + (w - 1) * (siteData.secretGame?.enemyProjectileSpeedPerWave ?? 0);
-      s.enemyProjectileDamage = Math.max(1, Math.round(
+      s.enemyProjectileDamage = waveConfig?.enemyProjectileDamage ?? Math.max(1, Math.round(
         (siteData.secretGame?.enemyProjectileDamage ?? 1) + (w - 1) * (siteData.secretGame?.enemyProjectileDamagePerWave ?? 0),
       ));
       s.enemyCollisionDamage = Math.max(1, Math.round(
@@ -676,8 +677,11 @@ export function GameCanvas({
             const sp = spawnPoints[Math.floor(Math.random() * spawnPoints.length)];
             const groupIdx2 = Math.floor((s.wave - 1) / 10);
             const groupConfig2 = siteData.secretGame?.enemyDifficultyPerWaveGroup?.[groupIdx2];
+            const waveConfig2 = siteData.secretGame?.waveConfigs?.[s.wave - 1];
             let waveHp2: number;
-            if (groupConfig2) {
+            if (waveConfig2?.enemyHp != null) {
+              waveHp2 = Math.max(1, Math.round(waveConfig2.enemyHp));
+            } else if (groupConfig2) {
               waveHp2 = Math.max(1, Math.round(groupConfig2.hp));
             } else {
               const baseHp2 = siteData.secretGame?.enemyBaseHp ?? 1;
@@ -1145,76 +1149,79 @@ export function GameCanvas({
         }
       }
 
-      // ── Player shooting ─────────────────────────────────────────────
+      // ── Player auto-fire ────────────────────────────────────────────
+      // Automatically targets the closest threat (enemy, boss, or enemy projectile).
+      // Stops firing when no threats remain on screen.
       s.playerCooldown -= dt;
-      const firing = keys.shoot || sharedAim.firing;
-      if (firing && s.playerCooldown <= 0) {
-        // Temp power-ups still apply on top of perm stats
+
+      const spriteCfg = siteData.secretGame?.playerSprite ?? { offsetX: -2, offsetY: -12, width: 14, height: 42 };
+      let dirOffX = 0;
+      let dirOffY = 0;
+      switch (s.playerFacing) {
+        case "up":    dirOffY = -spriteCfg.height * 0.35; break;
+        case "down":  dirOffY =  spriteCfg.height * 0.35; break;
+        case "left":  dirOffX = -spriteCfg.width  * 0.35; break;
+        case "right": dirOffX =  spriteCfg.width  * 0.35; break;
+      }
+      const bpx = s.playerX + (siteData.secretGame?.bulletSpawnOffsetX ?? PLAYER_W_BASE / 2) + dirOffX;
+      const bpy = s.playerY + (siteData.secretGame?.bulletSpawnOffsetY ?? PLAYER_H_BASE / 2) + dirOffY;
+
+      // Find closest threat
+      let bestDist = Infinity;
+      let aimX = bpx;
+      let aimY = bpy - 10;
+      let hasThreat = false;
+
+      // Check alive enemies
+      for (const e of s.enemies) {
+        if (!e.alive) continue;
+        const ex = e.x + ew / 2;
+        const ey = e.y + eh / 2;
+        const ddx = ex - bpx;
+        const ddy = ey - bpy;
+        const dd = ddx * ddx + ddy * ddy;
+        if (dd < bestDist) { bestDist = dd; aimX = ex; aimY = ey; hasThreat = true; }
+      }
+
+      // Check boss
+      if (s.boss && s.boss.health > 0) {
+        const bw2 = siteData.secretGame?.boss?.width ?? 40;
+        const bh2 = siteData.secretGame?.boss?.height ?? 30;
+        const bx2 = s.boss.x + bw2 / 2;
+        const by2 = s.boss.y + bh2 / 2;
+        const ddx = bx2 - bpx;
+        const ddy = by2 - bpy;
+        const dd = ddx * ddx + ddy * ddy;
+        if (dd < bestDist) { bestDist = dd; aimX = bx2; aimY = by2; hasThreat = true; }
+      }
+
+      // Check enemy projectiles
+      for (const b of s.bullets) {
+        if (b.isPlayer) continue;
+        const ddx = b.x - bpx;
+        const ddy = b.y - bpy;
+        const dd = ddx * ddx + ddy * ddy;
+        if (dd < bestDist) { bestDist = dd; aimX = b.x; aimY = b.y; hasThreat = true; }
+      }
+
+      if (hasThreat && s.playerCooldown <= 0) {
         const wideShot = s.activePowerUps.find((p) => p.type === "wideshot");
         const projectilePU = s.activePowerUps.find((p) => p.type === "projectile");
         const rapid = s.activePowerUps.find((p) => p.type === "rapid");
         const rapidStacks = rapid?.stacks ?? 0;
-        // Temp rapid overrides perm reload if shorter
         const baseCooldown = rapidStacks > 0
           ? Math.min(playerStats.reloadTime, Math.max(0.06, 0.12 - 0.02 * (rapidStacks - 1)))
           : playerStats.reloadTime;
 
-        const spriteCfg = siteData.secretGame?.playerSprite ?? { offsetX: -2, offsetY: -12, width: 14, height: 42 };
-        let dirOffX = 0;
-        let dirOffY = 0;
-        switch (s.playerFacing) {
-          case "up":    dirOffY = -spriteCfg.height * 0.35; break;
-          case "down":  dirOffY =  spriteCfg.height * 0.35; break;
-          case "left":  dirOffX = -spriteCfg.width  * 0.35; break;
-          case "right": dirOffX =  spriteCfg.width  * 0.35; break;
-        }
-        const px = s.playerX + (siteData.secretGame?.bulletSpawnOffsetX ?? PLAYER_W_BASE / 2) + dirOffX;
-        const py = s.playerY + (siteData.secretGame?.bulletSpawnOffsetY ?? PLAYER_H_BASE / 2) + dirOffY;
-        let aimX = px;
-        let aimY = py - 10;
-        if (sharedAim.aiming && sharedAim.x != null && sharedAim.y != null) {
-          aimX = sharedAim.x * (logW / BASE_W);
-          aimY = sharedAim.y;
-        } else {
-          // Auto-target closest alive enemy or boss
-          let bestDist = Infinity;
-          let targetX: number | null = null;
-          let targetY: number | null = null;
-          const aliveEnemies2 = s.enemies.filter((e) => e.alive);
-          for (const e of aliveEnemies2) {
-            const ex = e.x + ew / 2;
-            const ey = e.y + eh / 2;
-            const ddx = ex - px;
-            const ddy = ey - py;
-            const dd = ddx * ddx + ddy * ddy;
-            if (dd < bestDist) { bestDist = dd; targetX = ex; targetY = ey; }
-          }
-          if (s.boss && s.boss.health > 0) {
-            const bw2 = siteData.secretGame?.boss?.width ?? 40;
-            const bh2 = siteData.secretGame?.boss?.height ?? 30;
-            const bx2 = s.boss.x + bw2 / 2;
-            const by2 = s.boss.y + bh2 / 2;
-            const ddx = bx2 - px;
-            const ddy = by2 - py;
-            const dd = ddx * ddx + ddy * ddy;
-            if (dd < bestDist) { bestDist = dd; targetX = bx2; targetY = by2; }
-          }
-          if (targetX !== null && targetY !== null) {
-            aimX = targetX;
-            aimY = targetY;
-          }
-        }
-        const dx = aimX - px;
-        const dy = aimY - py;
+        const dx = aimX - bpx;
+        const dy = aimY - bpy;
         const dist = Math.sqrt(dx * dx + dy * dy);
         const speed = BULLET_SPEED_BASE;
         let vx = 0, vy = -speed;
         if (dist > 1) { vx = (dx / dist) * speed; vy = (dy / dist) * speed; }
 
-        // Determine total bullet count: wideshot overrides projectileCount spread
-        const permProj = playerStats.projectileCount - 1; // extra perm projectiles
+        const permProj = playerStats.projectileCount - 1;
         let totalBullets = wideShot ? (2 + wideShot.stacks + permProj) : playerStats.projectileCount;
-        // Projectile temp power-up adds bonus bullets, capped at 3 total
         if (projectilePU) {
           totalBullets += projectilePU.stacks;
         }
@@ -1223,8 +1230,8 @@ export function GameCanvas({
 
         const fireBulletNow = (angle: number) => {
           s.bullets.push({
-            x: px,
-            y: py,
+            x: bpx,
+            y: bpy,
             vx: Math.cos(angle) * speed,
             vy: Math.sin(angle) * speed,
             isPlayer: true,
@@ -1234,7 +1241,6 @@ export function GameCanvas({
         };
 
         if (totalBullets > 1) {
-          // Multi-shot spread (wideshot / extra projectile)
           const spread = wideShot ? 0.26 : 0.1;
           for (let i = 0; i < totalBullets; i++) {
             const angle = baseAngle - spread + (spread * 2 * i) / (totalBullets - 1);
@@ -1242,7 +1248,6 @@ export function GameCanvas({
           }
           play("shoot");
         } else {
-          // Single shot
           fireBulletNow(baseAngle);
           play("shoot");
         }

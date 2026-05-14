@@ -540,6 +540,8 @@ export default function SecretGameAdminPage() {
                   <NumberField label="Spawn Count" value={wave.spawnCount} onChange={(v) => updateWave({ spawnCount: v })} min={1} max={200} step={1} />
                   <NumberField label="Spawn Rate (per sec)" value={wave.spawnRate} onChange={(v) => updateWave({ spawnRate: v })} min={0.1} max={10} step={0.1} />
                   <NumberField label="Spawn Delay (sec)" value={wave.spawnDelay} onChange={(v) => updateWave({ spawnDelay: v })} min={0} max={30} step={0.5} />
+                  <NumberField label="Enemy HP" value={wave.enemyHp ?? 0} onChange={(v) => updateWave({ enemyHp: v > 0 ? v : undefined })} min={1} max={1000} step={1} />
+                  <NumberField label="Enemy Damage" value={wave.enemyProjectileDamage ?? 0} onChange={(v) => updateWave({ enemyProjectileDamage: v > 0 ? v : undefined })} min={1} max={100} step={1} />
                 </div>
               </div>
             );
@@ -548,7 +550,7 @@ export default function SecretGameAdminPage() {
         <button onClick={() => {
           const current = settings.waveConfigs ?? [];
           const last = current.length > 0 ? current[current.length - 1] : null;
-          const nextWave = last ? { ...last, spawnCount: last.spawnCount + 4 } : { spawnCount: 8, spawnRate: 1, spawnDelay: 1 };
+          const nextWave = last ? { ...last, spawnCount: last.spawnCount + 4 } : { spawnCount: 8, spawnRate: 1, spawnDelay: 1, enemyHp: undefined, enemyProjectileDamage: undefined };
           setSettings((prev) => prev ? { ...prev, waveConfigs: [...current, nextWave] } : prev);
         }} className="mt-3 flex items-center gap-1.5 rounded-lg border border-[#1e1e1e] bg-[#0a0a0a] px-3 py-2 text-xs text-neutral-300 hover:bg-[#1e1e1e] transition-colors"><Plus className="w-3.5 h-3.5" /> Add Wave</button>
       </Section>
