@@ -111,7 +111,8 @@ export function GameCanvas({
   const playerImageRef = useRef<HTMLImageElement | null>(null);
   const shieldImageRef = useRef<HTMLImageElement | null>(null);
   const orbsImageRef = useRef<HTMLImageElement | null>(null);
-  const [stageBgImage, setStageBgImage] = useState<HTMLImageElement | null>(null);
+  const [stageBgDesktop, setStageBgDesktop] = useState<HTMLImageElement | null>(null);
+  const [stageBgMobile, setStageBgMobile] = useState<HTMLImageElement | null>(null);
   useKeyboardControls();
   const { play, playFile, setMuted, isMuted } = useAudioSfx();
   const siteData = useSiteData();
@@ -160,7 +161,12 @@ export function GameCanvas({
     const stageImg = new Image();
     stageImg.src = "/background/stage.png";
     stageImg.onload = () => {
-      setStageBgImage(stageImg);
+      setStageBgDesktop(stageImg);
+    };
+    const stageMobileImg = new Image();
+    stageMobileImg.src = "/background/stage_mobile.png";
+    stageMobileImg.onload = () => {
+      setStageBgMobile(stageMobileImg);
     };
     // Start loading all enemy sprite sheets and effect GIFs in the background
     loadEnemySprites();
@@ -1848,7 +1854,7 @@ export function GameCanvas({
       render(ctx, s, CW, CH, sc);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [phase, onPhaseChange, onScoreChange, onLivesChange, onWaveChange, play, setMuted, isMuted, spawnParticles, onPowerUpChange, onHealthDetailChange, playerStats, stageBgImage]
+    [phase, onPhaseChange, onScoreChange, onLivesChange, onWaveChange, play, setMuted, isMuted, spawnParticles, onPowerUpChange, onHealthDetailChange, playerStats, stageBgDesktop, stageBgMobile]
   );
 
   function render(
@@ -1881,8 +1887,9 @@ export function GameCanvas({
     ctx.scale(sc, sc);
 
     // Draw stage background image if loaded, otherwise fall back to dark fill
-    if (stageBgImage && stageBgImage.complete && stageBgImage.naturalWidth > 0) {
-      ctx.drawImage(stageBgImage, 0, 0, logW, logH);
+    const activeStageBg = isMobileAtMount ? stageBgMobile : stageBgDesktop;
+    if (activeStageBg && activeStageBg.complete && activeStageBg.naturalWidth > 0) {
+      ctx.drawImage(activeStageBg, 0, 0, logW, logH);
     } else {
       ctx.fillStyle = "#0a0a0a";
       ctx.fillRect(0, 0, logW, logH);
