@@ -878,8 +878,17 @@ export function GameCanvas({
         if (s.frenzyAccum >= playerStats.frenzyCooldown) {
           s.frenzyAccum -= playerStats.frenzyCooldown;
           const count = playerStats.frenzyProjectiles;
-          const px = s.playerX + (siteData.secretGame?.bulletSpawnOffsetX ?? PLAYER_W_BASE / 2);
-          const py = s.playerY + (siteData.secretGame?.bulletSpawnOffsetY ?? PLAYER_H_BASE / 2);
+          const spriteCfg2 = siteData.secretGame?.playerSprite ?? { offsetX: -2, offsetY: -12, width: 14, height: 42 };
+          let dirOffX2 = 0;
+          let dirOffY2 = 0;
+          switch (s.playerFacing) {
+            case "up":    dirOffY2 = -spriteCfg2.height * 0.35; break;
+            case "down":  dirOffY2 =  spriteCfg2.height * 0.35; break;
+            case "left":  dirOffX2 = -spriteCfg2.width  * 0.35; break;
+            case "right": dirOffX2 =  spriteCfg2.width  * 0.35; break;
+          }
+          const px = s.playerX + (siteData.secretGame?.bulletSpawnOffsetX ?? PLAYER_W_BASE / 2) + dirOffX2;
+          const py = s.playerY + (siteData.secretGame?.bulletSpawnOffsetY ?? PLAYER_H_BASE / 2) + dirOffY2;
           for (let i = 0; i < count; i++) {
             const angle = (i / count) * Math.PI * 2;
             s.bullets.push({
@@ -1150,8 +1159,17 @@ export function GameCanvas({
           ? Math.min(playerStats.reloadTime, Math.max(0.06, 0.12 - 0.02 * (rapidStacks - 1)))
           : playerStats.reloadTime;
 
-        const px = s.playerX + (siteData.secretGame?.bulletSpawnOffsetX ?? PLAYER_W_BASE / 2);
-        const py = s.playerY + (siteData.secretGame?.bulletSpawnOffsetY ?? PLAYER_H_BASE / 2);
+        const spriteCfg = siteData.secretGame?.playerSprite ?? { offsetX: -2, offsetY: -12, width: 14, height: 42 };
+        let dirOffX = 0;
+        let dirOffY = 0;
+        switch (s.playerFacing) {
+          case "up":    dirOffY = -spriteCfg.height * 0.35; break;
+          case "down":  dirOffY =  spriteCfg.height * 0.35; break;
+          case "left":  dirOffX = -spriteCfg.width  * 0.35; break;
+          case "right": dirOffX =  spriteCfg.width  * 0.35; break;
+        }
+        const px = s.playerX + (siteData.secretGame?.bulletSpawnOffsetX ?? PLAYER_W_BASE / 2) + dirOffX;
+        const py = s.playerY + (siteData.secretGame?.bulletSpawnOffsetY ?? PLAYER_H_BASE / 2) + dirOffY;
         let aimX = px;
         let aimY = py - 10;
         if (sharedAim.aiming && sharedAim.x != null && sharedAim.y != null) {

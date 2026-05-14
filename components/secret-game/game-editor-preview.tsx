@@ -94,8 +94,9 @@ export function GameEditorPreview({
     return () => window.removeEventListener("resize", measure);
   }, [platform, zoom]);
 
-  const scaleX = dims.w / BASE_W;
   const scaleY = dims.h / BASE_H;
+  // NOTE: the actual game uses ctx.scale(sc, sc) where sc = h / BASE_H.
+  // Both axes use the SAME scale factor (height-based), so we use scaleY for everything.
 
   // Load player sprite
   useEffect(() => {
@@ -429,7 +430,7 @@ export function GameEditorPreview({
       window.removeEventListener("touchmove", handleMove);
       window.removeEventListener("touchend", handleUp);
     };
-  }, [scaleX, scaleY, settings, onChange, onBossChange, bossSettings, playerSprite.offsetX, playerSprite.offsetY, hitboxPoints, onHitboxChange, onBulletSpawnChange, onMouseFollowChange, mouseFollowOffsetX, mouseFollowOffsetY, spawnPoints, onSpawnPointsChange]);
+  }, [scaleY, settings, onChange, onBossChange, bossSettings, playerSprite.offsetX, playerSprite.offsetY, hitboxPoints, onHitboxChange, onBulletSpawnChange, onMouseFollowChange, mouseFollowOffsetX, mouseFollowOffsetY, spawnPoints, onSpawnPointsChange]);
 
   // Click on canvas to add a new hitbox point
   const handleCanvasClick = useCallback((e: React.MouseEvent) => {
@@ -438,10 +439,10 @@ export function GameEditorPreview({
     if (dragRef.current) return;
     const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
     // Convert click to game-logical offset from player position
-    const ptX = Math.round((e.clientX - rect.left - settings.player.x * scaleX) / scaleY);
-    const ptY = Math.round((e.clientY - rect.top  - settings.player.y * scaleY) / scaleY);
+    const ptX = Math.round((e.clientX - rect.left) / scaleY - settings.player.x);
+    const ptY = Math.round((e.clientY - rect.top)  / scaleY - settings.player.y);
     onHitboxChange([...(hitboxPoints ?? []), { x: ptX, y: ptY }]);
-  }, [editMode, onHitboxChange, hitboxPoints, settings.player.x, settings.player.y, scaleX, scaleY]);
+  }, [editMode, onHitboxChange, hitboxPoints, settings.player.x, settings.player.y, scaleY]);
 
   // Overlay renderer for draggable items
   function DraggableOverlay({
@@ -522,18 +523,16 @@ export function GameEditorPreview({
   function ShieldOverlay({
     settings,
     playerSprite,
-    scaleX,
     scaleY,
     onDragStart,
   }: {
     settings: GamePlatformSettings;
     playerSprite: PlayerSprite;
-    scaleX: number;
     scaleY: number;
     onDragStart: (key: string, origX: number, origY: number, e: React.MouseEvent | React.TouchEvent) => void;
   }) {
     const radius = settings.shield?.radius ?? 16;
-    const left = settings.player.x * scaleX + (playerSprite.offsetX + playerSprite.width / 2 + (settings.shield?.offsetX ?? 0) - radius) * scaleY;
+    const left = settings.player.x * scaleY + (playerSprite.offsetX + playerSprite.width / 2 + (settings.shield?.offsetX ?? 0) - radius) * scaleY;
     const top = settings.player.y * scaleY + (playerSprite.offsetY + playerSprite.height / 2 + (settings.shield?.offsetY ?? 0) - radius) * scaleY;
     const size = radius * 2 * scaleY;
 
@@ -591,7 +590,7 @@ export function GameEditorPreview({
         <DraggableOverlay
           label="Player"
           itemKey="player"
-          left={settings.player.x * scaleX + playerSprite.offsetX * scaleY}
+          left={settings.player.x * scaleY + playerSprite.offsetX * scaleY}
           top={settings.player.y * scaleY + playerSprite.offsetY * scaleY}
           width={playerSprite.width * scaleY}
           height={playerSprite.height * scaleY}
@@ -603,7 +602,7 @@ export function GameEditorPreview({
         <DraggableOverlay
           label="Hearts"
           itemKey="hearts"
-          left={settings.hearts.x * scaleX}
+          left={settings.hearts.x * scaleY}
           top={settings.hearts.y * scaleY}
           width={(settings.hearts.size * 5 + 8) * scaleY}
           height={(settings.hearts.size + 4) * scaleY}
@@ -615,7 +614,7 @@ export function GameEditorPreview({
         <DraggableOverlay
           label="Arrow Keys"
           itemKey="arrowKeys"
-          left={settings.arrowKeys.x * scaleX}
+          left={settings.arrowKeys.x * scaleY}
           top={settings.arrowKeys.y * scaleY}
           width={(settings.arrowKeys.size * 2 + 16) * scaleY}
           height={(settings.arrowKeys.size + 8) * scaleY}
@@ -627,9 +626,9 @@ export function GameEditorPreview({
         <DraggableOverlay
           label="Touch Area"
           itemKey="touchArea"
-          left={settings.touchArea.x * scaleX}
+          left={settings.touchArea.x * scaleY}
           top={settings.touchArea.y * scaleY}
-          width={settings.touchArea.width * scaleX}
+          width={settings.touchArea.width * scaleY}
           height={settings.touchArea.height * scaleY}
           visible={settings.touchArea.visible}
           color="#00f0ff"
@@ -639,10 +638,10 @@ export function GameEditorPreview({
         <DraggableOverlay
           label="Fire"
           itemKey="fireButton"
-          left={settings.fireButton.x * scaleX}
+          left={settings.fireButton.x * scaleY}
           top={settings.fireButton.y * scaleY}
-          width={settings.fireButton.size * scaleX}
-          height={settings.fireButton.size * scaleX}
+          width={settings.fireButton.size * scaleY}
+          height={settings.fireButton.size * scaleY}
           visible={settings.fireButton.visible}
           color="#ff006e"
         />
@@ -651,7 +650,7 @@ export function GameEditorPreview({
         <DraggableOverlay
           label="Score"
           itemKey="score"
-          left={settings.score.x * scaleX}
+          left={settings.score.x * scaleY}
           top={settings.score.y * scaleY}
           width={((settings.score.size ?? 14) * 4.5) * scaleY}
           height={((settings.score.size ?? 14) * 1.8) * scaleY}
@@ -663,7 +662,7 @@ export function GameEditorPreview({
         <DraggableOverlay
           label="Wave"
           itemKey="wave"
-          left={settings.wave.x * scaleX}
+          left={settings.wave.x * scaleY}
           top={settings.wave.y * scaleY}
           width={((settings.wave.size ?? 14) * 3.2) * scaleY}
           height={((settings.wave.size ?? 14) * 1.8) * scaleY}
@@ -675,7 +674,7 @@ export function GameEditorPreview({
         <DraggableOverlay
           label="Power-ups"
           itemKey="powerUps"
-          left={settings.powerUps.x * scaleX}
+          left={settings.powerUps.x * scaleY}
           top={settings.powerUps.y * scaleY}
           width={((settings.powerUps.size ?? 8) * 14) * scaleY}
           height={((settings.powerUps.size ?? 8) * 2.5) * scaleY}
@@ -687,7 +686,7 @@ export function GameEditorPreview({
         <DraggableOverlay
           label="Boss HP"
           itemKey="bossHealthBar"
-          left={settings.bossHealthBar.x * scaleX}
+          left={settings.bossHealthBar.x * scaleY}
           top={settings.bossHealthBar.y * scaleY}
           width={((settings.bossHealthBar.size ?? 6) * 10) * scaleY}
           height={((settings.bossHealthBar.size ?? 6) * 1.5) * scaleY}
@@ -704,7 +703,7 @@ export function GameEditorPreview({
             <DraggableOverlay
               label="Controls"
               itemKey="controls"
-              left={ctrl.x * scaleX}
+              left={ctrl.x * scaleY}
               top={ctrl.y * scaleY}
               width={btnSz * 3 + gap * 2}
               height={btnSz}
@@ -718,7 +717,6 @@ export function GameEditorPreview({
         <ShieldOverlay
           settings={settings}
           playerSprite={playerSprite}
-          scaleX={scaleX}
           scaleY={scaleY}
           onDragStart={startDrag}
         />
@@ -728,7 +726,6 @@ export function GameEditorPreview({
           <BossOverlay
             bossPos={settings.boss}
             bossSettings={bossSettings}
-            scaleX={scaleX}
             scaleY={scaleY}
             onDragStart={startDrag}
           />
@@ -737,7 +734,7 @@ export function GameEditorPreview({
         {/* Spawn point overlays */}
         {(spawnPoints ?? []).map((sp, idx) => {
           if (!sp.enabled) return null;
-          const sl = sp.x * scaleX - 10;
+          const sl = sp.x * scaleY - 10;
           const st = sp.y * scaleY - 10;
           return (
             <div
@@ -771,7 +768,7 @@ export function GameEditorPreview({
             key={`hbpt-${i}`}
             className="absolute select-none"
             style={{
-              left: settings.player.x * scaleX + pt.x * scaleY - 6,
+              left: settings.player.x * scaleY + pt.x * scaleY - 6,
               top: settings.player.y * scaleY + pt.y * scaleY - 6,
               width: 12, height: 12,
               borderRadius: "50%",
@@ -793,7 +790,7 @@ export function GameEditorPreview({
         {(() => {
           const bsoX = bulletSpawnOffsetX ?? PLAYER_W_BASE / 2;
           const bsoY = bulletSpawnOffsetY ?? PLAYER_H_BASE / 2;
-          const bsl = settings.player.x * scaleX + bsoX * scaleY - 7;
+          const bsl = settings.player.x * scaleY + bsoX * scaleY - 7;
           const bst = settings.player.y * scaleY + bsoY * scaleY - 7;
           return (
             <div
@@ -818,7 +815,7 @@ export function GameEditorPreview({
         {(() => {
           const mfoX = mouseFollowOffsetX ?? (playerSprite.offsetX + playerSprite.width / 2);
           const mfoY = mouseFollowOffsetY ?? (playerSprite.offsetY + playerSprite.height / 2);
-          const mfl = settings.player.x * scaleX + mfoX * scaleY - 8;
+          const mfl = settings.player.x * scaleY + mfoX * scaleY - 8;
           const mft = settings.player.y * scaleY + mfoY * scaleY - 8;
           return (
             <div
@@ -896,17 +893,15 @@ export function GameEditorPreview({
 function BossOverlay({
   bossPos,
   bossSettings,
-  scaleX,
   scaleY,
   onDragStart,
 }: {
   bossPos: { x: number; y: number };
   bossSettings: BossSettings;
-  scaleX: number;
   scaleY: number;
   onDragStart: (key: string, origX: number, origY: number, e: React.MouseEvent | React.TouchEvent) => void;
 }) {
-  const left = bossPos.x * scaleX;
+  const left = bossPos.x * scaleY;
   const top = bossPos.y * scaleY;
   const width = bossSettings.width * scaleY;
   const height = bossSettings.height * scaleY;

@@ -1188,6 +1188,7 @@ export default function SecretGameAdminPage() {
                 <p className="text-xs text-neutral-500 mt-0.5">Drag dashed boxes to reposition. Pink = enemies (not draggable).</p>
               </div>
               <div className="flex items-center gap-1 shrink-0">
+                <button onClick={() => window.open("/admin/secret-game/preview", "_blank")} className="px-2 py-1.5 rounded bg-[#1e1e1e] hover:bg-[#2a2a2a] text-neutral-300 text-xs transition-colors" title="Open fullscreen preview">Fullscreen</button>
                 <button onClick={() => setPreviewZoom((z) => Math.max(0.25, parseFloat((z - 0.25).toFixed(2))))} className="p-1.5 rounded bg-[#1e1e1e] hover:bg-[#2a2a2a] text-neutral-300 transition-colors" title="Zoom out"><ZoomOut className="w-4 h-4" /></button>
                 <span className="text-xs font-mono text-neutral-400 w-10 text-center">{Math.round(previewZoom * 100)}%</span>
                 <button onClick={() => setPreviewZoom((z) => Math.min(4, parseFloat((z + 0.25).toFixed(2))))} className="p-1.5 rounded bg-[#1e1e1e] hover:bg-[#2a2a2a] text-neutral-300 transition-colors" title="Zoom in"><ZoomIn className="w-4 h-4" /></button>
