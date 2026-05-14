@@ -612,6 +612,52 @@ export function GameCanvas({
       const ew = enemyCfg.width;
       const eh = enemyCfg.height;
 
+      // ── Player hitbox (used by all collision sections) ─────────────────
+      const hbCfg = siteData.secretGame?.playerHitbox;
+      const hbPoints = hbCfg?.points;
+      const usePolygon = hbPoints && hbPoints.length >= 3;
+      const px = s.playerX + (hbCfg?.offsetX ?? 0);
+      const py = s.playerY + (hbCfg?.offsetY ?? 0);
+      const pw = hbCfg?.width  ?? PLAYER_W_BASE;
+      const ph = hbCfg?.height ?? PLAYER_H_BASE;
+      const hasShield = s.activePowerUps.some((p) => p.type === "shield");
+      const isInvincible = s.activePowerUps.some((p) => p.type === "invincible");
+
+      // Helper: check if a point is inside a polygon (ray-cast)
+      function pointInPolygon(lx: number, ly: number, poly: { x: number; y: number }[]) {
+        let inside = false;
+        for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+          const xi = poly[i].x, yi = poly[i].y;
+          const xj = poly[j].x, yj = poly[j].y;
+          if (((yi > ly) !== (yj > ly)) && (lx < (xj - xi) * (ly - yi) / (yj - yi) + xi)) {
+            inside = !inside;
+          }
+        }
+        return inside;
+      }
+
+      // Helper: check if enemy rectangle intersects player polygon
+      function enemyRectIntersectsPolygon(ex: number, ey: number, ew2: number, eh2: number) {
+        if (!hbPoints) return false;
+        // 1) Any polygon vertex inside enemy rect?
+        for (const p of hbPoints) {
+          const vx = s.playerX + p.x;
+          const vy = s.playerY + p.y;
+          if (vx >= ex && vx <= ex + ew2 && vy >= ey && vy <= ey + eh2) return true;
+        }
+        // 2) Any enemy rect corner inside polygon?
+        const corners = [
+          { x: ex, y: ey },
+          { x: ex + ew2, y: ey },
+          { x: ex + ew2, y: ey + eh2 },
+          { x: ex, y: ey + eh2 },
+        ];
+        for (const c of corners) {
+          if (pointInPolygon(c.x - s.playerX, c.y - s.playerY, hbPoints)) return true;
+        }
+        return false;
+      }
+
       // ── Input handling (one-shot keys) ──
       if (keys.pause) {
         keys.pause = false;
@@ -1783,17 +1829,6 @@ export function GameCanvas({
 
       // ── Collision: enemy bullets vs player ──
       const enemyBulletImpact = siteData.secretGame?.impacts?.enemyBullet ?? { w: 20, h: 20 };
-      // Use configurable hitbox from settings (falls back to hard-coded base values)
-      const hbCfg = siteData.secretGame?.playerHitbox;
-      const hbPoints = hbCfg?.points;
-      const usePolygon = hbPoints && hbPoints.length >= 3;
-      // Rectangle fallback values (used when no polygon defined)
-      const px = s.playerX + (hbCfg?.offsetX ?? 0);
-      const py = s.playerY + (hbCfg?.offsetY ?? 0);
-      const pw = hbCfg?.width  ?? PLAYER_W_BASE;
-      const ph = hbCfg?.height ?? PLAYER_H_BASE;
-      const hasShield = s.activePowerUps.some((p) => p.type === "shield");
-      const isInvincible = s.activePowerUps.some((p) => p.type === "invincible");
       for (let bi = s.bullets.length - 1; bi >= 0; bi--) {
         const b = s.bullets[bi];
         if (b.isPlayer) continue;
@@ -1802,18 +1837,7 @@ export function GameCanvas({
         let playerHit: boolean;
         if (usePolygon && hbPoints) {
           // Polygon (ray-cast) test — check bullet centre inside polygon
-          const lx = b.x - s.playerX;
-          const ly = b.y - s.playerY;
-          let inside = false;
-          for (let i = 0, j = hbPoints.length - 1; i < hbPoints.length; j = i++) {
-            const xi = hbPoints[i].x, yi = hbPoints[i].y;
-            const xj = hbPoints[j].x, yj = hbPoints[j].y;
-            if (((yi > ly) !== (yj > ly)) && (lx < (xj - xi) * (ly - yi) / (yj - yi) + xi)) {
-              inside = !inside;
-            }
-          }
-          // Also run a loose AABB guard with hitbox radius for responsiveness
-          playerHit = inside;
+          playerHit = pointInPolygon(b.x - s.playerX, b.y - s.playerY, hbPoints);
         } else {
           playerHit = (
             b.x >= px - hitbox &&
@@ -1871,12 +1895,18 @@ export function GameCanvas({
       if (s.boss && bossCfg?.enabled) {
         const bw = bossCfg?.width ?? 40;
         const bh = bossCfg?.height ?? 30;
-        if (
-          s.boss.x < px + pw &&
-          s.boss.x + bw > px &&
-          s.boss.y < py + ph &&
-          s.boss.y + bh > py
-        ) {
+        let bossHit: boolean;
+        if (usePolygon && hbPoints) {
+          bossHit = enemyRectIntersectsPolygon(s.boss.x, s.boss.y, bw, bh);
+        } else {
+          bossHit = (
+            s.boss.x < px + pw &&
+            s.boss.x + bw > px &&
+            s.boss.y < py + ph &&
+            s.boss.y + bh > py
+          );
+        }
+        if (bossHit) {
           if (!isInvincible && !s.permShieldActive && !hasShield) {
             const touchDmg = s.boss.collisionDamage;
             s.currentSlices = Math.max(0, s.currentSlices - touchDmg);
@@ -1903,13 +1933,19 @@ export function GameCanvas({
       } else {
         for (const e of s.enemies) {
           if (!e.alive) continue;
-          // AABB check between enemy hitbox and player
-          if (
-            e.x < px + pw &&
-            e.x + ew > px &&
-            e.y < py + ph &&
-            e.y + eh > py
-          ) {
+          // Check enemy body against player hitbox (polygon or rect)
+          let bodyHit: boolean;
+          if (usePolygon && hbPoints) {
+            bodyHit = enemyRectIntersectsPolygon(e.x, e.y, ew, eh);
+          } else {
+            bodyHit = (
+              e.x < px + pw &&
+              e.x + ew > px &&
+              e.y < py + ph &&
+              e.y + eh > py
+            );
+          }
+          if (bodyHit) {
             if (isInvincible || s.permShieldActive || hasShield) break;
             s.currentSlices = Math.max(0, s.currentSlices - waveEnemyCollisionDmg);
             s.lives = Math.ceil(s.currentSlices / s.slicesPerHeart);

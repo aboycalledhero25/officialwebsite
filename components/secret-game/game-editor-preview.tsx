@@ -774,6 +774,14 @@ export function GameEditorPreview({
           ctx, esprX, esprY, i % 3 as 0 | 1 | 2, "walking", "down", 0, esprW, esprH,
           () => drawEnemy(ctx, esprX, esprY, i % 3 as 0 | 1 | 2, 0, false, esprW, esprH),
         );
+        // Enemy collision box outline
+        ctx.save();
+        ctx.strokeStyle = "rgba(255, 60, 60, 0.4)";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 2]);
+        ctx.strokeRect(sx - ew / 2, sy, ew, eh);
+        ctx.setLineDash([]);
+        ctx.restore();
       }
       // Spawn point marker
       ctx.beginPath();
