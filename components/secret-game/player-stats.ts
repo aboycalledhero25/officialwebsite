@@ -19,7 +19,6 @@ export type RoguelikeConfigOverride = Partial<{
   baseBulletDamage: number;
   baseEnemyDropChance: number;
   rapidFire: Partial<RoguelikeConfig['rapidFire']>;
-  machineGun: Partial<RoguelikeConfig['machineGun']>;
   frenzy: Partial<RoguelikeConfig['frenzy']>;
   bomb: Partial<RoguelikeConfig['bomb']>;
   lightning: Partial<RoguelikeConfig['lightning']>;
@@ -50,7 +49,6 @@ function mergeConfig(override?: RoguelikeConfigOverride): RoguelikeConfig {
     baseBulletDamage:    override.baseBulletDamage     ?? ROGUELIKE_CONFIG.baseBulletDamage,
     baseEnemyDropChance: override.baseEnemyDropChance  ?? ROGUELIKE_CONFIG.baseEnemyDropChance,
     rapidFire:   { ...ROGUELIKE_CONFIG.rapidFire,   ...(override.rapidFire   ?? {}) },
-    machineGun:  { ...ROGUELIKE_CONFIG.machineGun,  ...(override.machineGun  ?? {}) },
     frenzy:      { ...ROGUELIKE_CONFIG.frenzy,      ...(override.frenzy      ?? {}) },
     bomb:        { ...ROGUELIKE_CONFIG.bomb,        ...(override.bomb        ?? {}) },
     lightning:   { ...ROGUELIKE_CONFIG.lightning,   ...(override.lightning   ?? {}) },
@@ -81,11 +79,6 @@ export interface PlayerStats {
   damageMultiplier: number; // multiplier on baseBulletDamage
   projectileCount: number;  // bullets per standard shot
   luckBonus: number;        // additive bonus on enemy drop chance
-
-  // ─── Machine Gun ─────────────────────────────────────────────────────
-  isMachineGun: boolean;
-  machineGunBurst: number;  // bullets per firing action
-  machineGunSpread: number; // angle spread between burst bullets (rad)
 
   // ─── Seeker Missile ──────────────────────────────────────────────────
   hasSeekerMissile: boolean;
@@ -137,8 +130,8 @@ export interface PlayerStats {
   // ─── Projectile (including super bullet) ─────────────────────────────
   totalProjectiles: number;          // raw count before super bullet conversion
   superBulletTier: number;           // 0 = normal, 1 = red, 2 = purple, 3 = gold
-  effectiveProjectileCount: number;  // 1 if super bullet, else totalProjectiles
-  superBulletDamageMultiplier: number; // multiplied on top of damageMultiplier
+  effectiveProjectileCount: number;  // actual projectiles fired per shot
+  superBulletDamage: number;         // damage per super bullet (multiplied by damageMultiplier)
   superBulletSize: number;           // size of the super bullet relative to normal
 
   // ─── Nuke ────────────────────────────────────────────────────────────
@@ -173,7 +166,6 @@ export function computePlayerStats(chosen: PermPowerUpState, override?: Roguelik
       * Math.max(0, 1 - get("rapidFire") * cfg.rapidFire.ratePerStack),
   );
 
-  const mg = get("machineGun");
   const sk = get("seeker");
   const orb = get("orbital");
   const vr = get("virus");
@@ -184,15 +176,42 @@ export function computePlayerStats(chosen: PermPowerUpState, override?: Roguelik
   const nk = get("nuke");
   const sh = get("shield");
 
-  // ── Super bullet tier calculation ────────────────────────────────────
-  const rawProjectileCount = 1 + get("projectile") * cfg.projectile.projectilesPerStack;
-  const superThreshold = cfg.projectile.superBulletThreshold ?? 10;
-  const superTier = rawProjectileCount >= superThreshold
-    ? Math.floor((rawProjectileCount - 1) / superThreshold)
-    : 0;
-  const effectiveProjCount = superTier > 0 ? 1 : rawProjectileCount;
-  const superDmgMult = superTier > 0 ? rawProjectileCount : 1;
-  const superSize = superTier > 0 ? (cfg.projectile.superBulletSizeMultiplier ?? 2.5) + (superTier - 1) * 0.5 : 1;
+  // ── Projectile tier calculation (Normal → Red → Purple → Gold) ───────
+  const projStack = get("projectile");
+  const pCfg = cfg.projectile;
+  const tierSize = pCfg.tierSize ?? 5;
+
+  let effectiveProjCount = 1;
+  let superTier = 0;
+  let superBulletDmg = 1;
+  let superSize = 1;
+
+  if (projStack > 0) {
+    if (projStack < tierSize) {
+      // Normal: picks 1-4 → 2-5 projectiles
+      effectiveProjCount = projStack + 1;
+      superTier = 0;
+      superBulletDmg = 1;
+    } else if (projStack < tierSize * 2) {
+      // Red: picks 5-9 → 1-5 red projectiles
+      effectiveProjCount = projStack - 4;
+      superTier = 1;
+      superBulletDmg = pCfg.redDamage ?? 5;
+      superSize = pCfg.superBulletSizeMultiplier ?? 2.5;
+    } else if (projStack < tierSize * 3) {
+      // Purple: picks 10-14 → 1-5 purple projectiles
+      effectiveProjCount = projStack - 9;
+      superTier = 2;
+      superBulletDmg = pCfg.purpleDamage ?? 10;
+      superSize = (pCfg.superBulletSizeMultiplier ?? 2.5) + 0.5;
+    } else if (projStack < tierSize * 4) {
+      // Gold: picks 15-19 → 1-5 gold projectiles
+      effectiveProjCount = projStack - 14;
+      superTier = 3;
+      superBulletDmg = pCfg.goldDamage ?? 20;
+      superSize = (pCfg.superBulletSizeMultiplier ?? 2.5) + 1.0;
+    }
+  }
 
   return {
     maxHearts:       cfg.startingHearts + get("extraLife") * cfg.extraLife.heartsPerStack,
@@ -202,15 +221,11 @@ export function computePlayerStats(chosen: PermPowerUpState, override?: Roguelik
     damageMultiplier:1 + get("strength") * cfg.strength.damagePerStack,
     projectileCount: effectiveProjCount,
     luckBonus:       get("luck") * cfg.luck.dropChancePerStack,
-    totalProjectiles: rawProjectileCount,
+    totalProjectiles: projStack,
     superBulletTier: superTier,
     effectiveProjectileCount: effectiveProjCount,
-    superBulletDamageMultiplier: superDmgMult,
+    superBulletDamage: superBulletDmg,
     superBulletSize: superSize,
-
-    isMachineGun:    mg > 0,
-    machineGunBurst: mg > 0 ? cfg.machineGun.baseBurst + (mg - 1) * cfg.machineGun.burstPerStack : 1,
-    machineGunSpread:cfg.machineGun.burstSpread,
 
     hasSeekerMissile: sk > 0,
     seekerMissileDamage: cfg.seeker.missileDamage,
@@ -248,9 +263,13 @@ export function computePlayerStats(chosen: PermPowerUpState, override?: Roguelik
     connectDamage:   cfg.connect.damage + Math.max(0, cn - 1) * cfg.connect.damagePerStack,
 
     hasFrenzy:       fr > 0,
-    frenzyProjectiles: cfg.frenzy.baseProjectiles + Math.max(0, fr - 1) * cfg.frenzy.projectilesPerStack,
+    frenzyProjectiles: fr <= 20
+      ? cfg.frenzy.baseProjectiles + Math.max(0, fr - 1) * cfg.frenzy.projectilesPerStack
+      : cfg.frenzy.baseProjectiles + 19 * cfg.frenzy.projectilesPerStack,
     frenzyCooldown:  cfg.frenzy.cooldown,
-    frenzyDamage:    cfg.frenzy.damage,
+    frenzyDamage:    fr > 20
+      ? cfg.frenzy.damage + (fr - 20) * (cfg.frenzy.damagePerStack ?? 5)
+      : cfg.frenzy.damage,
 
     hasNuke:         nk > 0,
     nukeActivationsPerCooldown: nk * cfg.nuke.nukesPerStack,

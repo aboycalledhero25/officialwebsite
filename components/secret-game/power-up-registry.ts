@@ -32,7 +32,7 @@ export const POWER_UP_REGISTRY: PowerUpDefinition[] = [
     name: "Bomb",
     description: "Every 30s drops bombs in a cross pattern, damaging nearby enemies.",
     icon: "/powerups/icons/bomb.png",
-    canStack: true, maxStacks: -1, removeFromPoolAfterMaxed: false,
+    canStack: true, maxStacks: 6, removeFromPoolAfterMaxed: true,
     getCurrentStat: (c) => {
       const n = c["bomb"] ?? 0;
       return n === 0 ? "Bombs: 0" : `Bombs: ${n * ROGUELIKE_CONFIG.bomb.bombsPerStack}/cooldown`;
@@ -44,7 +44,7 @@ export const POWER_UP_REGISTRY: PowerUpDefinition[] = [
     name: "Lightning",
     description: "Every 30s, lightning strikes random enemies.",
     icon: "/powerups/icons/lightning.png",
-    canStack: true, maxStacks: -1, removeFromPoolAfterMaxed: false,
+    canStack: true, maxStacks: 5, removeFromPoolAfterMaxed: true,
     getCurrentStat: (c) => {
       const n = c["lightning"] ?? 0;
       if (n === 0) return "Strikes: 0";
@@ -76,7 +76,7 @@ export const POWER_UP_REGISTRY: PowerUpDefinition[] = [
     name: "Extra Life",
     description: "+1 permanent heart. Heart UI expands automatically.",
     icon: "/powerups/icons/extra_life.png",
-    canStack: true, maxStacks: -1, removeFromPoolAfterMaxed: false,
+    canStack: true, maxStacks: 6, removeFromPoolAfterMaxed: true,
     getCurrentStat: (c) => `Hearts: ${ROGUELIKE_CONFIG.startingHearts + (c["extraLife"] ?? 0) * ROGUELIKE_CONFIG.extraLife.heartsPerStack}`,
     getNextStat:    (c) => `Hearts: ${ROGUELIKE_CONFIG.startingHearts + ((c["extraLife"] ?? 0) + 1) * ROGUELIKE_CONFIG.extraLife.heartsPerStack}`,
   },
@@ -89,10 +89,19 @@ export const POWER_UP_REGISTRY: PowerUpDefinition[] = [
     getCurrentStat: (c) => {
       const n = c["frenzy"] ?? 0;
       if (n === 0) return "Circle Shots: 0";
+      if (n > 20) {
+        const shots = ROGUELIKE_CONFIG.frenzy.baseProjectiles + 19 * ROGUELIKE_CONFIG.frenzy.projectilesPerStack;
+        const dmg = ROGUELIKE_CONFIG.frenzy.damage + (n - 20) * (ROGUELIKE_CONFIG.frenzy.damagePerStack ?? 5);
+        return `Shots: ${shots}, Dmg: ${dmg}`;
+      }
       return `Circle Shots: ${ROGUELIKE_CONFIG.frenzy.baseProjectiles + (n - 1) * ROGUELIKE_CONFIG.frenzy.projectilesPerStack}`;
     },
     getNextStat: (c) => {
       const n = c["frenzy"] ?? 0;
+      if (n >= 20) {
+        const dmg = ROGUELIKE_CONFIG.frenzy.damage + (n + 1 - 20) * (ROGUELIKE_CONFIG.frenzy.damagePerStack ?? 5);
+        return `Dmg: ${dmg}`;
+      }
       return `Circle Shots: ${ROGUELIKE_CONFIG.frenzy.baseProjectiles + n * ROGUELIKE_CONFIG.frenzy.projectilesPerStack}`;
     },
   },
@@ -131,22 +140,7 @@ export const POWER_UP_REGISTRY: PowerUpDefinition[] = [
     getCurrentStat: (c) => `Drop Chance: ${((ROGUELIKE_CONFIG.baseEnemyDropChance + (c["luck"] ?? 0) * ROGUELIKE_CONFIG.luck.dropChancePerStack) * 100).toFixed(0)}%`,
     getNextStat:    (c) => `Drop Chance: ${((ROGUELIKE_CONFIG.baseEnemyDropChance + ((c["luck"] ?? 0) + 1) * ROGUELIKE_CONFIG.luck.dropChancePerStack) * 100).toFixed(0)}%`,
   },
-  {
-    id: "machineGun",
-    name: "Machine Gun",
-    description: "Each shot fires a rapid burst of bullets.",
-    icon: "/powerups/icons/machine_gun.png",
-    canStack: true, maxStacks: -1, removeFromPoolAfterMaxed: false,
-    getCurrentStat: (c) => {
-      const n = c["machineGun"] ?? 0;
-      if (n === 0) return "Burst: 1";
-      return `Burst: ${ROGUELIKE_CONFIG.machineGun.baseBurst + (n - 1) * ROGUELIKE_CONFIG.machineGun.burstPerStack}`;
-    },
-    getNextStat: (c) => {
-      const n = c["machineGun"] ?? 0;
-      return `Burst: ${ROGUELIKE_CONFIG.machineGun.baseBurst + n * ROGUELIKE_CONFIG.machineGun.burstPerStack}`;
-    },
-  },
+
   {
     id: "nuke",
     name: "Nuke",
@@ -159,28 +153,27 @@ export const POWER_UP_REGISTRY: PowerUpDefinition[] = [
   {
     id: "projectile",
     name: "Projectile",
-    description: "Adds +1 projectile per shot. At 10 total, converts to a Super Bullet with massive damage!",
+    description: "Adds +1 projectile per shot. After 5 normal, upgrades to Red (5 dmg), then Purple (10 dmg), then Gold (20 dmg).",
     icon: "/powerups/icons/projectile.png",
-    canStack: true, maxStacks: -1, removeFromPoolAfterMaxed: false,
+    canStack: true, maxStacks: 19, removeFromPoolAfterMaxed: true,
     getCurrentStat: (c) => {
-      const total = 1 + (c["projectile"] ?? 0) * ROGUELIKE_CONFIG.projectile.projectilesPerStack;
-      const threshold = ROGUELIKE_CONFIG.projectile.superBulletThreshold ?? 10;
-      const tier = total >= threshold ? Math.floor((total - 1) / threshold) : 0;
-      if (tier > 0) {
-        const color = tier === 1 ? "Red" : tier === 2 ? "Purple" : "Gold";
-        return `Super Bullet Tier ${tier} (${color}), ${total}x Dmg`;
-      }
-      return `Projectiles: ${total} (Super at ${threshold})`;
+      const n = c["projectile"] ?? 0;
+      if (n === 0) return "Projectiles: 1";
+      if (n < 5) return `Projectiles: ${n + 1} (Normal)`;
+      if (n < 10) return `Projectiles: ${n - 4} (Red, 5 dmg)`;
+      if (n < 15) return `Projectiles: ${n - 9} (Purple, 10 dmg)`;
+      return `Projectiles: ${n - 14} (Gold, 20 dmg)`;
     },
     getNextStat: (c) => {
-      const total = 1 + ((c["projectile"] ?? 0) + 1) * ROGUELIKE_CONFIG.projectile.projectilesPerStack;
-      const threshold = ROGUELIKE_CONFIG.projectile.superBulletThreshold ?? 10;
-      const tier = total >= threshold ? Math.floor((total - 1) / threshold) : 0;
-      if (tier > 0) {
-        const color = tier === 1 ? "Red" : tier === 2 ? "Purple" : "Gold";
-        return `Super Bullet Tier ${tier} (${color}), ${total}x Dmg`;
-      }
-      return `Projectiles: ${total}`;
+      const n = c["projectile"] ?? 0;
+      if (n === 0) return "Projectiles: 2 (Normal)";
+      if (n < 4) return `Projectiles: ${n + 2} (Normal)`;
+      if (n === 4) return "Projectiles: 1 (Red, 5 dmg)";
+      if (n < 9) return `Projectiles: ${n - 3} (Red, 5 dmg)`;
+      if (n === 9) return "Projectiles: 1 (Purple, 10 dmg)";
+      if (n < 14) return `Projectiles: ${n - 8} (Purple, 10 dmg)`;
+      if (n === 14) return "Projectiles: 1 (Gold, 20 dmg)";
+      return `Projectiles: ${n - 13} (Gold, 20 dmg)`;
     },
   },
   {
@@ -197,7 +190,7 @@ export const POWER_UP_REGISTRY: PowerUpDefinition[] = [
     name: "Seeker",
     description: `Fires a homing missile at the nearest enemy every ${ROGUELIKE_CONFIG.seeker.missileCooldown}s. Each pick adds another missile per volley.`,
     icon: "/powerups/icons/seeker.png",
-    canStack: true, maxStacks: -1, removeFromPoolAfterMaxed: false,
+    canStack: true, maxStacks: 5, removeFromPoolAfterMaxed: true,
     getCurrentStat: (c) => {
       const n = c["seeker"] ?? 0;
       if (n === 0) return "Missiles: 0";
@@ -245,9 +238,9 @@ export const POWER_UP_REGISTRY: PowerUpDefinition[] = [
   {
     id: "strength",
     name: "Strength",
-    description: "+2% bullet damage per pick.",
+    description: "+1% bullet damage per pick.",
     icon: "/powerups/icons/strength.png",
-    canStack: true, maxStacks: -1, removeFromPoolAfterMaxed: false,
+    canStack: true, maxStacks: 50, removeFromPoolAfterMaxed: true,
     getCurrentStat: (c) => `Damage: ${(100 + (c["strength"] ?? 0) * ROGUELIKE_CONFIG.strength.damagePerStack * 100).toFixed(0)}%`,
     getNextStat:    (c) => `Damage: ${(100 + ((c["strength"] ?? 0) + 1) * ROGUELIKE_CONFIG.strength.damagePerStack * 100).toFixed(0)}%`,
   },
@@ -256,7 +249,7 @@ export const POWER_UP_REGISTRY: PowerUpDefinition[] = [
     name: "Virus",
     description: "20% chance to infect enemies on hit, dealing damage over time (boss-effective).",
     icon: "/powerups/icons/virus.png",
-    canStack: true, maxStacks: -1, removeFromPoolAfterMaxed: false,
+    canStack: false, maxStacks: 1, removeFromPoolAfterMaxed: true,
     getCurrentStat: (c) => {
       const n = c["virus"] ?? 0;
       if (n === 0) return "Infect Chance: 0%";

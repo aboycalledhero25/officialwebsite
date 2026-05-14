@@ -31,7 +31,7 @@ export interface RoguelikeConfig {
   lightning:   { cooldown: number; damage: number; baseStrikes: number; strikesPerStack: number };
   connect:     { damage: number; damagePerStack: number };
   extraLife:   { heartsPerStack: number };
-  frenzy:      { cooldown: number; damage: number; baseProjectiles: number; projectilesPerStack: number };
+  frenzy:      { cooldown: number; damage: number; baseProjectiles: number; projectilesPerStack: number; damagePerStack: number };
   health: {
     /**
      * Slices per heart at each Health stack level.
@@ -42,9 +42,8 @@ export interface RoguelikeConfig {
     slicesProgression: number[];
   };
   luck:        { dropChancePerStack: number };
-  machineGun:  { baseBurst: number; burstPerStack: number; burstSpread: number; burstDelay: number };
+  projectile:  { projectilesPerStack: number; normalMax: number; redDamage: number; purpleDamage: number; goldDamage: number; tierSize: number; superBulletSizeMultiplier: number };
   nuke:        { cooldown: number; bossHPReduction: number; nukesPerStack: number };
-  projectile:  { projectilesPerStack: number; superBulletThreshold: number; superBulletSizeMultiplier: number };
   rapidFire:   { ratePerStack: number; minCooldown: number };
   /** Seeker Missile: auto-fires a homing missile at the nearest enemy every cooldown seconds. */
   seeker:      { missileDamage: number; missileCooldown: number; missilesPerStack: number };
@@ -106,18 +105,17 @@ export const ROGUELIKE_CONFIG: RoguelikeConfig = {
   lightning:  { cooldown: 30, damage: 50, baseStrikes: 3, strikesPerStack: 1 },
   connect:    { damage: 50, damagePerStack: 25 },
   extraLife:  { heartsPerStack: 1 },
-  frenzy:     { cooldown: 30, damage: 20, baseProjectiles: 8, projectilesPerStack: 2 },
+  frenzy:     { cooldown: 30, damage: 20, baseProjectiles: 8, projectilesPerStack: 2, damagePerStack: 5 },
   health:     { slicesProgression: [1, 2, 3, 4] },
   luck:       { dropChancePerStack: 0.01 },
-  machineGun: { baseBurst: 3, burstPerStack: 1, burstSpread: 0.1, burstDelay: 0.07 },
   nuke:       { cooldown: 30, bossHPReduction: 0.25, nukesPerStack: 1 },
-  projectile: { projectilesPerStack: 1, superBulletThreshold: 10, superBulletSizeMultiplier: 2.5 },
+  projectile: { projectilesPerStack: 1, normalMax: 4, redDamage: 5, purpleDamage: 10, goldDamage: 20, tierSize: 5, superBulletSizeMultiplier: 2.5 },
   rapidFire:  { ratePerStack: 0.02, minCooldown: 0.05 },
   seeker:     { missileDamage: 150, missileCooldown: 15, missilesPerStack: 1 },
   shield:     { duration: 10, cooldown: 30 },
   orbital:    { damage: 30, orbitSpeed: 2.5, orbSize: 8, cooldown: 15, orbitRadius: 35, duration: 10 },
   speed:      { speedPerStack: 0.01 },
-  strength:   { damagePerStack: 0.5 },
+  strength:   { damagePerStack: 0.01 },
   virus: {
     baseInfectionChance: 0.20,
     chancePerStack:      0.05,

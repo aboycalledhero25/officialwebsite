@@ -529,17 +529,12 @@
         "ratePerStack": 0.08,
         "minCooldown": 0.05
       },
-      "machineGun": {
-        "baseBurst": 3,
-        "burstPerStack": 1,
-        "burstSpread": 0.1,
-        "burstDelay": 0.07
-      },
       "frenzy": {
         "cooldown": 30,
         "damage": 20,
         "baseProjectiles": 8,
-        "projectilesPerStack": 2
+        "projectilesPerStack": 2,
+        "damagePerStack": 5
       },
       "bomb": {
         "cooldown": 30,
@@ -579,10 +574,16 @@
         "speedPerStack": 0.1
       },
       "strength": {
-        "damagePerStack": 0.1
+        "damagePerStack": 0.01
       },
       "projectile": {
-        "projectilesPerStack": 1
+        "projectilesPerStack": 1,
+        "normalMax": 4,
+        "redDamage": 5,
+        "purpleDamage": 10,
+        "goldDamage": 20,
+        "tierSize": 5,
+        "superBulletSizeMultiplier": 2.5
       },
       "luck": {
         "dropChancePerStack": 0.05

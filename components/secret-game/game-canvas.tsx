@@ -252,11 +252,6 @@ export function GameCanvas({
     activeEffects: [] as ActiveEffect[],
     // ── Shield animation ──────────────────────────────────────────────
     shieldDuration: 4, // stores the initial duration of the last temp-shield activation
-    // ── Machine-gun sequential burst ──────────────────────────────────
-    burstRemaining: 0,   // bullets left to auto-fire in current burst
-    burstTimer: 0,       // countdown to next burst bullet
-    burstVx: 0,          // velocity x for burst bullets
-    burstVy: 0,          // velocity y for burst bullets
     // ── Damage numbers (floating text) ──────────────────────────────
     damageNumbers: [] as { x: number; y: number; value: string; timer: number; maxTimer: number; color: string }[],
     // ── Player hit invincibility (after enemy body collision) ────────
@@ -458,8 +453,6 @@ export function GameCanvas({
     s.permShieldTimer = 0;
     s.lightningBeams = [];
     s.activeEffects = [];
-    s.burstRemaining = 0;
-    s.burstTimer = 0;
     s.damageNumbers = [];
     s.playerBodyHitTimer = 0;
     s.orbitalAccum = 0;
@@ -904,23 +897,6 @@ export function GameCanvas({
         if (onPowerUpChange) onPowerUpChange(s.activePowerUps);
       }
 
-      // ── Machine-gun sequential burst (auto-fires remaining burst bullets) ──
-      if (s.burstRemaining > 0) {
-        s.burstTimer -= dt;
-        if (s.burstTimer <= 0) {
-          s.burstTimer += ROGUELIKE_CONFIG.machineGun.burstDelay;
-          s.bullets.push({
-            x: s.playerX + (siteData.secretGame?.bulletSpawnOffsetX ?? PLAYER_W_BASE / 2),
-            y: s.playerY + (siteData.secretGame?.bulletSpawnOffsetY ?? PLAYER_H_BASE / 2),
-            vx: s.burstVx,
-            vy: s.burstVy,
-            isPlayer: true,
-          });
-          play("shoot");
-          s.burstRemaining--;
-        }
-      }
-
       // ── Seeker Missile auto-fire ─────────────────────────────────────
       if (playerStats.hasSeekerMissile) {
         s.seekerMissileAccum += dt;
@@ -1107,18 +1083,7 @@ export function GameCanvas({
           });
         };
 
-        if (playerStats.isMachineGun && totalBullets === 1) {
-          // Machine gun: fire first bullet immediately, queue the rest as a burst
-          fireBulletNow(baseAngle);
-          play("shoot");
-          const burstTotal = playerStats.machineGunBurst;
-          if (burstTotal > 1) {
-            s.burstRemaining = burstTotal - 1;
-            s.burstTimer = ROGUELIKE_CONFIG.machineGun.burstDelay;
-            s.burstVx = vx;
-            s.burstVy = vy;
-          }
-        } else if (totalBullets > 1) {
+        if (totalBullets > 1) {
           // Multi-shot spread (wideshot / extra projectile)
           const spread = wideShot ? 0.26 : 0.1;
           for (let i = 0; i < totalBullets; i++) {
@@ -1465,7 +1430,7 @@ export function GameCanvas({
                 : b.isSeeker
                   ? b.superBulletDamage ?? playerStats.damageMultiplier
                   : b.isSuperBullet
-                    ? playerStats.superBulletDamageMultiplier * playerStats.damageMultiplier
+                    ? playerStats.superBulletDamage * playerStats.damageMultiplier
                     : playerStats.damageMultiplier;
               const dnCfg = siteDataRef.current.secretGame?.damageNumbers;
               const dmgColor = b.isSeeker
@@ -1579,7 +1544,7 @@ export function GameCanvas({
             const damage = b.superBulletDamage != null
               ? b.superBulletDamage
               : b.isSuperBullet
-                ? baseDmg * playerStats.damageMultiplier * playerStats.superBulletDamageMultiplier
+                ? baseDmg * playerStats.damageMultiplier * playerStats.superBulletDamage
                 : baseDmg * playerStats.damageMultiplier;
             s.boss.health -= damage;
             s.totalDamageDealt += damage;
