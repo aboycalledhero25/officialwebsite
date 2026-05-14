@@ -113,6 +113,8 @@ export default function SecretGameAdminPage() {
           playerHitbox: sg.playerHitbox ?? {},
           bulletSpawnOffsetX: sg.bulletSpawnOffsetX,
           bulletSpawnOffsetY: sg.bulletSpawnOffsetY,
+          mouseFollowOffsetX: sg.mouseFollowOffsetX,
+          mouseFollowOffsetY: sg.mouseFollowOffsetY,
           bossHealthPerWaveGroup: sg.bossHealthPerWaveGroup ?? [],
           sfxVolumes: sg.sfxVolumes ?? {},
           damageNumbers: sg.damageNumbers ?? {},
@@ -527,6 +529,14 @@ export default function SecretGameAdminPage() {
         <div className="grid grid-cols-2 gap-4">
           <NumberField label="Offset X" value={settings.bulletSpawnOffsetX ?? 0} onChange={(v) => updateField("bulletSpawnOffsetX", v)} min={-50} max={50} step={1} />
           <NumberField label="Offset Y" value={settings.bulletSpawnOffsetY ?? 0} onChange={(v) => updateField("bulletSpawnOffsetY", v)} min={-50} max={50} step={1} />
+        </div>
+      </Section>
+
+      <Section title="Mouse Follow Offset">
+        <p className="text-xs text-neutral-500 mb-3">Where the mouse cursor sits relative to the player when using mouse/touch to move. Defaults to sprite centre. Use the Live Preview to drag the target dot.</p>
+        <div className="grid grid-cols-2 gap-4">
+          <NumberField label="Offset X" value={settings.mouseFollowOffsetX ?? 0} onChange={(v) => updateField("mouseFollowOffsetX", v)} min={-50} max={50} step={1} />
+          <NumberField label="Offset Y" value={settings.mouseFollowOffsetY ?? 0} onChange={(v) => updateField("mouseFollowOffsetY", v)} min={-50} max={50} step={1} />
         </div>
       </Section>
 
@@ -1014,10 +1024,13 @@ export default function SecretGameAdminPage() {
                 hitboxPoints={settings.playerHitbox?.points}
                 bulletSpawnOffsetX={settings.bulletSpawnOffsetX}
                 bulletSpawnOffsetY={settings.bulletSpawnOffsetY}
+                mouseFollowOffsetX={settings.mouseFollowOffsetX}
+                mouseFollowOffsetY={settings.mouseFollowOffsetY}
                 onChange={updatePlatform}
                 onBossChange={(next) => setSettings((prev) => prev ? { ...prev, boss: next } : prev)}
                 onHitboxChange={(points) => setSettings((prev) => prev ? { ...prev, playerHitbox: { ...(prev.playerHitbox ?? {}), points } } : prev)}
                 onBulletSpawnChange={(ox, oy) => setSettings((prev) => prev ? { ...prev, bulletSpawnOffsetX: ox, bulletSpawnOffsetY: oy } : prev)}
+                onMouseFollowChange={(ox, oy) => setSettings((prev) => prev ? { ...prev, mouseFollowOffsetX: ox, mouseFollowOffsetY: oy } : prev)}
               />
             </div>
           </div>

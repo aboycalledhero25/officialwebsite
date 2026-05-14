@@ -344,6 +344,12 @@ export interface SecretGameSettings {
   bulletSpawnOffsetX?: number;
   bulletSpawnOffsetY?: number;
   /**
+   * Mouse-follow offset: how far the mouse cursor is from the player's hitbox top-left
+   * when using mouse/touch to move the player. Defaults to sprite centre.
+   */
+  mouseFollowOffsetX?: number;
+  mouseFollowOffsetY?: number;
+  /**
    * Permanent shield bubble appearance. The offset is relative to the player sprite centre.
    * Defaults to { offsetX: 0, offsetY: 0, radius: 20 }.
    */

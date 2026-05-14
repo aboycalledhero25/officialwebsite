@@ -24,12 +24,18 @@ interface GameEditorPreviewProps {
   bulletSpawnOffsetX?: number;
   /** Bullet spawn offset from playerY (game-logical units). Default: PLAYER_H_BASE/2. */
   bulletSpawnOffsetY?: number;
+  /** Mouse-follow offset from playerX (game-logical units). Default: sprite centre. */
+  mouseFollowOffsetX?: number;
+  /** Mouse-follow offset from playerY (game-logical units). Default: sprite centre. */
+  mouseFollowOffsetY?: number;
   onChange: (next: GamePlatformSettings) => void;
   onBossChange?: (next: BossSettings) => void;
   /** Called when polygon hitbox points are updated via the visual editor. */
   onHitboxChange?: (points: HitboxPoint[]) => void;
   /** Called when bullet spawn offset is dragged. */
   onBulletSpawnChange?: (offsetX: number, offsetY: number) => void;
+  /** Called when mouse-follow offset is dragged. */
+  onMouseFollowChange?: (offsetX: number, offsetY: number) => void;
 }
 
 function drawStarfield(ctx: CanvasRenderingContext2D, logW: number, h: number) {
@@ -57,10 +63,13 @@ export function GameEditorPreview({
   hitboxPoints,
   bulletSpawnOffsetX,
   bulletSpawnOffsetY,
+  mouseFollowOffsetX,
+  mouseFollowOffsetY,
   onChange,
   onBossChange,
   onHitboxChange,
   onBulletSpawnChange,
+  onMouseFollowChange,
 }: GameEditorPreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -223,7 +232,7 @@ export function GameEditorPreview({
     ctx.restore();
 
     ctx.restore();
-  }, [settings, playerSprite, bossSettings, hitboxPoints, bulletSpawnOffsetX, bulletSpawnOffsetY, dims.w, dims.h]);
+  }, [settings, playerSprite, bossSettings, hitboxPoints, bulletSpawnOffsetX, bulletSpawnOffsetY, mouseFollowOffsetX, mouseFollowOffsetY, dims.w, dims.h]);
 
   useEffect(() => {
     draw();
@@ -339,6 +348,13 @@ export function GameEditorPreview({
           changed = false;
           break;
         }
+        case "mouseFollow": {
+          if (onMouseFollowChange) {
+            onMouseFollowChange(Math.round(d.origX + dx - settings.player.x), Math.round(d.origY + dy - settings.player.y));
+          }
+          changed = false;
+          break;
+        }
         default: {
           // Hitbox polygon point: key = "hbpt_N"
           if (d.key.startsWith("hbpt_") && onHitboxChange && hitboxPoints) {
@@ -370,7 +386,7 @@ export function GameEditorPreview({
       window.removeEventListener("touchmove", handleMove);
       window.removeEventListener("touchend", handleUp);
     };
-  }, [scaleX, scaleY, settings, onChange, onBossChange, bossSettings, playerSprite.offsetX, playerSprite.offsetY, hitboxPoints, onHitboxChange, onBulletSpawnChange]);
+  }, [scaleX, scaleY, settings, onChange, onBossChange, bossSettings, playerSprite.offsetX, playerSprite.offsetY, hitboxPoints, onHitboxChange, onBulletSpawnChange, onMouseFollowChange, mouseFollowOffsetX, mouseFollowOffsetY]);
 
   // Click on canvas to add a new hitbox point
   const handleCanvasClick = useCallback((e: React.MouseEvent) => {
@@ -721,6 +737,37 @@ export function GameEditorPreview({
               onMouseDown={(e) => { e.stopPropagation(); if (editMode === "bullet") startDrag("bulletSpawn", bsoX, bsoY, e); }}
               onTouchStart={(e) => { e.stopPropagation(); if (editMode === "bullet") startDrag("bulletSpawn", bsoX, bsoY, e); }}
             />
+          );
+        })()}
+
+        {/* Mouse-follow target handle — always draggable */}
+        {(() => {
+          const mfoX = mouseFollowOffsetX ?? (playerSprite.offsetX + playerSprite.width / 2);
+          const mfoY = mouseFollowOffsetY ?? (playerSprite.offsetY + playerSprite.height / 2);
+          const mfl = settings.player.x * scaleX + mfoX * scaleY - 8;
+          const mft = settings.player.y * scaleY + mfoY * scaleY - 8;
+          return (
+            <div
+              className="absolute select-none cursor-grab active:cursor-grabbing"
+              style={{
+                left: mfl, top: mft,
+                width: 16, height: 16,
+                borderRadius: "50%",
+                background: "rgba(255, 204, 0, 0.3)",
+                border: "2px dashed #ffcc00",
+                zIndex: 20,
+                boxShadow: "0 0 10px rgba(255,204,0,0.4)",
+              }}
+              onMouseDown={(e) => { e.stopPropagation(); startDrag("mouseFollow", settings.player.x + mfoX, settings.player.y + mfoY, e); }}
+              onTouchStart={(e) => { e.stopPropagation(); startDrag("mouseFollow", settings.player.x + mfoX, settings.player.y + mfoY, e); }}
+            >
+              <div
+                className="absolute -top-5 left-1/2 -translate-x-1/2 text-[10px] font-mono px-1 rounded"
+                style={{ background: "#ffcc00", color: "#000", whiteSpace: "nowrap" }}
+              >
+                Cursor
+              </div>
+            </div>
           );
         })()}
 
