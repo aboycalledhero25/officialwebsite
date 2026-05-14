@@ -17,7 +17,12 @@ export function useGameLoop(callback: (dt: number) => void, active: boolean) {
       if (lastTimeRef.current === 0) lastTimeRef.current = time;
       const dt = Math.min((time - lastTimeRef.current) / 1000, 0.05); // cap dt at 50ms
       lastTimeRef.current = time;
-      callback(dt);
+      try {
+        callback(dt);
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error("Game loop error:", e);
+      }
       frameRef.current = requestAnimationFrame(loop);
     };
 

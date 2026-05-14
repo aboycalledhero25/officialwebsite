@@ -205,7 +205,7 @@ export function useAudioSfx() {
     }
   }, []);
 
-  const isMuted = () => mutedRef.current;
+  const isMuted = useCallback(() => mutedRef.current, []);
 
   return { play, playFile, setMuted, setVolume, isMuted };
 }
