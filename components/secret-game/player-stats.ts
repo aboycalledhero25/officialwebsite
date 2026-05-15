@@ -38,6 +38,12 @@ export type RoguelikeConfigOverride = Partial<{
   extraLife: Partial<RoguelikeConfig['extraLife']>;
   shield: Partial<RoguelikeConfig['shield']>;
   health: Partial<RoguelikeConfig['health']>;
+  secondWind: Partial<RoguelikeConfig['secondWind']>;
+  thorns: Partial<RoguelikeConfig['thorns']>;
+  timeDilation: Partial<RoguelikeConfig['timeDilation']>;
+  explosive: Partial<RoguelikeConfig['explosive']>;
+  phoenix: Partial<RoguelikeConfig['phoenix']>;
+  chainReact: Partial<RoguelikeConfig['chainReact']>;
   sprites: Partial<RoguelikeConfig['sprites']>;
 }>;
 
@@ -74,6 +80,12 @@ function mergeConfig(override?: RoguelikeConfigOverride): RoguelikeConfig {
     extraLife:   { ...ROGUELIKE_CONFIG.extraLife,   ...(override.extraLife   ?? {}) },
     shield:      { ...ROGUELIKE_CONFIG.shield,      ...(override.shield      ?? {}) },
     health:      { ...ROGUELIKE_CONFIG.health,      ...(override.health      ?? {}) },
+    secondWind:  { ...ROGUELIKE_CONFIG.secondWind,  ...(override.secondWind  ?? {}) },
+    thorns:      { ...ROGUELIKE_CONFIG.thorns,      ...(override.thorns      ?? {}) },
+    timeDilation:{ ...ROGUELIKE_CONFIG.timeDilation,...(override.timeDilation?? {}) },
+    explosive:   { ...ROGUELIKE_CONFIG.explosive,   ...(override.explosive   ?? {}) },
+    phoenix:     { ...ROGUELIKE_CONFIG.phoenix,     ...(override.phoenix     ?? {}) },
+    chainReact:  { ...ROGUELIKE_CONFIG.chainReact,  ...(override.chainReact  ?? {}) },
     sprites:     { ...ROGUELIKE_CONFIG.sprites,     ...(override.sprites     ?? {}) },
   };
 }
@@ -175,6 +187,35 @@ export interface PlayerStats {
   // ─── Pierce ───────────────────────────────────────────────────────────
   hasPierce: boolean;
   pierceCount: number;
+
+  // ─── Second Wind ──────────────────────────────────────────────────────
+  hasSecondWind: boolean;
+  secondWindUsed: boolean;
+
+  // ─── Thorns ───────────────────────────────────────────────────────────
+  hasThorns: boolean;
+  thornsDamage: number;
+
+  // ─── Time Dilation ────────────────────────────────────────────────────
+  hasTimeDilation: boolean;
+  timeDilationBonus: number;
+
+  // ─── Explosive Rounds ─────────────────────────────────────────────────
+  hasExplosive: boolean;
+  explosiveRadius: number;
+  explosiveDamage: number;
+
+  // ─── Eleventh Hour Phoenix ────────────────────────────────────────────
+  hasPhoenix: boolean;
+  phoenixUsed: boolean;
+  phoenixRadius: number;
+  phoenixDamage: number;
+
+  // ─── Chain Reaction ───────────────────────────────────────────────────
+  hasChainReact: boolean;
+  chainReactChance: number;
+  chainReactDamage: number;
+  chainReactRange: number;
 }
 
 /**
@@ -331,5 +372,28 @@ export function computePlayerStats(chosen: PermPowerUpState, override?: Roguelik
 
     hasPierce:       get("pierce") > 0,
     pierceCount:     get("pierce") * cfg.pierce.piercePerStack,
+
+    hasSecondWind:   get("secondWind") > 0,
+    secondWindUsed:  false,
+
+    hasThorns:       get("thorns") > 0,
+    thornsDamage:    get("thorns") * cfg.thorns.damagePerStack,
+
+    hasTimeDilation: get("timeDilation") > 0,
+    timeDilationBonus: get("timeDilation") * cfg.timeDilation.durationBonusPerStack,
+
+    hasExplosive:    get("explosive") > 0,
+    explosiveRadius: get("explosive") * cfg.explosive.radiusPerStack,
+    explosiveDamage: get("explosive") * cfg.explosive.damagePerStack,
+
+    hasPhoenix:      get("phoenix") > 0,
+    phoenixUsed:     false,
+    phoenixRadius:   cfg.phoenix.explosionRadius,
+    phoenixDamage:   cfg.phoenix.explosionDamage,
+
+    hasChainReact:   get("chainReact") > 0,
+    chainReactChance: Math.min(1, get("chainReact") * cfg.chainReact.chancePerStack),
+    chainReactDamage: cfg.chainReact.arcDamage,
+    chainReactRange:  cfg.chainReact.arcRange,
   };
 }

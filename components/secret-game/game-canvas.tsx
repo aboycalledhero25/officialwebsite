@@ -344,6 +344,12 @@ export function GameCanvas({
     // ── Kill Streak Announcer ──────────────────────────────────────────
     killStreakAnnounced: 0,
     announcerText: null as { text: string; timer: number; maxTimer: number; color: string; scale: number } | null,
+    // ── Second Wind / Phoenix tracking ─────────────────────────────────
+    secondWindUsed: false,
+    phoenixUsed: false,
+    // ── Boss intro animation ───────────────────────────────────────────
+    bossIntroTimer: 0,
+    bossIntroText: "",
   });
 
   // Resize canvas to fill viewport
@@ -458,6 +464,9 @@ export function GameCanvas({
         chargeTargetY: 0,
         chargeCooldown: 2.0,
       };
+      // Boss intro animation
+      s.bossIntroTimer = 3.0;
+      s.bossIntroText = bossCfg?.names?.[bossNumber - 1] ?? `BOSS ${bossNumber}`;
     } else {
       // Horde wave: set up spawn counters instead of spawning all at once
       const waveConfig = siteData.secretGame?.waveConfigs?.[w - 1];
@@ -559,6 +568,10 @@ export function GameCanvas({
     s.announcerText = null;
     s.overchargeShots = 0;
     s.groupies = [];
+    s.secondWindUsed = false;
+    s.phoenixUsed = false;
+    s.bossIntroTimer = 0;
+    s.bossIntroText = "";
     onScoreChange(0);
     onLivesChange(startH);
     onWaveChange(1);
@@ -1650,6 +1663,15 @@ export function GameCanvas({
         }
       });
 
+      // ── Boss intro timer ──
+      if (s.bossIntroTimer > 0) {
+        s.bossIntroTimer -= dt;
+        if (s.bossIntroTimer <= 0) {
+          s.bossIntroTimer = 0;
+          s.bossIntroText = "";
+        }
+      }
+
       // ── Boss behaviour ──
       const bossCfg = siteData.secretGame?.boss;
       if (s.boss && bossCfg?.enabled) {
@@ -1839,6 +1861,7 @@ export function GameCanvas({
               pu.type === "overcharge" ? (durations?.overcharge ?? 0) :
               pu.type === "groupie" ? (durations?.groupie ?? 8) :
               (durations?.wideShot ?? 4);
+            const dilatedDuration = duration * (1 + playerStats.timeDilationBonus);
             const existing = s.activePowerUps.find((p) => p.type === pu.type);
             const noStackTypes: PowerUpType[] = ["shield", "invincible", "projectile", "timewarp", "overcharge"];
             const maxStack = 5;
@@ -1846,20 +1869,20 @@ export function GameCanvas({
             if (existing) {
               if (noStackTypes.includes(pu.type)) {
                 // No stacking — just reset timer
-                existing.timer = duration;
+                existing.timer = dilatedDuration;
               } else if (existing.stacks < maxStack) {
                 // Stack up to max, reset timer
                 existing.stacks = (existing.stacks || 1) + 1;
-                existing.timer = duration;
+                existing.timer = dilatedDuration;
               } else {
                 // Already at max stacks — just reset timer
-                existing.timer = duration;
+                existing.timer = dilatedDuration;
               }
             } else {
-              s.activePowerUps.push({ type: pu.type, timer: duration, stacks: 1 });
+              s.activePowerUps.push({ type: pu.type, timer: dilatedDuration, stacks: 1 });
             }
             // Track shield initial duration for animation timing
-            if (pu.type === "shield") s.shieldDuration = duration;
+            if (pu.type === "shield") s.shieldDuration = dilatedDuration;
             // Projectile temp: recalculate bonus to fill up to cap of 3
             if (pu.type === "projectile" && existing) {
               existing.stacks = Math.max(0, 3 - playerStats.projectileCount);
@@ -2159,6 +2182,52 @@ export function GameCanvas({
                 }
               } else {
                 s.bullets.splice(bi, 1);
+              }
+
+              // Explosive Rounds: AOE damage on impact
+              if (playerStats.hasExplosive) {
+                const exR = playerStats.explosiveRadius;
+                const exD = playerStats.explosiveDamage;
+                for (const other of s.enemies) {
+                  if (!other.alive || other === e) continue;
+                  const odx = other.x + ew / 2 - impactX;
+                  const ody = other.y + eh / 2 - impactY;
+                  if (Math.sqrt(odx * odx + ody * ody) < exR) {
+                    other.hp = (other.hp ?? 1) - exD;
+                    if (other.hp <= 0) {
+                      other.alive = false; other.dying = true; other.animState = "dying"; other.animAccum = 0;
+                      s.score += Math.floor(10 * s.wave * (1 + s.comboCount * (siteData.secretGame?.comboMultiplierPerKill ?? 0.1)));
+                      onScoreChange(s.score);
+                    }
+                  }
+                }
+                spawnParticles(impactX, impactY, "#ff8800", 5);
+              }
+
+              // Chain Reaction: arc lightning to nearby enemy
+              if (playerStats.hasChainReact && Math.random() < playerStats.chainReactChance) {
+                let nearestDist = Infinity;
+                let nearestEnemy = null as typeof e | null;
+                for (const other of s.enemies) {
+                  if (!other.alive || other === e) continue;
+                  const odx = other.x + ew / 2 - impactX;
+                  const ody = other.y + eh / 2 - impactY;
+                  const odist = Math.sqrt(odx * odx + ody * ody);
+                  if (odist < nearestDist && odist < playerStats.chainReactRange) {
+                    nearestDist = odist;
+                    nearestEnemy = other;
+                  }
+                }
+                if (nearestEnemy) {
+                  nearestEnemy.hp = (nearestEnemy.hp ?? 1) - playerStats.chainReactDamage;
+                  s.lightningBeams.push({ x1: impactX, y1: impactY, x2: nearestEnemy.x + ew / 2, y2: nearestEnemy.y + eh / 2, timer: 0.15 });
+                  spawnParticles(nearestEnemy.x + ew / 2, nearestEnemy.y + eh / 2, "#fcee0a", 4);
+                  if (nearestEnemy.hp <= 0) {
+                    nearestEnemy.alive = false; nearestEnemy.dying = true; nearestEnemy.animState = "dying"; nearestEnemy.animAccum = 0;
+                    s.score += Math.floor(10 * s.wave * (1 + s.comboCount * (siteData.secretGame?.comboMultiplierPerKill ?? 0.1)));
+                    onScoreChange(s.score);
+                  }
+                }
               }
 
               // Spawn damage number
@@ -2485,16 +2554,65 @@ export function GameCanvas({
           play("playerHit");
           s.damageNumbers.push({ x: px + pw / 2 + (Math.random() - 0.5) * 10, y: py, value: String(bulletDmg), timer: 1.0, maxTimer: 1.0, color: siteDataRef.current.secretGame?.damageNumbers?.playerHitColor ?? "#ff4444" });
           if (s.currentSlices <= 0) {
-            play("gameOver");
-            onRunStatsChange?.(Math.round(s.totalDamageDealt));
-            onPhaseChange("gameover");
-            try {
-              const currentHigh = parseInt(localStorage.getItem("abch-guitar-invaders-highscore") || "0", 10);
-              if (s.score > currentHigh) {
-                localStorage.setItem("abch-guitar-invaders-highscore", String(s.score));
+            // Second Wind: survive with 1 slice
+            if (playerStats.hasSecondWind && !s.secondWindUsed) {
+              s.secondWindUsed = true;
+              s.currentSlices = 1;
+              s.lives = 1;
+              onLivesChange(1);
+              if (onHealthDetailChange) onHealthDetailChange(1, s.maxSlices, s.slicesPerHeart);
+              s.announcerText = { text: "SECOND WIND!", timer: 1.5, maxTimer: 1.5, color: "#00f0ff", scale: 0.5 };
+              spawnParticles(px + pw / 2, py + ph / 2, "#00f0ff", 15);
+              play("levelComplete");
+            } else if (playerStats.hasPhoenix && !s.phoenixUsed) {
+              // Eleventh Hour Phoenix: explode and revive
+              s.phoenixUsed = true;
+              const pr = playerStats.phoenixRadius;
+              const pd = playerStats.phoenixDamage;
+              // Damage all enemies in explosion radius
+              for (const e of s.enemies) {
+                if (!e.alive) continue;
+                const edx = e.x + ew / 2 - (px + pw / 2);
+                const edy = e.y + eh / 2 - (py + ph / 2);
+                if (Math.sqrt(edx * edx + edy * edy) < pr) {
+                  e.hp = (e.hp ?? 1) - pd;
+                  if (e.hp <= 0) {
+                    e.alive = false; e.dying = true; e.animState = "dying"; e.animAccum = 0;
+                    s.score += Math.floor(10 * s.wave);
+                    onScoreChange(s.score);
+                  }
+                }
               }
-            } catch {}
-            return;
+              // Damage boss if in range
+              if (s.boss) {
+                const bdx = s.boss.x + (bossCfg?.width ?? 40) / 2 - (px + pw / 2);
+                const bdy = s.boss.y + (bossCfg?.height ?? 30) / 2 - (py + ph / 2);
+                if (Math.sqrt(bdx * bdx + bdy * bdy) < pr) {
+                  s.boss.health -= pd;
+                }
+              }
+              spawnEffect(s.activeEffects, "bomb", px + pw / 2, py + ph / 2, { w: pr * 2, h: pr * 2 });
+              spawnParticles(px + pw / 2, py + ph / 2, "#ff8800", 20);
+              spawnParticles(px + pw / 2, py + ph / 2, "#ff4400", 15);
+              s.currentSlices = s.slicesPerHeart; // 1 heart
+              s.lives = 1;
+              onLivesChange(1);
+              if (onHealthDetailChange) onHealthDetailChange(s.currentSlices, s.maxSlices, s.slicesPerHeart);
+              s.announcerText = { text: "PHOENIX RISING!", timer: 2.0, maxTimer: 2.0, color: "#ff4400", scale: 0.5 };
+              s.screenShake = 0.5;
+              playFile("/audio/bomb.mp3");
+            } else {
+              play("gameOver");
+              onRunStatsChange?.(Math.round(s.totalDamageDealt));
+              onPhaseChange("gameover");
+              try {
+                const currentHigh = parseInt(localStorage.getItem("abch-guitar-invaders-highscore") || "0", 10);
+                if (s.score > currentHigh) {
+                  localStorage.setItem("abch-guitar-invaders-highscore", String(s.score));
+                }
+              } catch {}
+              return;
+            }
           }
         }
       }
@@ -2532,10 +2650,28 @@ export function GameCanvas({
             play("playerHit");
             s.damageNumbers.push({ x: px + pw / 2, y: py - 5, value: String(touchDmg), timer: 1.0, maxTimer: 1.0, color: siteDataRef.current.secretGame?.damageNumbers?.playerHitColor ?? "#ff4444" });
             if (s.currentSlices <= 0) {
-              play("gameOver");
-              onRunStatsChange?.(Math.round(s.totalDamageDealt));
-              onPhaseChange("gameover");
-              return;
+              if (playerStats.hasSecondWind && !s.secondWindUsed) {
+                s.secondWindUsed = true;
+                s.currentSlices = 1; s.lives = 1;
+                onLivesChange(1);
+                if (onHealthDetailChange) onHealthDetailChange(1, s.maxSlices, s.slicesPerHeart);
+                s.announcerText = { text: "SECOND WIND!", timer: 1.5, maxTimer: 1.5, color: "#00f0ff", scale: 0.5 };
+                spawnParticles(px + pw / 2, py + ph / 2, "#00f0ff", 15);
+                play("levelComplete");
+              } else if (playerStats.hasPhoenix && !s.phoenixUsed) {
+                s.phoenixUsed = true;
+                const pr = playerStats.phoenixRadius;
+                const pd = playerStats.phoenixDamage;
+                for (const e of s.enemies) { if (!e.alive) continue; const edx = e.x + ew / 2 - (px + pw / 2); const edy = e.y + eh / 2 - (py + ph / 2); if (Math.sqrt(edx * edx + edy * edy) < pr) { e.hp = (e.hp ?? 1) - pd; if (e.hp <= 0) { e.alive = false; e.dying = true; e.animState = "dying"; e.animAccum = 0; s.score += Math.floor(10 * s.wave); onScoreChange(s.score); } } }
+                if (s.boss) { const bdx = s.boss.x + (bossCfg?.width ?? 40) / 2 - (px + pw / 2); const bdy = s.boss.y + (bossCfg?.height ?? 30) / 2 - (py + ph / 2); if (Math.sqrt(bdx * bdx + bdy * bdy) < pr) s.boss.health -= pd; }
+                spawnEffect(s.activeEffects, "bomb", px + pw / 2, py + ph / 2, { w: pr * 2, h: pr * 2 });
+                spawnParticles(px + pw / 2, py + ph / 2, "#ff8800", 20);
+                s.currentSlices = s.slicesPerHeart; s.lives = 1;
+                onLivesChange(1);
+                if (onHealthDetailChange) onHealthDetailChange(s.currentSlices, s.maxSlices, s.slicesPerHeart);
+                s.announcerText = { text: "PHOENIX RISING!", timer: 2.0, maxTimer: 2.0, color: "#ff4400", scale: 0.5 };
+                s.screenShake = 0.5; playFile("/audio/bomb.mp3");
+              } else { play("gameOver"); onRunStatsChange?.(Math.round(s.totalDamageDealt)); onPhaseChange("gameover"); return; }
             }
           }
         }
@@ -2572,18 +2708,40 @@ export function GameCanvas({
             spawnParticles(px + pw / 2, py + ph / 2, "#ff4444", 8);
             play("playerHit");
             s.damageNumbers.push({ x: px + pw / 2 + (Math.random() - 0.5) * 8, y: py - 2, value: String(waveEnemyCollisionDmg), timer: 1.0, maxTimer: 1.0, color: siteDataRef.current.secretGame?.damageNumbers?.playerHitColor ?? "#ff4444" });
+            // Thorns: damage enemy on contact
+            if (playerStats.hasThorns) {
+              e.hp = (e.hp ?? 1) - playerStats.thornsDamage;
+              spawnParticles(e.x + ew / 2, e.y + eh / 2, "#39ff14", 4);
+              if (e.hp <= 0) {
+                e.alive = false; e.dying = true; e.animState = "dying"; e.animAccum = 0;
+                s.score += Math.floor(10 * s.wave * (1 + s.comboCount * (siteData.secretGame?.comboMultiplierPerKill ?? 0.1)));
+                onScoreChange(s.score);
+              }
+            }
             s.playerBodyHitTimer = 1.0; // 1-second invincibility window after collision
             if (s.currentSlices <= 0) {
-              play("gameOver");
-              onRunStatsChange?.(Math.round(s.totalDamageDealt));
-              onPhaseChange("gameover");
-              try {
-                const currentHigh = parseInt(localStorage.getItem("abch-guitar-invaders-highscore") || "0", 10);
-                if (s.score > currentHigh) {
-                  localStorage.setItem("abch-guitar-invaders-highscore", String(s.score));
-                }
-              } catch {}
-              return;
+              if (playerStats.hasSecondWind && !s.secondWindUsed) {
+                s.secondWindUsed = true;
+                s.currentSlices = 1; s.lives = 1;
+                onLivesChange(1);
+                if (onHealthDetailChange) onHealthDetailChange(1, s.maxSlices, s.slicesPerHeart);
+                s.announcerText = { text: "SECOND WIND!", timer: 1.5, maxTimer: 1.5, color: "#00f0ff", scale: 0.5 };
+                spawnParticles(px + pw / 2, py + ph / 2, "#00f0ff", 15);
+                play("levelComplete");
+              } else if (playerStats.hasPhoenix && !s.phoenixUsed) {
+                s.phoenixUsed = true;
+                const pr = playerStats.phoenixRadius;
+                const pd = playerStats.phoenixDamage;
+                for (const e2 of s.enemies) { if (!e2.alive) continue; const edx = e2.x + ew / 2 - (px + pw / 2); const edy = e2.y + eh / 2 - (py + ph / 2); if (Math.sqrt(edx * edx + edy * edy) < pr) { e2.hp = (e2.hp ?? 1) - pd; if (e2.hp <= 0) { e2.alive = false; e2.dying = true; e2.animState = "dying"; e2.animAccum = 0; s.score += Math.floor(10 * s.wave); onScoreChange(s.score); } } }
+                if (s.boss) { const bdx = s.boss.x + (bossCfg?.width ?? 40) / 2 - (px + pw / 2); const bdy = s.boss.y + (bossCfg?.height ?? 30) / 2 - (py + ph / 2); if (Math.sqrt(bdx * bdx + bdy * bdy) < pr) s.boss.health -= pd; }
+                spawnEffect(s.activeEffects, "bomb", px + pw / 2, py + ph / 2, { w: pr * 2, h: pr * 2 });
+                spawnParticles(px + pw / 2, py + ph / 2, "#ff8800", 20);
+                s.currentSlices = s.slicesPerHeart; s.lives = 1;
+                onLivesChange(1);
+                if (onHealthDetailChange) onHealthDetailChange(s.currentSlices, s.maxSlices, s.slicesPerHeart);
+                s.announcerText = { text: "PHOENIX RISING!", timer: 2.0, maxTimer: 2.0, color: "#ff4400", scale: 0.5 };
+                s.screenShake = 0.5; playFile("/audio/bomb.mp3");
+              } else { play("gameOver"); onRunStatsChange?.(Math.round(s.totalDamageDealt)); onPhaseChange("gameover"); try { const currentHigh = parseInt(localStorage.getItem("abch-guitar-invaders-highscore") || "0", 10); if (s.score > currentHigh) localStorage.setItem("abch-guitar-invaders-highscore", String(s.score)); } catch {} return; }
             }
             break; // only one collision per frame
           }
@@ -2729,6 +2887,32 @@ export function GameCanvas({
       ctx.globalCompositeOperation = "source-over";
       ctx.fillStyle = "rgba(0, 100, 255, 0.08)";
       ctx.fillRect(0, 0, logW, logH);
+      ctx.restore();
+    }
+
+    // Boss intro animation
+    if (s.bossIntroTimer > 0) {
+      const introProgress = 1 - s.bossIntroTimer / 3.0;
+      const alpha = introProgress < 0.3 ? introProgress / 0.3 : introProgress > 0.7 ? (1 - introProgress) / 0.3 : 1;
+      const scale = 0.5 + introProgress * 0.5;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+      ctx.fillStyle = "#ff0000";
+      ctx.shadowColor = "#ff0000";
+      ctx.shadowBlur = 20;
+      ctx.font = `bold ${Math.floor(16 * scale)}px monospace`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("BOSS APPROACHING", logW / 2, logH * 0.35);
+      ctx.font = `bold ${Math.floor(12 * scale)}px monospace`;
+      ctx.fillStyle = "#ff8800";
+      ctx.shadowColor = "#ff8800";
+      ctx.fillText(s.bossIntroText.toUpperCase(), logW / 2, logH * 0.45);
+      // Red warning bars
+      const barH = 4 * scale;
+      ctx.fillStyle = `rgba(255, 0, 0, ${alpha * 0.5})`;
+      ctx.fillRect(0, logH * 0.3 - barH, logW, barH);
+      ctx.fillRect(0, logH * 0.5, logW, barH);
       ctx.restore();
     }
 

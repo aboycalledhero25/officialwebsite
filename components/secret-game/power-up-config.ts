@@ -65,6 +65,12 @@ export interface RoguelikeConfig {
     duration: number;        // seconds virus lasts on target
     maxVirusStacks: number;  // max stacks on a single target
   };
+  secondWind:   { hasSecondWind: boolean };
+  thorns:       { damagePerStack: number; maxStacks: number };
+  timeDilation: { durationBonusPerStack: number; maxStacks: number };
+  explosive:    { radiusPerStack: number; damagePerStack: number; maxStacks: number };
+  phoenix:      { hasPhoenix: boolean; explosionRadius: number; explosionDamage: number };
+  chainReact:   { chancePerStack: number; maxStacks: number; arcDamage: number; arcRange: number };
 
   // ─── Visual / sprite scaling ─────────────────────────────────────────────
   /**
@@ -133,6 +139,13 @@ export const ROGUELIKE_CONFIG: RoguelikeConfig = {
     duration:            3,
     maxVirusStacks:      3,
   },
+
+  secondWind:   { hasSecondWind: false },
+  thorns:       { damagePerStack: 2, maxStacks: 5 },
+  timeDilation: { durationBonusPerStack: 0.5, maxStacks: 3 },
+  explosive:    { radiusPerStack: 8, damagePerStack: 5, maxStacks: 3 },
+  phoenix:      { hasPhoenix: false, explosionRadius: 80, explosionDamage: 50 },
+  chainReact:   { chancePerStack: 0.15, maxStacks: 5, arcDamage: 20, arcRange: 60 },
 
   sprites: {
     // Boss PNG sprite vs hitbox: 1.0 = exactly matches data.json boss.width/height

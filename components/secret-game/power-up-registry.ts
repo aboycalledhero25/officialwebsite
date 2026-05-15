@@ -370,6 +370,88 @@ export const POWER_UP_REGISTRY: PowerUpDefinition[] = [
       return `Pierce: ${n * ROGUELIKE_CONFIG.pierce.piercePerStack}`;
     },
   },
+  {
+    id: "secondWind",
+    name: "Second Wind",
+    description: "Once per run, survive a lethal hit with 1 slice instead of dying.",
+    icon: "/powerups/icons/second_wind.png",
+    canStack: false, maxStacks: 1, removeFromPoolAfterMaxed: true,
+    getCurrentStat: (c) => (c["secondWind"] ?? 0) > 0 ? "Second Wind: Ready" : "Second Wind: —",
+    getNextStat:    () => "Second Wind: Ready",
+  },
+  {
+    id: "thorns",
+    name: "Thorns",
+    description: "Enemies take damage when they touch you.",
+    icon: "/powerups/icons/thorns.png",
+    canStack: true, maxStacks: ROGUELIKE_CONFIG.thorns.maxStacks, removeFromPoolAfterMaxed: true,
+    getCurrentStat: (c) => {
+      const n = c["thorns"] ?? 0;
+      if (n === 0) return "Thorns: 0";
+      return `Thorns: ${n * ROGUELIKE_CONFIG.thorns.damagePerStack} dmg`;
+    },
+    getNextStat: (c) => {
+      const n = (c["thorns"] ?? 0) + 1;
+      return `Thorns: ${n * ROGUELIKE_CONFIG.thorns.damagePerStack} dmg`;
+    },
+  },
+  {
+    id: "timeDilation",
+    name: "Time Dilation",
+    description: "All temporary power-ups last 50% longer per pick.",
+    icon: "/powerups/icons/time_dilation.png",
+    canStack: true, maxStacks: ROGUELIKE_CONFIG.timeDilation.maxStacks, removeFromPoolAfterMaxed: true,
+    getCurrentStat: (c) => {
+      const n = c["timeDilation"] ?? 0;
+      if (n === 0) return "Duration: +0%";
+      return `Duration: +${(n * ROGUELIKE_CONFIG.timeDilation.durationBonusPerStack * 100).toFixed(0)}%`;
+    },
+    getNextStat: (c) => {
+      const n = (c["timeDilation"] ?? 0) + 1;
+      return `Duration: +${(n * ROGUELIKE_CONFIG.timeDilation.durationBonusPerStack * 100).toFixed(0)}%`;
+    },
+  },
+  {
+    id: "explosive",
+    name: "Explosive Rounds",
+    description: "Bullets deal small AOE damage on impact.",
+    icon: "/powerups/icons/explosive.png",
+    canStack: true, maxStacks: ROGUELIKE_CONFIG.explosive.maxStacks, removeFromPoolAfterMaxed: true,
+    getCurrentStat: (c) => {
+      const n = c["explosive"] ?? 0;
+      if (n === 0) return "Explosive: Off";
+      return `Radius: ${n * ROGUELIKE_CONFIG.explosive.radiusPerStack}, Dmg: ${n * ROGUELIKE_CONFIG.explosive.damagePerStack}`;
+    },
+    getNextStat: (c) => {
+      const n = (c["explosive"] ?? 0) + 1;
+      return `Radius: ${n * ROGUELIKE_CONFIG.explosive.radiusPerStack}, Dmg: ${n * ROGUELIKE_CONFIG.explosive.damagePerStack}`;
+    },
+  },
+  {
+    id: "phoenix",
+    name: "Eleventh Hour Phoenix",
+    description: "Once per run, when you die, explode dealing massive damage and revive with 1 heart.",
+    icon: "/powerups/icons/phoenix.png",
+    canStack: false, maxStacks: 1, removeFromPoolAfterMaxed: true,
+    getCurrentStat: (c) => (c["phoenix"] ?? 0) > 0 ? "Phoenix: Ready" : "Phoenix: —",
+    getNextStat:    () => "Phoenix: Ready",
+  },
+  {
+    id: "chainReact",
+    name: "Chain Reaction",
+    description: "Bullets have a chance to arc lightning to a nearby enemy on hit.",
+    icon: "/powerups/icons/chain_reaction.png",
+    canStack: true, maxStacks: ROGUELIKE_CONFIG.chainReact.maxStacks, removeFromPoolAfterMaxed: true,
+    getCurrentStat: (c) => {
+      const n = c["chainReact"] ?? 0;
+      if (n === 0) return "Arc Chance: 0%";
+      return `Arc Chance: ${Math.min(100, n * ROGUELIKE_CONFIG.chainReact.chancePerStack * 100).toFixed(0)}%`;
+    },
+    getNextStat: (c) => {
+      const n = (c["chainReact"] ?? 0) + 1;
+      return `Arc Chance: ${Math.min(100, n * ROGUELIKE_CONFIG.chainReact.chancePerStack * 100).toFixed(0)}%`;
+    },
+  },
 ];
 
 // ─── Utility helpers ──────────────────────────────────────────────────────────

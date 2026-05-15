@@ -290,6 +290,8 @@ export interface BossSettings {
   healthBarHeight?: number;
   healthBarTextSize?: number;
   healthBarVisible?: boolean;
+  /** Optional boss names for intro animation. Index 0 = first boss, etc. */
+  names?: string[];
 }
 
 export interface SpawnPoint {
