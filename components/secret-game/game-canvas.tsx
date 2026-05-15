@@ -2877,6 +2877,11 @@ export function GameCanvas({
       const waveEnemyCollisionDmg = s.enemyCollisionDamage;
 
       // ── Collision: enemy bullets vs player ──
+      // DEBUG: log collision state once per second
+      if (typeof window !== "undefined" && s.frame % 60 === 0) {
+        // eslint-disable-next-line no-console
+        console.log("[Game] Collision check:", { bullets: s.bullets.filter(b => !b.isPlayer).length, enemies: s.enemies.filter(e => e.alive).length, permShield: s.permShieldActive, isInvincible, px, py, pw, ph });
+      }
       const enemyBulletImpact = effectiveSettingsRef.current?.impacts?.enemyBullet ?? { w: 20, h: 20 };
       for (let bi = s.bullets.length - 1; bi >= 0; bi--) {
         const b = s.bullets[bi];
