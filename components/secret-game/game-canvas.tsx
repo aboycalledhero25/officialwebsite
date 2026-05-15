@@ -2401,19 +2401,12 @@ export function GameCanvas({
               if (b.isSeeker) { playFile("/audio/bomb.mp3"); } else { play("enemyHit"); }
             }
 
-            // Chance to spawn power-up (boosted by Luck perm upgrade) — only on kill
+            // Chance to spawn temp power-up on kill (boosted by Luck perm upgrade)
             if (!e.alive || e.hp <= 0) {
               const pSize = effectiveSettingsRef.current?.powerUpSize ?? 8;
-              // First check for a golden "choose a power-up" drop
-              const choiceChance = effectiveSettingsRef.current?.enemyChoiceDropChance ?? 0;
-              if (choiceChance > 0 && Math.random() < choiceChance) {
-                s.powerups.push({ x: impactX - pSize / 2, y: impactY, type: "choice" });
-              } else {
-                // Otherwise normal temp power-up drop
-                const spawnChance = (effectiveSettingsRef.current?.powerUpSpawnChance ?? ROGUELIKE_CONFIG.baseEnemyDropChance) + playerStats.luckBonus;
-                if (Math.random() < spawnChance) {
-                  s.powerups.push({ x: impactX - pSize / 2, y: impactY, type: pickDropType() });
-                }
+              const spawnChance = (effectiveSettingsRef.current?.powerUpSpawnChance ?? ROGUELIKE_CONFIG.baseEnemyDropChance) + playerStats.luckBonus;
+              if (Math.random() < spawnChance) {
+                s.powerups.push({ x: impactX - pSize / 2, y: impactY, type: pickDropType() });
               }
             }
             break;
@@ -3187,6 +3180,16 @@ export function GameCanvas({
           0,
           () => {},
         );
+        ctx.restore();
+      }
+      // Low-health red tint (< 30% HP) — sprite turns red, no box outline
+      const healthRatio = s.boss.health / s.boss.maxHealth;
+      if (healthRatio < 0.3 && s.boss.phase !== 4) {
+        ctx.save();
+        const pulse = 0.25 + Math.sin(s.frame * 0.2) * 0.15;
+        ctx.globalCompositeOperation = "source-atop";
+        ctx.fillStyle = `rgba(255, 40, 40, ${pulse})`;
+        ctx.fillRect(sprX, sprY, sprW, sprH);
         ctx.restore();
       }
       // Boss health bar — attached above the boss, editable offset/size
