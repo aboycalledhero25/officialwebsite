@@ -7,7 +7,7 @@ import { GameOverlay, type RunStats } from "./game-overlay";
 import { MobileControls } from "./mobile-controls";
 import { PowerUpSelection } from "./power-up-selection";
 import { sharedKeys, sharedAim } from "./use-keyboard-controls";
-import { useAudioSfx, setSoundVolumes, unlockAudio } from "./use-audio-sfx";
+import { useAudioSfx, setSoundVolumes, unlockAudio, getSharedAudioContext } from "./use-audio-sfx";
 import { useGameMusic } from "./use-game-music";
 import { getLeaderboard } from "@/lib/actions";
 import { type PermPowerUpState, computePlayerStats } from "./player-stats";
@@ -318,7 +318,6 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
   // Use Web Audio API instead of <audio> element for reliable mobile playback
   const songSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const songBufferRef = useRef<AudioBuffer | null>(null);
-  const songCtxRef = useRef<AudioContext | null>(null);
   const songGainRef = useRef<GainNode | null>(null);
   const songEndedRef = useRef(false);
   const wasMutedRef = useRef(muted);
@@ -366,11 +365,12 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
 
         // Fetch and decode the audio file once
         const res = await fetch("/api/audio/reward");
+        if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
         const arrayBuf = await res.arrayBuffer();
 
-        // Use shared context if available, otherwise create one
-        const ctx = songCtxRef.current ?? new AudioContext();
-        songCtxRef.current = ctx;
+        // Use the shared AudioContext (already unlocked by gameplay)
+        const ctx = getSharedAudioContext();
+        if (!ctx) throw new Error("No AudioContext");
 
         const buffer = await ctx.decodeAudioData(arrayBuf);
         if (cancelled) return;
@@ -389,6 +389,7 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
         source.onended = () => {
           if (cancelled || songEndedRef.current) return;
           songEndedRef.current = true;
+          songSourceRef.current = null;
           setSongFinished(true);
           setMuted(wasMuted);
           setAudioMuted(wasMuted);
@@ -397,8 +398,9 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
         songSourceRef.current = source;
         source.start(0);
         setSongUnlockNeedsTap(false);
-      } catch {
-        // Decoding or playback failed — show tap to retry
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("[SongUnlock] Playback failed:", err);
         if (!cancelled) {
           setSongUnlockNeedsTap(true);
         }
@@ -542,17 +544,20 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
           className="absolute inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-in fade-in duration-700"
           onClick={() => {
             // Web Audio API playback — restart if needed
-            if (songUnlockNeedsTap && songBufferRef.current && songCtxRef.current && !songEndedRef.current) {
+            if (songUnlockNeedsTap && songBufferRef.current && !songEndedRef.current) {
+              const ctx = getSharedAudioContext();
+              if (!ctx) return;
               try {
-                const source = songCtxRef.current.createBufferSource();
+                const source = ctx.createBufferSource();
                 source.buffer = songBufferRef.current;
-                const gain = songCtxRef.current.createGain();
+                const gain = ctx.createGain();
                 gain.gain.value = 1;
-                gain.connect(songCtxRef.current.destination);
+                gain.connect(ctx.destination);
                 source.connect(gain);
                 source.onended = () => {
                   if (songEndedRef.current) return;
                   songEndedRef.current = true;
+                  songSourceRef.current = null;
                   setSongFinished(true);
                   setMuted(wasMutedRef.current);
                   setAudioMuted(wasMutedRef.current);
@@ -579,17 +584,20 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
               <div
                 className="mt-2 px-6 py-3 bg-[#ff006e]/20 border border-[#ff006e]/40 rounded-sm text-[#ff006e] font-bold text-sm uppercase tracking-widest animate-pulse cursor-pointer"
                 onClick={() => {
-                  if (songBufferRef.current && songCtxRef.current && !songEndedRef.current) {
+                  if (songBufferRef.current && !songEndedRef.current) {
+                    const ctx = getSharedAudioContext();
+                    if (!ctx) return;
                     try {
-                      const source = songCtxRef.current.createBufferSource();
+                      const source = ctx.createBufferSource();
                       source.buffer = songBufferRef.current;
-                      const gain = songCtxRef.current.createGain();
+                      const gain = ctx.createGain();
                       gain.gain.value = 1;
-                      gain.connect(songCtxRef.current.destination);
+                      gain.connect(ctx.destination);
                       source.connect(gain);
                       source.onended = () => {
                         if (songEndedRef.current) return;
                         songEndedRef.current = true;
+                        songSourceRef.current = null;
                         setSongFinished(true);
                         setMuted(wasMutedRef.current);
                         setAudioMuted(wasMutedRef.current);

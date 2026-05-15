@@ -35,6 +35,11 @@ export function unlockAudio() {
   }
 }
 
+/** Get the shared AudioContext (null if unlockAudio hasn't been called yet). */
+export function getSharedAudioContext(): AudioContext | null {
+  return sharedCtx;
+}
+
 export function useAudioSfx() {
   const ctxRef = useRef<AudioContext | null>(null);
   const masterGainRef = useRef<GainNode | null>(null);
