@@ -407,8 +407,6 @@ export function GameCanvas({
     shieldDuration: 4, // stores the initial duration of the last temp-shield activation
     // ── Damage numbers (floating text) ──────────────────────────────
     damageNumbers: [] as { x: number; y: number; value: string; timer: number; maxTimer: number; color: string }[],
-    // ── Player hit invincibility (after enemy body collision) ────────
-    playerBodyHitTimer: 0, // countdown in seconds
     // ── Orbital orbs ─────────────────────────────────────────────────
     orbitalAccum: 0,       // cooldown accumulator
     orbitalActive: false,  // true while orbs are active
@@ -621,8 +619,6 @@ export function GameCanvas({
     const xScale = logW / BASE_W;
     s.playerX = settingsRef.current.player.x * xScale;
     s.playerY = settingsRef.current.player.y;
-    // Clear any lingering post-hit invincibility
-    s.playerBodyHitTimer = 0;
   }, []);
 
   const resetGame = useCallback(() => {
@@ -669,7 +665,6 @@ export function GameCanvas({
     s.shockwaves = [];
     s.activeEffects = [];
     s.damageNumbers = [];
-    s.playerBodyHitTimer = 0;
     s.orbitalAccum = 0;
     s.orbitalActive = false;
     s.orbitalTimer = 0;
@@ -2650,7 +2645,7 @@ export function GameCanvas({
                   // Damage player if too close
                   const pdx = s.playerX + PLAYER_W_BASE / 2 - impactX;
                   const pdy = s.playerY + PLAYER_H_BASE / 2 - impactY;
-                  if (Math.sqrt(pdx * pdx + pdy * pdy) < aoeRadius && s.playerBodyHitTimer <= 0 && !isInvincible && !hasShield && !s.permShieldActive) {
+                  if (Math.sqrt(pdx * pdx + pdy * pdy) < aoeRadius && !isInvincible && !hasShield && !s.permShieldActive) {
                     s.currentSlices = Math.max(0, s.currentSlices - 1);
                     s.waveDamageTaken = true;
                     // Bloodlust: reset kill streak on damage taken
@@ -2658,7 +2653,6 @@ export function GameCanvas({
                     s.lives = Math.ceil(s.currentSlices / s.slicesPerHeart);
                     onLivesChange(s.lives);
                     if (onHealthDetailChange) onHealthDetailChange(s.currentSlices, s.maxSlices, s.slicesPerHeart);
-                    s.playerBodyHitTimer = 1.0;
                     play("playerHit");
                     spawnParticles(s.playerX + PLAYER_W_BASE / 2, s.playerY + PLAYER_H_BASE / 2, "#ff4400", 6);
                   }
@@ -3057,50 +3051,46 @@ export function GameCanvas({
       }
 
       // ── Collision: regular enemies vs player (body contact damage) ──
-      if (s.playerBodyHitTimer > 0) {
-        s.playerBodyHitTimer -= dt;
-      } else {
-        for (const e of s.enemies) {
-          if (!e.alive) continue;
-          // Check enemy body against player hitbox (polygon or rect)
-          const ecbx = e.x + ecbOffX;
-          const ecby = e.y + ecbOffY;
-          let bodyHit: boolean;
-          if (usePolygon && hbPoints) {
-            bodyHit = enemyRectIntersectsPolygon(ecbx, ecby, ecw, ech);
-          } else {
-            bodyHit = (
-              ecbx < px + pw &&
-              ecbx + ecw > px &&
-              ecby < py + ph &&
-              ecby + ech > py
-            );
-          }
-          if (bodyHit) {
-            if (isInvincible || s.permShieldActive || hasShield) break;
-            s.currentSlices = Math.max(0, s.currentSlices - waveEnemyCollisionDmg);
-            s.waveDamageTaken = true;
-            // Bloodlust: reset kill streak on damage taken
-            if (playerStats.hasBloodlust) s.bloodlustKillCount = 0;
-            s.lives = Math.ceil(s.currentSlices / s.slicesPerHeart);
-            onLivesChange(s.lives);
-            if (onHealthDetailChange) onHealthDetailChange(s.currentSlices, s.maxSlices, s.slicesPerHeart);
-            s.screenShake = 0.25;
-            spawnParticles(px + pw / 2, py + ph / 2, "#ff4444", 8);
-            play("playerHit");
-            s.damageNumbers.push({ x: px + pw / 2 + (Math.random() - 0.5) * 8, y: py - 2, value: String(waveEnemyCollisionDmg), timer: 1.0, maxTimer: 1.0, color: effectiveSettingsRef.current?.damageNumbers?.playerHitColor ?? "#ff4444" });
-            // Thorns: damage enemy on contact
-            if (playerStats.hasThorns) {
-              e.hp = (e.hp ?? 1) - playerStats.thornsDamage;
-              spawnParticles(e.x + ew / 2, e.y + eh / 2, "#39ff14", 4);
-              if (e.hp <= 0) {
-                e.alive = false; e.dying = true; e.animState = "dying"; e.animAccum = 0;
-                s.score += Math.floor(10 * s.wave * (1 + s.comboCount * (effectiveSettingsRef.current?.comboMultiplierPerKill ?? 0.1)));
-                onScoreChange(s.score);
-              }
+      for (const e of s.enemies) {
+        if (!e.alive) continue;
+        // Check enemy body against player hitbox (polygon or rect)
+        const ecbx = e.x + ecbOffX;
+        const ecby = e.y + ecbOffY;
+        let bodyHit: boolean;
+        if (usePolygon && hbPoints) {
+          bodyHit = enemyRectIntersectsPolygon(ecbx, ecby, ecw, ech);
+        } else {
+          bodyHit = (
+            ecbx < px + pw &&
+            ecbx + ecw > px &&
+            ecby < py + ph &&
+            ecby + ech > py
+          );
+        }
+        if (bodyHit) {
+          if (isInvincible || s.permShieldActive || hasShield) break;
+          s.currentSlices = Math.max(0, s.currentSlices - waveEnemyCollisionDmg);
+          s.waveDamageTaken = true;
+          // Bloodlust: reset kill streak on damage taken
+          if (playerStats.hasBloodlust) s.bloodlustKillCount = 0;
+          s.lives = Math.ceil(s.currentSlices / s.slicesPerHeart);
+          onLivesChange(s.lives);
+          if (onHealthDetailChange) onHealthDetailChange(s.currentSlices, s.maxSlices, s.slicesPerHeart);
+          s.screenShake = 0.25;
+          spawnParticles(px + pw / 2, py + ph / 2, "#ff4444", 8);
+          play("playerHit");
+          s.damageNumbers.push({ x: px + pw / 2 + (Math.random() - 0.5) * 8, y: py - 2, value: String(waveEnemyCollisionDmg), timer: 1.0, maxTimer: 1.0, color: effectiveSettingsRef.current?.damageNumbers?.playerHitColor ?? "#ff4444" });
+          // Thorns: damage enemy on contact
+          if (playerStats.hasThorns) {
+            e.hp = (e.hp ?? 1) - playerStats.thornsDamage;
+            spawnParticles(e.x + ew / 2, e.y + eh / 2, "#39ff14", 4);
+            if (e.hp <= 0) {
+              e.alive = false; e.dying = true; e.animState = "dying"; e.animAccum = 0;
+              s.score += Math.floor(10 * s.wave * (1 + s.comboCount * (effectiveSettingsRef.current?.comboMultiplierPerKill ?? 0.1)));
+              onScoreChange(s.score);
             }
-            s.playerBodyHitTimer = 1.0; // 1-second invincibility window after collision
-            if (s.currentSlices <= 0) {
+          }
+          if (s.currentSlices <= 0) {
               if (playerStats.hasSecondWind && !s.secondWindUsed) {
                 s.secondWindUsed = true;
                 s.currentSlices = 1; s.lives = 1;
@@ -3127,7 +3117,6 @@ export function GameCanvas({
             break; // only one collision per frame
           }
         }
-      }
 
       // ── Wave complete? ──
       if (s.enemiesToSpawn === 0 && aliveEnemies.length === 0 && !s.boss) {
