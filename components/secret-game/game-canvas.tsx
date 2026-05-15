@@ -300,6 +300,7 @@ export function GameCanvas({
     activePowerUps: [] as ActivePowerUp[],
     enemySpeed: 18,
     enemyDropAccum: 0,
+    powerUpSpawnAccum: 0,
     enemyFireChance: 0.003,
     enemyProjectileSpeed: 60,
     enemyProjectileDamage: 1,
@@ -392,8 +393,7 @@ export function GameCanvas({
     // ── Perfect Wave Bonus ─────────────────────────────────────────────
     waveDamageTaken: false,
     waveKillScore: 0,
-    // ── Kill Streak Announcer ──────────────────────────────────────────
-    killStreakAnnounced: 0,
+    // ── Perfect wave announcer ─────────────────────────────────────────
     announcerText: null as { text: string; timer: number; maxTimer: number; color: string; scale: number } | null,
     // ── Second Wind / Phoenix tracking ─────────────────────────────────
     secondWindUsed: false,
@@ -579,6 +579,7 @@ export function GameCanvas({
     s.activePowerUps = [];
     s.boss = null;
     s.enemyDropAccum = 0;
+    s.powerUpSpawnAccum = 0;
     s.enemyProjectileSpeed = 60;
     s.enemyProjectileDamage = 1;
     s.enemyCollisionDamage = 1;
@@ -615,7 +616,6 @@ export function GameCanvas({
     s.comboTimer = 0;
     s.maxComboThisRun = 0;
     s.vampKillsSinceHeal = 0;
-    s.killStreakAnnounced = 0;
     s.announcerText = null;
     s.overchargeShots = 0;
     s.groupies = [];
@@ -1384,7 +1384,6 @@ export function GameCanvas({
         s.comboTimer -= dt;
         if (s.comboTimer <= 0) {
           s.comboCount = 0;
-          s.killStreakAnnounced = 0;
         }
       }
 
@@ -1846,6 +1845,28 @@ export function GameCanvas({
         }
       }
 
+      // ── Time-based power-up spawn ──
+      // Spawns a temp power-up periodically based on powerUpSpawnChance setting.
+      // This ensures power-ups keep appearing even when enemy kills are slow.
+      const spawnChance = effectiveSettingsRef.current?.powerUpSpawnChance ?? ROGUELIKE_CONFIG.baseEnemyDropChance;
+      s.powerUpSpawnAccum += dt;
+      const spawnInterval = Math.max(1, 8 - spawnChance * 40); // 0.15 chance ≈ 2s interval, 0.05 chance ≈ 6s interval
+      if (s.powerUpSpawnAccum >= spawnInterval) {
+        s.powerUpSpawnAccum = 0;
+        // Only spawn if there are enemies alive (no freebies during empty waves)
+        const aliveEnemies = s.enemies.filter((e) => e.alive);
+        if (aliveEnemies.length > 0 && s.powerups.length < 3) {
+          const puSize = effectiveSettingsRef.current?.powerUpSize ?? 8;
+          const types: PowerUpType[] = ["rapid", "shield", "wideshot", "extralife", "invincible", "timewarp", "doubleshot", "ricochet", "overcharge", "groupie"];
+          const type = types[Math.floor(Math.random() * types.length)];
+          s.powerups.push({
+            x: Math.random() * (s.playAreaW - puSize * 2) + puSize,
+            y: -puSize,
+            type,
+          });
+        }
+      }
+
       // ── Power-up drift ──
       const powerUpSize = effectiveSettingsRef.current?.powerUpSize ?? 8;
       for (let i = s.powerups.length - 1; i >= 0; i--) {
@@ -2296,22 +2317,6 @@ export function GameCanvas({
                 s.score += scoreGain;
                 s.waveKillScore += scoreGain;
                 onScoreChange(s.score);
-                // Kill Streak Announcer
-                const milestones = [
-                  { count: 2, text: "DOUBLE KILL!", color: "#00f0ff" },
-                  { count: 3, text: "TRIPLE KILL!", color: "#fcee0a" },
-                  { count: 5, text: "RAMPAGE!", color: "#ff8800" },
-                  { count: 8, text: "UNSTOPPABLE!", color: "#ff4400" },
-                  { count: 12, text: "GODLIKE!", color: "#ff006e" },
-                  { count: 15, text: "LEGENDARY!", color: "#cc44ff" },
-                ];
-                for (const m of milestones) {
-                  if (s.comboCount >= m.count && s.killStreakAnnounced < m.count) {
-                    s.killStreakAnnounced = m.count;
-                    s.announcerText = { text: m.text, timer: 1.5, maxTimer: 1.5, color: m.color, scale: 0.5 };
-                    break;
-                  }
-                }
                 // Vampirism
                 if (playerStats.hasVampirism) {
                   s.vampKillsSinceHeal++;
