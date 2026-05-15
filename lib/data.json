@@ -476,7 +476,11 @@
       "rapid": 6,
       "wideShot": 6,
       "projectile": 6,
-      "invincible": 6
+      "invincible": 6,
+      "timewarp": 5,
+      "doubleshot": 6,
+      "ricochet": 5,
+      "groupie": 8
     },
     "enemyBaseHp": 5,
     "enemyHpPerWave": 2,
@@ -495,7 +499,12 @@
       "projectile": 1,
       "extralife": 1,
       "invincible": 1,
-      "shield": 0
+      "shield": 0,
+      "timewarp": 1,
+      "doubleshot": 1,
+      "ricochet": 1,
+      "overcharge": 1,
+      "groupie": 1
     },
     "waveRewardEnabled": true,
     "enemyChoiceDropChance": 0.03,

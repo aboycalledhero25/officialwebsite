@@ -42,7 +42,7 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
   const [highScore, setHighScore] = useState(0);
   const [muted, setMuted] = useState(false);
   const [resetKey, setResetKey] = useState(0);
-  const [activePowerUps, setActivePowerUps] = useState<{ type: "rapid" | "shield" | "wideshot" | "extralife" | "invincible" | "projectile"; timer: number; stacks: number }[]>([]);
+  const [activePowerUps, setActivePowerUps] = useState<{ type: "rapid" | "shield" | "wideshot" | "extralife" | "invincible" | "projectile" | "timewarp" | "doubleshot" | "ricochet" | "overcharge" | "groupie"; timer: number; stacks: number }[]>([]);
   const [songUnlockNeedsTap, setSongUnlockNeedsTap] = useState(false);
 
   // ── Roguelike permanent power-up state ──────────────────────────────

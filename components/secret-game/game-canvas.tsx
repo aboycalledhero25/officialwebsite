@@ -61,7 +61,7 @@ const PLAYER_H_BASE = 20;
 /* ── Power-up constants ── */
 const POWERUP_DRIFT_SPEED = 20;
 
-type PowerUpType = "rapid" | "shield" | "wideshot" | "extralife" | "invincible" | "choice" | "projectile";
+type PowerUpType = "rapid" | "shield" | "wideshot" | "extralife" | "invincible" | "choice" | "projectile" | "timewarp" | "doubleshot" | "ricochet" | "overcharge" | "groupie";
 
 interface PowerUp {
   x: number;
@@ -238,6 +238,8 @@ export function GameCanvas({
       pierceRemaining?: number;
       // Track which enemies this bullet has already hit (pierce)
       alreadyHit?: Set<number>;
+      // Ricochet: how many enemy bounces remaining
+      ricochetRemaining?: number;
     }[],
     particles: [] as {
       x: number; y: number; vx: number; vy: number;
@@ -324,6 +326,24 @@ export function GameCanvas({
     maxComboThisRun: 0,
     // ── Vampirism ──────────────────────────────────────────────────────
     vampKillsSinceHeal: 0,
+    // ── Time Warp ──────────────────────────────────────────────────────
+    timeWarpTimer: 0,
+    // ── Overcharge ─────────────────────────────────────────────────────
+    overchargeShots: 0,
+    // ── Groupie pets ───────────────────────────────────────────────────
+    groupies: [] as {
+      x: number; y: number;
+      angle: number;
+      state: "orbit" | "hunt" | "return";
+      targetX: number; targetY: number;
+      shootCooldown: number;
+    }[],
+    // ── Perfect Wave Bonus ─────────────────────────────────────────────
+    waveDamageTaken: false,
+    waveKillScore: 0,
+    // ── Kill Streak Announcer ──────────────────────────────────────────
+    killStreakAnnounced: 0,
+    announcerText: null as { text: string; timer: number; maxTimer: number; color: string; scale: number } | null,
   });
 
   // Resize canvas to fill viewport
@@ -370,6 +390,8 @@ export function GameCanvas({
     s.enemies = [];
     s.bullets = []; // clear all projectiles on new wave
     s.boss = null;
+    s.waveDamageTaken = false;
+    s.waveKillScore = 0;
     const edgeMargin = 4;
     const { w: CW, h: CH } = dimsRef.current;
     const sc = CH / BASE_H;
@@ -533,6 +555,10 @@ export function GameCanvas({
     s.comboTimer = 0;
     s.maxComboThisRun = 0;
     s.vampKillsSinceHeal = 0;
+    s.killStreakAnnounced = 0;
+    s.announcerText = null;
+    s.overchargeShots = 0;
+    s.groupies = [];
     onScoreChange(0);
     onLivesChange(startH);
     onWaveChange(1);
@@ -1124,6 +1150,7 @@ export function GameCanvas({
         for (let i = s.activePowerUps.length - 1; i >= 0; i--) {
           const ap = s.activePowerUps[i];
           if (ap.type === "shield") continue; // shield has no timer
+          if (ap.type === "overcharge") continue; // overcharge uses shot count, not timer
           ap.timer -= dt;
           if (ap.timer <= 0) {
             s.activePowerUps.splice(i, 1);
@@ -1131,6 +1158,10 @@ export function GameCanvas({
         }
         if (onPowerUpChange) onPowerUpChange(s.activePowerUps);
       }
+
+      // ── Time Warp: apply slow effect ──
+      const timeWarp = s.activePowerUps.find((p) => p.type === "timewarp");
+      const timeWarpFactor = timeWarp ? 0.5 : 1.0;
 
       // ── Seeker Missile auto-fire ─────────────────────────────────────
       if (playerStats.hasSeekerMissile) {
@@ -1289,6 +1320,15 @@ export function GameCanvas({
         s.comboTimer -= dt;
         if (s.comboTimer <= 0) {
           s.comboCount = 0;
+          s.killStreakAnnounced = 0;
+        }
+      }
+
+      // ── Announcer text timer ──
+      if (s.announcerText) {
+        s.announcerText.timer -= dt;
+        if (s.announcerText.timer <= 0) {
+          s.announcerText = null;
         }
       }
 
@@ -1369,21 +1409,31 @@ export function GameCanvas({
         totalBullets = Math.min(totalBullets, 3);
         const speed = BULLET_SPEED_BASE;
 
-        const fireBulletNow = (angle: number) => {
+        const doubleShot = s.activePowerUps.find((p) => p.type === "doubleshot");
+        const doubleShotStacks = doubleShot?.stacks ?? 0;
+        const overchargeActive = s.overchargeShots > 0;
+
+        const fireBulletNow = (angle: number, offsetX = 0, offsetY = 0) => {
           const bounces = playerStats.hasBounce ? playerStats.bounceCount : 0;
           const pierce = playerStats.hasPierce ? playerStats.pierceCount : 0;
+          const isOvercharge = overchargeActive;
           s.bullets.push({
-            x: bpx,
-            y: bpy,
+            x: bpx + offsetX,
+            y: bpy + offsetY,
             vx: Math.cos(angle) * speed,
             vy: Math.sin(angle) * speed,
             angle,
             isPlayer: true,
-            isSuperBullet: playerStats.superBulletTier > 0,
-            superBulletTier: playerStats.superBulletTier,
+            isSuperBullet: playerStats.superBulletTier > 0 || isOvercharge,
+            superBulletTier: isOvercharge ? Math.max(playerStats.superBulletTier, 1) : playerStats.superBulletTier,
+            superBulletDamage: isOvercharge ? playerStats.damageMultiplier * 2 : undefined,
             bouncesRemaining: bounces,
-            pierceRemaining: pierce,
+            pierceRemaining: isOvercharge ? Math.max(pierce, 2) : pierce,
+            alreadyHit: isOvercharge ? new Set<number>() : undefined,
           });
+          if (isOvercharge) {
+            s.overchargeShots--;
+          }
         };
 
         // Each bullet targets a different threat (1st bullet → closest, 2nd → 2nd closest, etc.)
@@ -1402,7 +1452,20 @@ export function GameCanvas({
             const spreadOffset = -spread + (spread * 2 * i) / (totalBullets - 1);
             angle += spreadOffset;
           }
-          fireBulletNow(angle);
+          // Double Shot: fire parallel bullets (side by side, perpendicular to aim)
+          if (doubleShotStacks > 0) {
+            const parallelCount = Math.min(doubleShotStacks + 1, 3);
+            const perpX = Math.cos(angle + Math.PI / 2);
+            const perpY = Math.sin(angle + Math.PI / 2);
+            const spacing = 5;
+            const startOffset = -(parallelCount - 1) * spacing / 2;
+            for (let d = 0; d < parallelCount; d++) {
+              const offset = startOffset + d * spacing;
+              fireBulletNow(angle, perpX * offset, perpY * offset);
+            }
+          } else {
+            fireBulletNow(angle);
+          }
         }
         play("shoot");
 
@@ -1424,8 +1487,8 @@ export function GameCanvas({
         let vx = 0;
         let vy = 0;
         if (dist > 1) {
-          vx = (dx / dist) * s.enemySpeed;
-          vy = (dy / dist) * s.enemySpeed;
+          vx = (dx / dist) * s.enemySpeed * timeWarpFactor;
+          vy = (dy / dist) * s.enemySpeed * timeWarpFactor;
         }
         e.x += vx * dt;
         e.y += vy * dt;
@@ -1455,13 +1518,116 @@ export function GameCanvas({
         }
       }
 
+      // ── Groupie pet AI ──
+      const groupiePU = s.activePowerUps.find((p) => p.type === "groupie");
+      const groupieStacks = groupiePU?.stacks ?? 0;
+      const expectedGroupies = groupieStacks;
+      // Remove excess groupies if power-up expired
+      while (s.groupies.length > expectedGroupies) {
+        s.groupies.pop();
+      }
+      for (let gi = 0; gi < s.groupies.length; gi++) {
+        const g = s.groupies[gi];
+        const pcx = s.playerX + PLAYER_W_BASE / 2;
+        const pcy = s.playerY + PLAYER_H_BASE / 2;
+        g.shootCooldown -= dt;
+
+        // Find nearest target (enemy or enemy projectile)
+        let nearestDist = Infinity;
+        let nearestTarget = null as { x: number; y: number; type: "enemy" | "projectile"; idx: number } | null;
+
+        // Check enemies
+        for (let ei = 0; ei < s.enemies.length; ei++) {
+          const e = s.enemies[ei];
+          if (!e.alive) continue;
+          const ex = e.x + ew / 2;
+          const ey = e.y + eh / 2;
+          const gdx = ex - g.x;
+          const gdy = ey - g.y;
+          const gdist = Math.sqrt(gdx * gdx + gdy * gdy);
+          if (gdist < nearestDist && gdist < 80) {
+            nearestDist = gdist;
+            nearestTarget = { x: ex, y: ey, type: "enemy", idx: ei };
+          }
+        }
+        // Check enemy projectiles
+        for (let bi = 0; bi < s.bullets.length; bi++) {
+          const b = s.bullets[bi];
+          if (b.isPlayer) continue;
+          const gdx = b.x - g.x;
+          const gdy = b.y - g.y;
+          const gdist = Math.sqrt(gdx * gdx + gdy * gdy);
+          if (gdist < nearestDist && gdist < 80) {
+            nearestDist = gdist;
+            nearestTarget = { x: b.x, y: b.y, type: "projectile", idx: bi };
+          }
+        }
+
+        if (nearestTarget && g.state !== "hunt") {
+          g.state = "hunt";
+          g.targetX = nearestTarget.x;
+          g.targetY = nearestTarget.y;
+        }
+
+        if (g.state === "orbit") {
+          g.angle += 2 * dt;
+          const orbitRadius = 25;
+          g.x = pcx + Math.cos(g.angle + gi * 2.1) * orbitRadius;
+          g.y = pcy + Math.sin(g.angle + gi * 2.1) * orbitRadius;
+        } else if (g.state === "hunt") {
+          const hdx = g.targetX - g.x;
+          const hdy = g.targetY - g.y;
+          const hdist = Math.sqrt(hdx * hdx + hdy * hdy);
+          if (hdist > 1) {
+            g.x += (hdx / hdist) * 90 * dt;
+            g.y += (hdy / hdist) * 90 * dt;
+          }
+          // Shoot at target
+          if (g.shootCooldown <= 0 && hdist < 60) {
+            g.shootCooldown = 0.4;
+            const aimAngle = Math.atan2(hdy, hdx);
+            s.bullets.push({
+              x: g.x, y: g.y,
+              vx: Math.cos(aimAngle) * BULLET_SPEED_BASE * 0.8,
+              vy: Math.sin(aimAngle) * BULLET_SPEED_BASE * 0.8,
+              angle: aimAngle,
+              isPlayer: true,
+              isSuperBullet: false,
+              superBulletTier: 0,
+              bouncesRemaining: 0,
+              pierceRemaining: 0,
+            });
+          }
+          // Check if target is still valid
+          let targetStillValid = false;
+          if (nearestTarget) {
+            const tdx = nearestTarget.x - g.x;
+            const tdy = nearestTarget.y - g.y;
+            if (Math.sqrt(tdx * tdx + tdy * tdy) < 100) targetStillValid = true;
+          }
+          if (!targetStillValid) {
+            g.state = "return";
+          }
+        } else if (g.state === "return") {
+          const rdx = pcx - g.x;
+          const rdy = pcy - g.y;
+          const rdist = Math.sqrt(rdx * rdx + rdy * rdy);
+          if (rdist > 5) {
+            g.x += (rdx / rdist) * 90 * dt;
+            g.y += (rdy / rdist) * 90 * dt;
+          } else {
+            g.state = "orbit";
+          }
+        }
+      }
+
       // ── Enemy shooting (rate-limited: 1 shot per second per enemy) ──
       const aliveEnemies = s.enemies.filter((e) => e.alive);
       const cfg = settingsRef.current.enemy;
       const waveEnemyProjSpeed = s.enemyProjectileSpeed;
       aliveEnemies.forEach((e) => {
-        e.cooldown -= dt;
-        if (e.cooldown <= 0 && Math.random() < s.enemyFireChance) {
+        e.cooldown -= dt * timeWarpFactor;
+        if (e.cooldown <= 0 && Math.random() < s.enemyFireChance * timeWarpFactor) {
           const bx = e.x + ew / 2;
           const by = e.y + eh;
           const ex = s.playerX + PLAYER_W_BASE / 2;
@@ -1469,7 +1635,7 @@ export function GameCanvas({
           const bdx = ex - bx;
           const bdy = ey - by;
           const bdist = Math.sqrt(bdx * bdx + bdy * bdy);
-          const pspeed = waveEnemyProjSpeed;
+          const pspeed = waveEnemyProjSpeed * timeWarpFactor;
           const bvx = bdist > 1 ? (bdx / bdist) * pspeed : 0;
           const bvy = bdist > 1 ? (bdy / bdist) * pspeed : pspeed;
           s.bullets.push({
@@ -1499,11 +1665,11 @@ export function GameCanvas({
 
         const enrageMult = phase === 4 ? 1.5 : 1.0;
         const fireRateMult = phase === 4 ? 0.7 : 1.0;
-        const bossSpeed = s.boss.trackSpeed * enrageMult;
+        const bossSpeed = s.boss.trackSpeed * enrageMult * timeWarpFactor;
 
         // Charge dash (Phase 3)
         if (phase >= 3 && !s.boss.isCharging) {
-          s.boss.chargeCooldown = (s.boss.chargeCooldown ?? 0) - dt;
+          s.boss.chargeCooldown = (s.boss.chargeCooldown ?? 0) - dt * timeWarpFactor;
           if ((s.boss.chargeCooldown ?? 0) <= 0) {
             s.boss.isCharging = true;
             s.boss.chargeTimer = 0.8;
@@ -1514,7 +1680,7 @@ export function GameCanvas({
         }
 
         if (s.boss.isCharging) {
-          s.boss.chargeTimer -= dt;
+          s.boss.chargeTimer -= dt * timeWarpFactor;
           const cdx = s.boss.chargeTargetX - (s.boss.x + bw / 2);
           const cdy = s.boss.chargeTargetY - (s.boss.y + bh / 2);
           const cdist = Math.sqrt(cdx * cdx + cdy * cdy);
@@ -1542,7 +1708,7 @@ export function GameCanvas({
         s.boss.y = Math.max(4, Math.min(BASE_H - 4 - bh, s.boss.y));
 
         // Fire projectiles at player every N seconds
-        s.boss.fireCooldown -= dt;
+        s.boss.fireCooldown -= dt * timeWarpFactor;
         if (s.boss.fireCooldown <= 0 && !s.boss.isCharging) {
           const bx = s.boss.x + bw / 2;
           const by = s.boss.y + bh;
@@ -1551,7 +1717,7 @@ export function GameCanvas({
           const bdx3 = px2 - bx;
           const bdy3 = py2 - by;
           const bdist3 = Math.sqrt(bdx3 * bdx3 + bdy3 * bdy3);
-          const pspeed = s.boss.projectileSpeed * (phase === 4 ? 1.2 : 1.0);
+          const pspeed = s.boss.projectileSpeed * (phase === 4 ? 1.2 : 1.0) * timeWarpFactor;
           const baseAngle = Math.atan2(bdist3 > 1 ? (bdy3 / bdist3) * pspeed : pspeed, bdist3 > 1 ? (bdx3 / bdist3) * pspeed : 0);
 
           if (phase === 2) {
@@ -1667,9 +1833,14 @@ export function GameCanvas({
               pu.type === "rapid" ? (durations?.rapid ?? 5) :
               pu.type === "invincible" ? (durations?.invincible ?? 4) :
               pu.type === "projectile" ? (durations?.projectile ?? 4) :
+              pu.type === "timewarp" ? (durations?.timewarp ?? 5) :
+              pu.type === "doubleshot" ? (durations?.doubleshot ?? 6) :
+              pu.type === "ricochet" ? (durations?.ricochet ?? 5) :
+              pu.type === "overcharge" ? (durations?.overcharge ?? 0) :
+              pu.type === "groupie" ? (durations?.groupie ?? 8) :
               (durations?.wideShot ?? 4);
             const existing = s.activePowerUps.find((p) => p.type === pu.type);
-            const noStackTypes: PowerUpType[] = ["shield", "invincible", "projectile"];
+            const noStackTypes: PowerUpType[] = ["shield", "invincible", "projectile", "timewarp", "overcharge"];
             const maxStack = 5;
 
             if (existing) {
@@ -1692,6 +1863,24 @@ export function GameCanvas({
             // Projectile temp: recalculate bonus to fill up to cap of 3
             if (pu.type === "projectile" && existing) {
               existing.stacks = Math.max(0, 3 - playerStats.projectileCount);
+            }
+            // Overcharge: add shots (no timer, uses shot count)
+            if (pu.type === "overcharge") {
+              s.overchargeShots += 5;
+            }
+            // Groupie: spawn a new groupie pet
+            if (pu.type === "groupie") {
+              const groupieCount = s.activePowerUps.filter((p) => p.type === "groupie").reduce((sum, p) => sum + p.stacks, 0);
+              while (s.groupies.length < groupieCount) {
+                s.groupies.push({
+                  x: s.playerX + PLAYER_W_BASE / 2,
+                  y: s.playerY + PLAYER_H_BASE / 2,
+                  angle: Math.random() * Math.PI * 2,
+                  state: "orbit",
+                  targetX: 0, targetY: 0,
+                  shootCooldown: 0,
+                });
+              }
             }
             if (onPowerUpChange) onPowerUpChange(s.activePowerUps);
           }
@@ -1767,8 +1956,9 @@ export function GameCanvas({
             }
           }
         }
-        b.x += (b.vx || 0) * dt;
-        b.y += b.vy * dt;
+        const bulletTimeFactor = b.isPlayer ? 1.0 : timeWarpFactor;
+        b.x += (b.vx || 0) * dt * bulletTimeFactor;
+        b.y += b.vy * dt * bulletTimeFactor;
         // Bounce off screen edges
         if (b.isPlayer && playerStats.hasBounce && (b.bouncesRemaining ?? 0) > 0) {
           let bounced = false;
@@ -1817,6 +2007,11 @@ export function GameCanvas({
         { type: "projectile", weight: dropRates?.projectile ?? 1 },
         { type: "extralife",  weight: dropRates?.extralife  ?? 1 },
         { type: "invincible", weight: dropRates?.invincible ?? 1 },
+        { type: "timewarp",   weight: dropRates?.timewarp   ?? 1 },
+        { type: "doubleshot", weight: dropRates?.doubleshot ?? 1 },
+        { type: "ricochet",   weight: dropRates?.ricochet   ?? 1 },
+        { type: "overcharge", weight: dropRates?.overcharge ?? 1 },
+        { type: "groupie",    weight: dropRates?.groupie    ?? 1 },
       ];
       const filteredDropRateEntries = dropRateEntries.filter((e) => {
         if (e.type === "projectile" && playerStats.projectileCount >= 3) return false;
@@ -1917,11 +2112,51 @@ export function GameCanvas({
               e.hp = (e.hp ?? 1) - bulletDmg;
               s.totalDamageDealt += bulletDmg;
 
+              // Ricochet: redirect to nearest unhit enemy
+              const ricochet = s.activePowerUps.find((p) => p.type === "ricochet");
+              const ricochetBounces = ricochet ? ricochet.stacks : 0;
+              const canRicochet = ricochetBounces > 0 && (b.ricochetRemaining ?? 0) > 0;
+
               // Pierce handling
               if (playerStats.hasPierce && (b.pierceRemaining ?? 0) > 0) {
                 b.pierceRemaining = (b.pierceRemaining ?? 0) - 1;
                 if (!b.alreadyHit) b.alreadyHit = new Set();
                 b.alreadyHit.add(ei);
+              } else if (canRicochet) {
+                // Ricochet to nearest unhit enemy
+                b.ricochetRemaining = (b.ricochetRemaining ?? ricochetBounces) - 1;
+                if (!b.alreadyHit) b.alreadyHit = new Set();
+                b.alreadyHit.add(ei);
+                let nearestDist = Infinity;
+                let nearestEnemy = null as typeof e | null;
+                let nearestIdx = -1;
+                for (let ni = 0; ni < s.enemies.length; ni++) {
+                  const ne = s.enemies[ni];
+                  if (!ne.alive || ne === e) continue;
+                  if (b.alreadyHit && b.alreadyHit.has(ni)) continue;
+                  const ndx = ne.x + ew / 2 - b.x;
+                  const ndy = ne.y + eh / 2 - b.y;
+                  const ndist = Math.sqrt(ndx * ndx + ndy * ndy);
+                  if (ndist < nearestDist && ndist < 100) {
+                    nearestDist = ndist;
+                    nearestEnemy = ne;
+                    nearestIdx = ni;
+                  }
+                }
+                if (nearestEnemy) {
+                  const rdx = nearestEnemy.x + ew / 2 - b.x;
+                  const rdy = nearestEnemy.y + eh / 2 - b.y;
+                  const rdist = Math.sqrt(rdx * rdx + rdy * rdy);
+                  if (rdist > 1) {
+                    b.vx = (rdx / rdist) * BULLET_SPEED_BASE;
+                    b.vy = (rdy / rdist) * BULLET_SPEED_BASE;
+                    b.angle = Math.atan2(b.vy, b.vx);
+                  }
+                  if (nearestIdx >= 0) b.alreadyHit!.add(nearestIdx);
+                  spawnParticles(b.x, b.y, "#fcee0a", 3);
+                } else {
+                  s.bullets.splice(bi, 1);
+                }
               } else {
                 s.bullets.splice(bi, 1);
               }
@@ -1939,7 +2174,24 @@ export function GameCanvas({
                 if (s.comboCount > s.maxComboThisRun) s.maxComboThisRun = s.comboCount;
                 const scoreGain = Math.floor(10 * s.wave * (1 + s.comboCount * comboMult));
                 s.score += scoreGain;
+                s.waveKillScore += scoreGain;
                 onScoreChange(s.score);
+                // Kill Streak Announcer
+                const milestones = [
+                  { count: 2, text: "DOUBLE KILL!", color: "#00f0ff" },
+                  { count: 3, text: "TRIPLE KILL!", color: "#fcee0a" },
+                  { count: 5, text: "RAMPAGE!", color: "#ff8800" },
+                  { count: 8, text: "UNSTOPPABLE!", color: "#ff4400" },
+                  { count: 12, text: "GODLIKE!", color: "#ff006e" },
+                  { count: 15, text: "LEGENDARY!", color: "#cc44ff" },
+                ];
+                for (const m of milestones) {
+                  if (s.comboCount >= m.count && s.killStreakAnnounced < m.count) {
+                    s.killStreakAnnounced = m.count;
+                    s.announcerText = { text: m.text, timer: 1.5, maxTimer: 1.5, color: m.color, scale: 0.5 };
+                    break;
+                  }
+                }
                 // Vampirism
                 if (playerStats.hasVampirism) {
                   s.vampKillsSinceHeal++;
@@ -1973,6 +2225,7 @@ export function GameCanvas({
                   const pdy = s.playerY + PLAYER_H_BASE / 2 - impactY;
                   if (Math.sqrt(pdx * pdx + pdy * pdy) < aoeRadius && s.playerBodyHitTimer <= 0 && !isInvincible && !hasShield && !s.permShieldActive) {
                     s.currentSlices = Math.max(0, s.currentSlices - 1);
+                    s.waveDamageTaken = true;
                     s.lives = Math.ceil(s.currentSlices / s.slicesPerHeart);
                     onLivesChange(s.lives);
                     if (onHealthDetailChange) onHealthDetailChange(s.currentSlices, s.maxSlices, s.slicesPerHeart);
@@ -2072,7 +2325,7 @@ export function GameCanvas({
             if (eb.isBoss) {
               const spawnChance = siteData.secretGame?.bossProjectileDropRate ?? 0.15;
               if (Math.random() < spawnChance) {
-                const types: PowerUpType[] = ["rapid", "wideshot", "projectile", "extralife", "invincible"];
+                const types: PowerUpType[] = ["rapid", "wideshot", "projectile", "extralife", "invincible", "timewarp", "doubleshot", "ricochet", "overcharge", "groupie"];
                 const type = types[Math.floor(Math.random() * types.length)];
                 const pSize = siteData.secretGame?.powerUpSize ?? 8;
                 s.powerups.push({
@@ -2222,6 +2475,7 @@ export function GameCanvas({
           // Heart slicing: remove slices based on per-wave enemy bullet damage
           const bulletDmg = b.isBoss ? (s.boss?.projectileDamage ?? waveEnemyBulletDmg) : waveEnemyBulletDmg;
           s.currentSlices = Math.max(0, s.currentSlices - bulletDmg);
+          s.waveDamageTaken = true;
           s.lives = Math.ceil(s.currentSlices / s.slicesPerHeart);
           onLivesChange(s.lives);
           if (onHealthDetailChange) onHealthDetailChange(s.currentSlices, s.maxSlices, s.slicesPerHeart);
@@ -2269,6 +2523,7 @@ export function GameCanvas({
           if (!isInvincible && !s.permShieldActive && !hasShield) {
             const touchDmg = s.boss.collisionDamage;
             s.currentSlices = Math.max(0, s.currentSlices - touchDmg);
+            s.waveDamageTaken = true;
             s.lives = Math.ceil(s.currentSlices / s.slicesPerHeart);
             onLivesChange(s.lives);
             if (onHealthDetailChange) onHealthDetailChange(s.currentSlices, s.maxSlices, s.slicesPerHeart);
@@ -2309,6 +2564,7 @@ export function GameCanvas({
           if (bodyHit) {
             if (isInvincible || s.permShieldActive || hasShield) break;
             s.currentSlices = Math.max(0, s.currentSlices - waveEnemyCollisionDmg);
+            s.waveDamageTaken = true;
             s.lives = Math.ceil(s.currentSlices / s.slicesPerHeart);
             onLivesChange(s.lives);
             if (onHealthDetailChange) onHealthDetailChange(s.currentSlices, s.maxSlices, s.slicesPerHeart);
@@ -2336,6 +2592,13 @@ export function GameCanvas({
 
       // ── Wave complete? ──
       if (s.enemiesToSpawn === 0 && aliveEnemies.length === 0 && !s.boss) {
+        // Perfect Wave Bonus: no damage taken this wave = +50% score
+        if (!s.waveDamageTaken && s.waveKillScore > 0) {
+          const bonus = Math.floor(s.waveKillScore * 0.5);
+          s.score += bonus;
+          onScoreChange(s.score);
+          s.announcerText = { text: `PERFECT! +${bonus}`, timer: 2.0, maxTimer: 2.0, color: "#ffd700", scale: 1 };
+        }
         play("levelComplete");
         if (s.wave === 100) {
           onPhaseChange("songunlock");
@@ -2457,6 +2720,16 @@ export function GameCanvas({
       const shakeX = (Math.random() - 0.5) * 4;
       const shakeY = (Math.random() - 0.5) * 4;
       ctx.translate(shakeX, shakeY);
+    }
+
+    // Time Warp: blue tint overlay when active
+    const timeWarpActive = s.activePowerUps.some((p) => p.type === "timewarp");
+    if (timeWarpActive) {
+      ctx.save();
+      ctx.globalCompositeOperation = "source-over";
+      ctx.fillStyle = "rgba(0, 100, 255, 0.08)";
+      ctx.fillRect(0, 0, logW, logH);
+      ctx.restore();
     }
 
     // Draw power-ups
@@ -2828,6 +3101,44 @@ export function GameCanvas({
         ctx.fillText(dn.value, dn.x, dn.y);
         ctx.restore();
       }
+    }
+
+    // Draw groupie pets
+    for (const g of s.groupies) {
+      ctx.save();
+      ctx.shadowColor = "#ff69b4";
+      ctx.shadowBlur = 6;
+      ctx.fillStyle = "#ff69b4";
+      // Small heart shape
+      const gx = g.x;
+      const gy = g.y;
+      const gs = 2.5;
+      ctx.fillRect(gx - gs, gy - gs * 1.5, gs * 2, gs * 1.5);
+      ctx.fillRect(gx - gs * 1.5, gy - gs * 0.5, gs, gs);
+      ctx.fillRect(gx + gs * 0.5, gy - gs * 0.5, gs, gs);
+      ctx.fillRect(gx - gs * 0.5, gy + gs * 0.5, gs, gs);
+      // White highlight
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(gx - gs * 0.5, gy - gs, gs * 0.5, gs * 0.5);
+      ctx.restore();
+    }
+
+    // Draw announcer text (kill streak, perfect wave)
+    if (s.announcerText) {
+      const at = s.announcerText;
+      const progress = 1 - at.timer / at.maxTimer;
+      const bounceScale = at.scale + (1 - at.scale) * Math.sin(progress * Math.PI);
+      const alpha = Math.min(1, at.timer / 0.3);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = at.color;
+      ctx.shadowColor = at.color;
+      ctx.shadowBlur = 12;
+      ctx.font = `bold ${Math.floor(14 * bounceScale)}px monospace`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(at.text, logW / 2, logH * 0.25);
+      ctx.restore();
     }
 
     // Draw combo counter

@@ -7,7 +7,7 @@ const BASE_H = 320;
 const BASE_W = 240;
 
 interface ActivePowerUp {
-  type: "rapid" | "shield" | "wideshot" | "extralife" | "invincible" | "projectile";
+  type: "rapid" | "shield" | "wideshot" | "extralife" | "invincible" | "projectile" | "timewarp" | "doubleshot" | "ricochet" | "overcharge" | "groupie";
   timer: number;
   stacks?: number;
 }
@@ -73,6 +73,11 @@ function PowerUpLabel({ type, size, stacks }: { type: ActivePowerUp["type"]; siz
     projectile: { text: "PROJ", color: "#ff6600" },
     extralife: { text: "LIFE", color: "#ff006e" },
     invincible: { text: "STAR", color: "#ffd700" },
+    timewarp: { text: "SLOW", color: "#00b4d8" },
+    doubleshot: { text: "DBL", color: "#ff8800" },
+    ricochet: { text: "ZAP", color: "#fcee0a" },
+    overcharge: { text: "POW", color: "#ff2222" },
+    groupie: { text: "PET", color: "#ff69b4" },
   };
   const l = labels[type];
   const suffix = stacks && stacks > 1 ? `x${stacks}` : "";
@@ -182,6 +187,11 @@ export function GameHUD({ score, lives, wave, muted, activePowerUps, onPause, on
     projectile: settingsDurations?.projectile ?? 4,
     extralife: 0,
     invincible: settingsDurations?.invincible ?? 4,
+    timewarp: settingsDurations?.timewarp ?? 5,
+    doubleshot: settingsDurations?.doubleshot ?? 6,
+    ricochet: settingsDurations?.ricochet ?? 5,
+    overcharge: 0,
+    groupie: settingsDurations?.groupie ?? 8,
   };
 
   return (
@@ -243,7 +253,7 @@ export function GameHUD({ score, lives, wave, muted, activePowerUps, onPause, on
           {activePowerUps.map((pu, i) => (
             <div key={`${pu.type}-${i}`} className="flex items-center gap-1">
               <PowerUpLabel type={pu.type} size={powerUpsSizePx} stacks={pu.stacks} />
-              {pu.type !== "extralife" && pu.type !== "shield" && (
+              {pu.type !== "extralife" && pu.type !== "shield" && pu.type !== "overcharge" && (
                 <div
                   className="flex gap-px"
                   style={{ height: Math.max(4, powerUpsSizePx * 0.6) }}

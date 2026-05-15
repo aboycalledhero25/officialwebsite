@@ -335,6 +335,11 @@ export interface GamePowerUpDropRates {
   projectile: number;
   extralife: number;
   invincible: number;
+  timewarp?: number;
+  doubleshot?: number;
+  ricochet?: number;
+  overcharge?: number;
+  groupie?: number;
 }
 
 export interface SecretGameSettings {
@@ -350,6 +355,11 @@ export interface SecretGameSettings {
     wideShot: number;
     projectile: number;
     invincible: number;
+    timewarp?: number;
+    doubleshot?: number;
+    ricochet?: number;
+    overcharge?: number;
+    groupie?: number;
   };
   /** Base enemy HP at wave 1 (default 1 = one-hit kill) */
   enemyBaseHp: number;

@@ -763,7 +763,7 @@ export function drawPowerUp(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
-  type: "rapid" | "shield" | "wideshot" | "extralife" | "invincible" | "choice" | "projectile",
+  type: "rapid" | "shield" | "wideshot" | "extralife" | "invincible" | "choice" | "projectile" | "timewarp" | "doubleshot" | "ricochet" | "overcharge" | "groupie",
   frame: number,
   size = 8
 ) {
@@ -783,6 +783,11 @@ export function drawPowerUp(
     extralife:{ core: "#ff006e", glow: "rgba(255, 0, 110,", bright: "#ff88bb" },
     invincible:{ core: "#ffd700", glow: "rgba(255, 215, 0,", bright: "#ffffff" },
     choice:   { core: "#00CED1", glow: "rgba(0, 206, 209,", bright: "#80FFFF" },
+    timewarp: { core: "#00b4d8", glow: "rgba(0, 180, 216,", bright: "#80e5ff" },
+    doubleshot:{ core: "#ff8800", glow: "rgba(255, 136, 0,", bright: "#ffcc66" },
+    ricochet: { core: "#fcee0a", glow: "rgba(252, 238, 10,", bright: "#ffffff" },
+    overcharge:{ core: "#ff2222", glow: "rgba(255, 34, 34,", bright: "#ffaaaa" },
+    groupie:  { core: "#ff69b4", glow: "rgba(255, 105, 180,", bright: "#ffcce5" },
   };
   const c = colors[type];
 
@@ -929,6 +934,71 @@ export function drawPowerUp(
       ctx.fillStyle = sparkOn ? "#ffffff" : c.core;
       ctx.fillRect(cx - 4 * s, cy - 3 * s, 1 * s, 1 * s); // left spark
       ctx.fillRect(cx + 3 * s, cy - 3 * s, 1 * s, 1 * s); // right spark
+      break;
+    }
+    case "timewarp": {
+      // Clock icon (cyan)
+      ctx.fillStyle = c.core;
+      ctx.fillRect(cx - 3 * s, cy - 3 * s, 6 * s, 6 * s);
+      ctx.fillRect(cx - 2 * s, cy - 4 * s, 4 * s, 1 * s);
+      ctx.fillRect(cx - 2 * s, cy + 3 * s, 4 * s, 1 * s);
+      ctx.fillRect(cx - 4 * s, cy - 2 * s, 1 * s, 4 * s);
+      ctx.fillRect(cx + 3 * s, cy - 2 * s, 1 * s, 4 * s);
+      // Clock hands
+      ctx.fillStyle = c.bright;
+      ctx.fillRect(cx - 0.5 * s, cy - 2 * s, 1 * s, 2 * s);
+      ctx.fillRect(cx - 0.5 * s, cy, 1.5 * s, 1 * s);
+      break;
+    }
+    case "doubleshot": {
+      // Two parallel bullets (orange)
+      ctx.fillStyle = c.core;
+      ctx.fillRect(cx - 2.5 * s, cy - 3 * s, 1.5 * s, 5 * s);
+      ctx.fillRect(cx + 1 * s, cy - 3 * s, 1.5 * s, 5 * s);
+      ctx.fillStyle = c.bright;
+      if (frame % 5 < 2) {
+        ctx.fillRect(cx - 2.5 * s, cy - 3 * s, 1 * s, 1 * s);
+        ctx.fillRect(cx + 1 * s, cy - 3 * s, 1 * s, 1 * s);
+      }
+      break;
+    }
+    case "ricochet": {
+      // Lightning bounce (yellow)
+      ctx.fillStyle = c.core;
+      ctx.fillRect(cx - 1 * s, cy - 3 * s, 2 * s, 2 * s);
+      ctx.fillRect(cx - 2 * s, cy - 1 * s, 3 * s, 1 * s);
+      ctx.fillRect(cx - 1 * s, cy, 2 * s, 1 * s);
+      ctx.fillRect(cx, cy + 1 * s, 2 * s, 2 * s);
+      ctx.fillStyle = c.bright;
+      if (frame % 4 < 2) {
+        ctx.fillRect(cx - 1 * s, cy - 2 * s, 1 * s, 1 * s);
+        ctx.fillRect(cx, cy + 1 * s, 1 * s, 1 * s);
+      }
+      break;
+    }
+    case "overcharge": {
+      // Power bolt (red/gold)
+      ctx.fillStyle = c.core;
+      ctx.fillRect(cx - 1 * s, cy - 3 * s, 2 * s, 2 * s);
+      ctx.fillRect(cx - 2 * s, cy - 1 * s, 4 * s, 2 * s);
+      ctx.fillRect(cx - 1 * s, cy + 1 * s, 2 * s, 2 * s);
+      ctx.fillStyle = c.bright;
+      if (frame % 3 < 1) {
+        ctx.fillRect(cx - 0.5 * s, cy - 2 * s, 1 * s, 1 * s);
+        ctx.fillRect(cx - 1 * s, cy, 2 * s, 1 * s);
+      }
+      break;
+    }
+    case "groupie": {
+      // Small heart (pink)
+      ctx.fillStyle = c.core;
+      ctx.fillRect(cx - 1 * s, cy - 2 * s, 2 * s, 2 * s);
+      ctx.fillRect(cx - 2 * s, cy - 1 * s, 4 * s, 2 * s);
+      ctx.fillRect(cx - 1 * s, cy + 1 * s, 2 * s, 1 * s);
+      ctx.fillStyle = c.bright;
+      if (frame % 6 < 3) {
+        ctx.fillRect(cx - 1 * s, cy - 1 * s, 1 * s, 1 * s);
+      }
       break;
     }
   }
