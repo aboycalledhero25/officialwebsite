@@ -1069,6 +1069,10 @@ export default function SecretGameAdminPage() {
               { id: "bounce", label: "Bounce" },
               { id: "magnet", label: "Magnet" },
               { id: "pierce", label: "Pierce" },
+              { id: "blackHole", label: "Black Hole" },
+              { id: "cryo", label: "Cryo Rounds" },
+              { id: "pyromaniac", label: "Pyromaniac" },
+              { id: "takeMeHome", label: "Take Me Home" },
             ].map(({ id, label }) => {
               const disabled = settings.disabledPowerUps ?? [];
               const isEnabled = !disabled.includes(id);

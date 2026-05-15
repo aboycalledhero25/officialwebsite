@@ -44,6 +44,10 @@ export type RoguelikeConfigOverride = Partial<{
   explosive: Partial<RoguelikeConfig['explosive']>;
   phoenix: Partial<RoguelikeConfig['phoenix']>;
   chainReact: Partial<RoguelikeConfig['chainReact']>;
+  blackHole: Partial<RoguelikeConfig['blackHole']>;
+  cryo: Partial<RoguelikeConfig['cryo']>;
+  pyromaniac: Partial<RoguelikeConfig['pyromaniac']>;
+  takeMeHome: Partial<RoguelikeConfig['takeMeHome']>;
   sprites: Partial<RoguelikeConfig['sprites']>;
 }>;
 
@@ -86,6 +90,10 @@ function mergeConfig(override?: RoguelikeConfigOverride): RoguelikeConfig {
     explosive:   { ...ROGUELIKE_CONFIG.explosive,   ...(override.explosive   ?? {}) },
     phoenix:     { ...ROGUELIKE_CONFIG.phoenix,     ...(override.phoenix     ?? {}) },
     chainReact:  { ...ROGUELIKE_CONFIG.chainReact,  ...(override.chainReact  ?? {}) },
+    blackHole:   { ...ROGUELIKE_CONFIG.blackHole,   ...(override.blackHole   ?? {}) },
+    cryo:        { ...ROGUELIKE_CONFIG.cryo,        ...(override.cryo        ?? {}) },
+    pyromaniac:  { ...ROGUELIKE_CONFIG.pyromaniac,  ...(override.pyromaniac  ?? {}) },
+    takeMeHome:  { ...ROGUELIKE_CONFIG.takeMeHome,  ...(override.takeMeHome  ?? {}) },
     sprites:     { ...ROGUELIKE_CONFIG.sprites,     ...(override.sprites     ?? {}) },
   };
 }
@@ -216,6 +224,27 @@ export interface PlayerStats {
   chainReactChance: number;
   chainReactDamage: number;
   chainReactRange: number;
+
+  // ─── Black Hole ────────────────────────────────────────────────────────
+  hasBlackHole: boolean;
+  blackHoleCooldown: number;
+  blackHolePullRadius: number;
+  blackHoleDamage: number;
+
+  // ─── Cryo Rounds ───────────────────────────────────────────────────────
+  hasCryo: boolean;
+  cryoSlowDuration: number;
+
+  // ─── Pyromaniac ────────────────────────────────────────────────────────
+  hasPyromaniac: boolean;
+  pyromaniacBurnChance: number;
+  pyromaniacBurnDamagePerTick: number;
+  pyromaniacBurnDuration: number;
+  pyromaniacTickInterval: number;
+
+  // ─── Take Me Home (Homing Bullets) ─────────────────────────────────────
+  hasTakeMeHome: boolean;
+  takeMeHomeHomingStrength: number;
 }
 
 /**
@@ -395,5 +424,22 @@ export function computePlayerStats(chosen: PermPowerUpState, override?: Roguelik
     chainReactChance: Math.min(1, get("chainReact") * cfg.chainReact.chancePerStack),
     chainReactDamage: cfg.chainReact.arcDamage,
     chainReactRange:  cfg.chainReact.arcRange,
+
+    hasBlackHole:    get("blackHole") > 0,
+    blackHoleCooldown: cfg.blackHole.cooldown,
+    blackHolePullRadius: cfg.blackHole.pullRadius,
+    blackHoleDamage: cfg.blackHole.damage,
+
+    hasCryo:         get("cryo") > 0,
+    cryoSlowDuration: get("cryo") * cfg.cryo.slowDurationPerStack,
+
+    hasPyromaniac:   get("pyromaniac") > 0,
+    pyromaniacBurnChance: Math.min(1, get("pyromaniac") * cfg.pyromaniac.burnChancePerStack),
+    pyromaniacBurnDamagePerTick: cfg.pyromaniac.burnDamagePerTick,
+    pyromaniacBurnDuration: cfg.pyromaniac.burnDuration,
+    pyromaniacTickInterval: cfg.pyromaniac.tickInterval,
+
+    hasTakeMeHome:   get("takeMeHome") > 0,
+    takeMeHomeHomingStrength: Math.min(1, get("takeMeHome") * cfg.takeMeHome.homingStrengthPerStack),
   };
 }

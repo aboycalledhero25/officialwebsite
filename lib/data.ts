@@ -399,6 +399,7 @@ export interface GamePowerUpDropRates {
   ricochet?: number;
   overcharge?: number;
   groupie?: number;
+  cryo?: number;
 }
 
 export interface SecretGameSettings {
@@ -419,6 +420,7 @@ export interface SecretGameSettings {
     ricochet?: number;
     overcharge?: number;
     groupie?: number;
+    cryo?: number;
   };
   /** Base enemy HP at wave 1 (default 1 = one-hit kill) */
   enemyBaseHp: number;
@@ -540,6 +542,10 @@ export interface SecretGameSettings {
       underwearRows?: number;
       underwearCols?: number;
     };
+    blackHole?: { cooldown?: number; pullRadius?: number; damage?: number };
+    cryo?: { slowDurationPerStack?: number; maxStacks?: number };
+    pyromaniac?: { burnChancePerStack?: number; burnDamagePerTick?: number; burnDuration?: number; tickInterval?: number; maxStacks?: number };
+    takeMeHome?: { homingStrengthPerStack?: number; maxStacks?: number };
   };
   /**
    * Per-wave enemy overrides. Specify custom projectile speed, projectile damage (enemy-to-player),

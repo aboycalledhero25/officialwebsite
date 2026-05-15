@@ -452,6 +452,63 @@ export const POWER_UP_REGISTRY: PowerUpDefinition[] = [
       return `Arc Chance: ${Math.min(100, n * ROGUELIKE_CONFIG.chainReact.chancePerStack * 100).toFixed(0)}%`;
     },
   },
+  {
+    id: "blackHole",
+    name: "Black Hole",
+    description: "Every 45s, a singularity pulls all enemies toward the centre and damages them.",
+    icon: "/powerups/icons/black_hole.png",
+    canStack: false, maxStacks: 1, removeFromPoolAfterMaxed: true,
+    getCurrentStat: (c) => (c["blackHole"] ?? 0) > 0 ? "Black Hole: Ready" : "Black Hole: —",
+    getNextStat:    () => "Black Hole: Ready",
+  },
+  {
+    id: "cryo",
+    name: "Cryo Rounds",
+    description: "Enemy bullets move slower. Each stack increases the slow duration.",
+    icon: "/powerups/icons/cryo.png",
+    canStack: true, maxStacks: ROGUELIKE_CONFIG.cryo.maxStacks, removeFromPoolAfterMaxed: true,
+    getCurrentStat: (c) => {
+      const n = c["cryo"] ?? 0;
+      if (n === 0) return "Slow: —";
+      return `Slow Duration: ${n * ROGUELIKE_CONFIG.cryo.slowDurationPerStack}s`;
+    },
+    getNextStat: (c) => {
+      const n = (c["cryo"] ?? 0) + 1;
+      return `Slow Duration: ${n * ROGUELIKE_CONFIG.cryo.slowDurationPerStack}s`;
+    },
+  },
+  {
+    id: "pyromaniac",
+    name: "Pyromaniac",
+    description: "Bullets have a chance to set enemies on fire, dealing damage over time.",
+    icon: "/powerups/icons/pyromaniac.png",
+    canStack: true, maxStacks: ROGUELIKE_CONFIG.pyromaniac.maxStacks, removeFromPoolAfterMaxed: true,
+    getCurrentStat: (c) => {
+      const n = c["pyromaniac"] ?? 0;
+      if (n === 0) return "Burn Chance: 0%";
+      return `Burn Chance: ${Math.min(100, n * ROGUELIKE_CONFIG.pyromaniac.burnChancePerStack * 100).toFixed(0)}%`;
+    },
+    getNextStat: (c) => {
+      const n = (c["pyromaniac"] ?? 0) + 1;
+      return `Burn Chance: ${Math.min(100, n * ROGUELIKE_CONFIG.pyromaniac.burnChancePerStack * 100).toFixed(0)}%`;
+    },
+  },
+  {
+    id: "takeMeHome",
+    name: "Take Me Home",
+    description: "Bullets gently curve toward the nearest enemy.",
+    icon: "/powerups/icons/take_me_home.png",
+    canStack: true, maxStacks: ROGUELIKE_CONFIG.takeMeHome.maxStacks, removeFromPoolAfterMaxed: true,
+    getCurrentStat: (c) => {
+      const n = c["takeMeHome"] ?? 0;
+      if (n === 0) return "Homing: —";
+      return `Homing: ${Math.min(100, n * ROGUELIKE_CONFIG.takeMeHome.homingStrengthPerStack * 100).toFixed(0)}%`;
+    },
+    getNextStat: (c) => {
+      const n = (c["takeMeHome"] ?? 0) + 1;
+      return `Homing: ${Math.min(100, n * ROGUELIKE_CONFIG.takeMeHome.homingStrengthPerStack * 100).toFixed(0)}%`;
+    },
+  },
 ];
 
 // ─── Utility helpers ──────────────────────────────────────────────────────────

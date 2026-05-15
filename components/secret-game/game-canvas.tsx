@@ -61,7 +61,43 @@ const PLAYER_H_BASE = 20;
 /* ── Power-up constants ── */
 const POWERUP_DRIFT_SPEED = 20;
 
-type PowerUpType = "rapid" | "shield" | "wideshot" | "extralife" | "invincible" | "choice" | "projectile" | "timewarp" | "doubleshot" | "ricochet" | "overcharge" | "groupie";
+/**
+ * Draw an electricity-style zigzag bolt between two points.
+ * @param segments — number of zigzag segments along the line
+ * @param jitter  — max perpendicular displacement per segment (in game units)
+ */
+function drawElectricityBolt(
+  ctx: CanvasRenderingContext2D,
+  x1: number, y1: number,
+  x2: number, y2: number,
+  segments: number,
+  jitter: number,
+) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len === 0) return;
+  // Unit vector along the line
+  const ux = dx / len;
+  const uy = dy / len;
+  // Perpendicular unit vector
+  const px = -uy;
+  const py = ux;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  for (let i = 1; i < segments; i++) {
+    const t = i / segments;
+    const bx = x1 + dx * t;
+    const by = y1 + dy * t;
+    // Random offset perpendicular to the line, fading to 0 at endpoints
+    const offset = (Math.random() - 0.5) * 2 * jitter * Math.sin(t * Math.PI);
+    ctx.lineTo(bx + px * offset, by + py * offset);
+  }
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+}
+
+type PowerUpType = "rapid" | "shield" | "wideshot" | "extralife" | "invincible" | "choice" | "projectile" | "timewarp" | "doubleshot" | "ricochet" | "overcharge" | "groupie" | "cryo";
 
 interface PowerUp {
   x: number;
@@ -348,6 +384,11 @@ export function GameCanvas({
     permShieldAccum: 0,
     permShieldActive: false,
     permShieldTimer: 0,
+    blackHoleAccum: 0,
+    // ── Cryo Rounds: enemy bullet slow timer ───────────────────────────
+    cryoSlowTimer: 0,
+    // ── Pyromaniac: burning enemies ────────────────────────────────────
+    burningEnemies: [] as { enemyIndex: number; timer: number; tickAccum: number }[],
     // ── Roguelike: connect beam visuals ──────────────────────────────
     lightningBeams: [] as { x1: number; y1: number; x2: number; y2: number; timer: number }[],
     // ── GIF impact effects ────────────────────────────────────────────
@@ -611,6 +652,9 @@ export function GameCanvas({
     s.orbitalTimer = 0;
     s.orbitalBaseAngle = 0;
     s.seekerMissileAccum = 0;
+    s.blackHoleAccum = 0;
+    s.cryoSlowTimer = 0;
+    s.burningEnemies = [];
     // Reset combo and vampirism
     s.comboCount = 0;
     s.comboTimer = 0;
@@ -1080,11 +1124,11 @@ export function GameCanvas({
           }
           onScoreChange(s.score);
         }
-        // Decay beams
-        for (let i = s.lightningBeams.length - 1; i >= 0; i--) {
-          s.lightningBeams[i].timer -= dt;
-          if (s.lightningBeams[i].timer <= 0) s.lightningBeams.splice(i, 1);
-        }
+      }
+      // Decay beams (outside hasLightning block so Chain Reaction beams also decay)
+      for (let i = s.lightningBeams.length - 1; i >= 0; i--) {
+        s.lightningBeams[i].timer -= dt;
+        if (s.lightningBeams[i].timer <= 0) s.lightningBeams.splice(i, 1);
       }
 
       // ── Timed effect: Frenzy ─────────────────────────────────────────
@@ -1206,6 +1250,87 @@ export function GameCanvas({
             }
           }
           if (s.boss.virusTimer <= 0) { s.boss.virusStacks = 0; s.boss.virusAccum = 0; }
+        }
+      }
+
+      // ── Black Hole (timed pull effect) ──────────────────────────────
+      if (playerStats.hasBlackHole) {
+        s.blackHoleAccum += dt;
+        if (s.blackHoleAccum >= playerStats.blackHoleCooldown) {
+          s.blackHoleAccum -= playerStats.blackHoleCooldown;
+          const centerX = s.playAreaW / 2;
+          const centerY = BASE_H / 2;
+          // Pull all enemies toward center
+          for (const e of s.enemies) {
+            if (!e.alive) continue;
+            const ex = e.x + settingsRef.current.enemy.width / 2;
+            const ey = e.y + settingsRef.current.enemy.height / 2;
+            const dx = centerX - ex;
+            const dy = centerY - ey;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < playerStats.blackHolePullRadius && dist > 1) {
+              const pullStrength = (1 - dist / playerStats.blackHolePullRadius) * 100 * dt;
+              e.x += (dx / dist) * pullStrength;
+              e.y += (dy / dist) * pullStrength;
+            }
+            // Damage enemies near center
+            if (dist < 20) {
+              e.hp = (e.hp ?? 1) - playerStats.blackHoleDamage;
+              if (e.hp <= 0) {
+                e.alive = false; e.dying = true; e.animState = "dying"; e.animAccum = 0;
+                s.score += Math.floor(10 * s.wave);
+              }
+            }
+          }
+          // Damage boss if present
+          if (s.boss) {
+            const bdx = centerX - (s.boss.x + (effectiveSettingsRef.current?.boss?.width ?? 40) / 2);
+            const bdy = centerY - (s.boss.y + (effectiveSettingsRef.current?.boss?.height ?? 30) / 2);
+            const bdist = Math.sqrt(bdx * bdx + bdy * bdy);
+            if (bdist < playerStats.blackHolePullRadius) {
+              s.boss.health -= playerStats.blackHoleDamage * 2;
+              s.boss.hitFlash = 0.15;
+              if (s.boss.health <= 0) {
+                s.score += (effectiveSettingsRef.current?.boss?.scoreReward ?? 500);
+                onScoreChange(s.score);
+                play("levelComplete");
+                s.boss = null;
+                onPhaseChange("bossreward");
+                return;
+              }
+            }
+          }
+          spawnParticles(centerX, centerY, "#8b5cf6", 12);
+          onScoreChange(s.score);
+        }
+      }
+
+      // ── Cryo Rounds: decay slow timer ────────────────────────────────
+      if (s.cryoSlowTimer > 0) {
+        s.cryoSlowTimer -= dt;
+      }
+
+      // ── Pyromaniac: tick burning enemies ─────────────────────────────
+      if (playerStats.hasPyromaniac && s.burningEnemies.length > 0) {
+        for (let i = s.burningEnemies.length - 1; i >= 0; i--) {
+          const burn = s.burningEnemies[i];
+          burn.timer -= dt;
+          burn.tickAccum += dt;
+          if (burn.tickAccum >= playerStats.pyromaniacTickInterval) {
+            burn.tickAccum -= playerStats.pyromaniacTickInterval;
+            const enemy = s.enemies[burn.enemyIndex];
+            if (enemy && enemy.alive) {
+              enemy.hp = (enemy.hp ?? 1) - playerStats.pyromaniacBurnDamagePerTick;
+              spawnParticles(enemy.x + settingsRef.current.enemy.width / 2, enemy.y + settingsRef.current.enemy.height / 2, "#ff4400", 3);
+              if (enemy.hp <= 0) {
+                enemy.alive = false; enemy.dying = true; enemy.animState = "dying"; enemy.animAccum = 0;
+                s.score += Math.floor(10 * s.wave);
+              }
+            }
+          }
+          if (burn.timer <= 0) {
+            s.burningEnemies.splice(i, 1);
+          }
         }
       }
 
@@ -1932,10 +2057,11 @@ export function GameCanvas({
               pu.type === "ricochet" ? (durations?.ricochet ?? 5) :
               pu.type === "overcharge" ? (durations?.overcharge ?? 0) :
               pu.type === "groupie" ? (durations?.groupie ?? 8) :
+              pu.type === "cryo" ? (durations?.cryo ?? 5) :
               (durations?.wideShot ?? 4);
             const dilatedDuration = duration * (1 + playerStats.timeDilationBonus);
             const existing = s.activePowerUps.find((p) => p.type === pu.type);
-            const noStackTypes: PowerUpType[] = ["shield", "invincible", "projectile", "timewarp", "overcharge"];
+            const noStackTypes: PowerUpType[] = ["shield", "invincible", "projectile", "timewarp", "overcharge", "cryo"];
             const maxStack = 5;
 
             if (existing) {
@@ -1962,6 +2088,10 @@ export function GameCanvas({
             // Overcharge: add shots (no timer, uses shot count)
             if (pu.type === "overcharge") {
               s.overchargeShots += 5;
+            }
+            // Cryo: activate slow effect on enemy bullets
+            if (pu.type === "cryo") {
+              s.cryoSlowTimer = playerStats.cryoSlowDuration;
             }
             // Groupie: spawn a new groupie pet
             if (pu.type === "groupie") {
@@ -2051,9 +2181,58 @@ export function GameCanvas({
             }
           }
         }
+        // Take Me Home: gentle homing toward nearest enemy
+        if (b.isPlayer && playerStats.hasTakeMeHome && !b.isSeeker) {
+          let nearX: number | null = null;
+          let nearY: number | null = null;
+          let nearDist = Infinity;
+          for (const e of s.enemies) {
+            if (!e.alive) continue;
+            const ex = e.x + settingsRef.current.enemy.width / 2;
+            const ey = e.y + settingsRef.current.enemy.height / 2;
+            const dist = Math.hypot(ex - b.x, ey - b.y);
+            if (dist < nearDist) {
+              nearDist = dist;
+              nearX = ex;
+              nearY = ey;
+            }
+          }
+          if (s.boss) {
+            const bossCfg3 = effectiveSettingsRef.current?.boss;
+            const bossW = bossCfg3?.width ?? 40;
+            const bossH = bossCfg3?.height ?? 30;
+            const bhbx3 = s.boss.x + (bossCfg3?.hitboxOffsetX ?? 0);
+            const bhby3 = s.boss.y + (bossCfg3?.hitboxOffsetY ?? 0);
+            const bhbw3 = bossCfg3?.hitboxWidth ?? bossW;
+            const bhbh3 = bossCfg3?.hitboxHeight ?? bossH;
+            const bossCx = bhbx3 + bhbw3 / 2;
+            const bossCy = bhby3 + bhbh3 / 2;
+            const dist = Math.hypot(bossCx - b.x, bossCy - b.y);
+            if (dist < nearDist) {
+              nearDist = dist;
+              nearX = bossCx;
+              nearY = bossCy;
+            }
+          }
+          if (nearX !== null && nearY !== null && nearDist > 1) {
+            const sdx = nearX - b.x, sdy = nearY - b.y;
+            const targetAngle = Math.atan2(sdy, sdx);
+            const currentAngle = Math.atan2(b.vy, b.vx);
+            let angleDiff = targetAngle - currentAngle;
+            while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+            while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+            const turn = angleDiff * playerStats.takeMeHomeHomingStrength * dt * 3;
+            const speed = Math.hypot(b.vx, b.vy);
+            const newAngle = currentAngle + turn;
+            b.vx = Math.cos(newAngle) * speed;
+            b.vy = Math.sin(newAngle) * speed;
+          }
+        }
         const bulletTimeFactor = b.isPlayer ? 1.0 : timeWarpFactor;
-        b.x += (b.vx || 0) * dt * bulletTimeFactor;
-        b.y += b.vy * dt * bulletTimeFactor;
+        // Cryo Rounds: slow enemy bullets
+        const cryoFactor = (!b.isPlayer && s.cryoSlowTimer > 0) ? 0.6 : 1.0;
+        b.x += (b.vx || 0) * dt * bulletTimeFactor * (b.isPlayer ? 1 : cryoFactor);
+        b.y += b.vy * dt * bulletTimeFactor * (b.isPlayer ? 1 : cryoFactor);
         // Bounce off screen edges
         if (b.isPlayer && playerStats.hasBounce && (b.bouncesRemaining ?? 0) > 0) {
           let bounced = false;
@@ -2107,6 +2286,7 @@ export function GameCanvas({
         { type: "ricochet",   weight: dropRates?.ricochet   ?? 1 },
         { type: "overcharge", weight: dropRates?.overcharge ?? 1 },
         { type: "groupie",    weight: dropRates?.groupie    ?? 1 },
+        { type: "cryo",       weight: dropRates?.cryo       ?? 1 },
       ];
       const filteredDropRateEntries = dropRateEntries.filter((e) => {
         if (e.type === "projectile" && playerStats.projectileCount >= 3) return false;
@@ -2206,6 +2386,14 @@ export function GameCanvas({
                   : (dnCfg?.playerBulletColor ?? "#ffffff");
               e.hp = (e.hp ?? 1) - bulletDmg;
               s.totalDamageDealt += bulletDmg;
+
+              // Pyromaniac: chance to set enemy on fire
+              if (playerStats.hasPyromaniac && Math.random() < playerStats.pyromaniacBurnChance) {
+                const alreadyBurning = s.burningEnemies.find((be) => be.enemyIndex === ei);
+                if (!alreadyBurning) {
+                  s.burningEnemies.push({ enemyIndex: ei, timer: playerStats.pyromaniacBurnDuration, tickAccum: 0 });
+                }
+              }
 
               // Ricochet: redirect to nearest unhit enemy
               const ricochet = s.activePowerUps.find((p) => p.type === "ricochet");
@@ -2490,6 +2678,11 @@ export function GameCanvas({
                 : baseDmg * playerStats.damageMultiplier;
             s.boss.health -= damage;
             s.totalDamageDealt += damage;
+            // Pyromaniac: chance to burn boss (simple DOT via hitFlash extension)
+            if (playerStats.hasPyromaniac && Math.random() < playerStats.pyromaniacBurnChance) {
+              s.boss.health -= playerStats.pyromaniacBurnDamagePerTick * 2;
+              spawnParticles(s.boss.x + (bossCfg?.width ?? 40) / 2, s.boss.y + (bossCfg?.height ?? 30) / 2, "#ff4400", 4);
+            }
             s.boss.hitFlash = 0.1;
             if (s.boss.animState === "walking") { s.boss.animState = "hurt"; s.boss.animAccum = 0; }
             spawnEffect(s.activeEffects, "bullet", b.x, b.y, playerBulletImpact);
@@ -3300,21 +3493,24 @@ export function GameCanvas({
       }
     }
 
-    // Draw lightning / Connect beams
+    // Draw lightning / Connect beams (electricity zigzag effect)
     for (const beam of s.lightningBeams) {
       const alpha = Math.min(1, beam.timer * 4);
       ctx.save();
       ctx.globalAlpha = alpha;
+      // Main bolt — bright cyan core
       ctx.strokeStyle = "#00f0ff";
       ctx.shadowColor = "#00f0ff";
-      ctx.shadowBlur = 8;
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([4, 4]);
-      ctx.beginPath();
-      ctx.moveTo(beam.x1, beam.y1);
-      ctx.lineTo(beam.x2, beam.y2);
-      ctx.stroke();
-      ctx.setLineDash([]);
+      ctx.shadowBlur = 12;
+      ctx.lineWidth = 2;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      drawElectricityBolt(ctx, beam.x1, beam.y1, beam.x2, beam.y2, 6, 3);
+      // Inner hot core — white
+      ctx.strokeStyle = "#ffffff";
+      ctx.shadowBlur = 4;
+      ctx.lineWidth = 0.8;
+      drawElectricityBolt(ctx, beam.x1, beam.y1, beam.x2, beam.y2, 6, 3);
       ctx.restore();
     }
 

@@ -71,6 +71,14 @@ export interface RoguelikeConfig {
   explosive:    { radiusPerStack: number; damagePerStack: number; maxStacks: number };
   phoenix:      { hasPhoenix: boolean; explosionRadius: number; explosionDamage: number };
   chainReact:   { chancePerStack: number; maxStacks: number; arcDamage: number; arcRange: number };
+  /** Black Hole: periodically pulls all enemies toward the screen centre. */
+  blackHole:    { cooldown: number; pullRadius: number; damage: number };
+  /** Cryo Rounds: enemy bullets move slower for a duration after picking this up. */
+  cryo:         { slowDurationPerStack: number; maxStacks: number };
+  /** Pyromaniac: bullets have a chance to inflict burn DOT on enemies. */
+  pyromaniac:   { burnChancePerStack: number; burnDamagePerTick: number; burnDuration: number; tickInterval: number; maxStacks: number };
+  /** Take Me Home: player bullets slightly home toward the nearest enemy. */
+  takeMeHome:   { homingStrengthPerStack: number; maxStacks: number };
 
   // ─── Visual / sprite scaling ─────────────────────────────────────────────
   /**
@@ -146,6 +154,10 @@ export const ROGUELIKE_CONFIG: RoguelikeConfig = {
   explosive:    { radiusPerStack: 8, damagePerStack: 5, maxStacks: 3 },
   phoenix:      { hasPhoenix: false, explosionRadius: 80, explosionDamage: 50 },
   chainReact:   { chancePerStack: 0.15, maxStacks: 5, arcDamage: 20, arcRange: 60 },
+  blackHole:    { cooldown: 45, pullRadius: 80, damage: 10 },
+  cryo:         { slowDurationPerStack: 3, maxStacks: 5 },
+  pyromaniac:   { burnChancePerStack: 0.10, burnDamagePerTick: 5, burnDuration: 3, tickInterval: 0.5, maxStacks: 5 },
+  takeMeHome:   { homingStrengthPerStack: 0.15, maxStacks: 3 },
 
   sprites: {
     // Boss PNG sprite vs hitbox: 1.0 = exactly matches data.json boss.width/height
