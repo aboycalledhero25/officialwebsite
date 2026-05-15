@@ -2492,7 +2492,7 @@ export function GameCanvas({
         // Procedural fallback while sprites are loading
         () => drawEnemy(ctx, sprX, sprY, e.variant, s.frame, e.cooldown > 0.75, sprW, sprH),
       );
-      // Elite glow outline — soft outer glow around the sprite
+      // Elite glow outline — soft outer glow that follows the actual sprite shape
       if (e.isElite && e.alive) {
         const eliteColors: Record<string, string> = {
           shielded: "#00f0ff",
@@ -2501,14 +2501,16 @@ export function GameCanvas({
           splitter: "#cc44ff",
         };
         const ec = eliteColors[e.eliteType ?? ""] ?? "#ffffff";
-        // Soft outer glow using shadow
+        // Redraw sprite with shadow to create a glow that follows the sprite silhouette
         ctx.save();
         ctx.shadowColor = ec;
-        ctx.shadowBlur = 12;
-        ctx.globalAlpha = 0.7 + Math.sin(s.frame * 0.15) * 0.3; // gentle pulse
-        ctx.strokeStyle = ec;
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(sprX - 1, sprY - 1, sprW + 2, sprH + 2);
+        ctx.shadowBlur = 10 + Math.sin(s.frame * 0.15) * 4; // pulsing glow
+        ctx.globalAlpha = 0.8 + Math.sin(s.frame * 0.15) * 0.2;
+        drawEnemySprite(
+          ctx, sprX, sprY, e.variant, e.animState, e.facing, e.animAccum,
+          sprW, sprH,
+          () => drawEnemy(ctx, sprX, sprY, e.variant, s.frame, e.cooldown > 0.75, sprW, sprH),
+        );
         ctx.restore();
         // Label above the enemy
         ctx.fillStyle = ec;
@@ -2649,12 +2651,29 @@ export function GameCanvas({
         // No procedural fallback — only render new sprite assets
         () => {},
       );
-      // Phase 4 enrage tint
+      // Phase 4 enrage tint — follows actual sprite shape via source-atop
       if (s.boss.phase === 4) {
         ctx.save();
+        // Pulsing intensity for enrage effect
+        const pulse = 0.35 + Math.sin(s.frame * 0.15) * 0.15;
         ctx.globalCompositeOperation = "source-atop";
-        ctx.fillStyle = "rgba(255, 0, 0, 0.25)";
+        ctx.fillStyle = `rgba(255, 20, 20, ${pulse})`;
         ctx.fillRect(sprX, sprY, sprW, sprH);
+        ctx.restore();
+        // Red outer glow — redraw sprite with shadow to create silhouette glow
+        ctx.save();
+        ctx.globalCompositeOperation = "source-over";
+        ctx.shadowColor = `rgba(255, 0, 0, ${0.4 + Math.sin(s.frame * 0.15) * 0.2})`;
+        ctx.shadowBlur = 10 + Math.sin(s.frame * 0.15) * 5;
+        drawBossSprite(
+          ctx,
+          sprX, sprY, sprW, sprH,
+          s.boss.skinIndex,
+          s.boss.animState,
+          s.boss.animAccum,
+          0,
+          () => {},
+        );
         ctx.restore();
       }
       // Boss health bar — attached above the boss, editable offset/size
