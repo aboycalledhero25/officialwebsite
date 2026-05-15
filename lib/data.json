@@ -499,6 +499,10 @@
     },
     "waveRewardEnabled": true,
     "enemyChoiceDropChance": 0.03,
+    "eliteSpawnWaveStart": 5,
+    "eliteSpawnChance": 0.15,
+    "comboDecayTime": 2.0,
+    "comboMultiplierPerKill": 0.1,
     "disabledPowerUps": [
       "seeker"
     ],

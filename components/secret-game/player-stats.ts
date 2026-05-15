@@ -27,6 +27,10 @@ export type RoguelikeConfigOverride = Partial<{
   orbital: Partial<RoguelikeConfig['orbital']>;
   virus: Partial<RoguelikeConfig['virus']>;
   nuke: Partial<RoguelikeConfig['nuke']>;
+  vampirism: Partial<RoguelikeConfig['vampirism']>;
+  bounce: Partial<RoguelikeConfig['bounce']>;
+  magnet: Partial<RoguelikeConfig['magnet']>;
+  pierce: Partial<RoguelikeConfig['pierce']>;
   speed: Partial<RoguelikeConfig['speed']>;
   strength: Partial<RoguelikeConfig['strength']>;
   projectile: Partial<RoguelikeConfig['projectile']>;
@@ -59,6 +63,10 @@ function mergeConfig(override?: RoguelikeConfigOverride): RoguelikeConfig {
     orbital:     { ...ROGUELIKE_CONFIG.orbital,     ...(override.orbital     ?? {}) },
     virus:       { ...ROGUELIKE_CONFIG.virus,       ...(override.virus       ?? {}) },
     nuke:        { ...ROGUELIKE_CONFIG.nuke,        ...(override.nuke        ?? {}) },
+    vampirism:   { ...ROGUELIKE_CONFIG.vampirism,   ...(override.vampirism   ?? {}) },
+    bounce:      { ...ROGUELIKE_CONFIG.bounce,      ...(override.bounce      ?? {}) },
+    magnet:      { ...ROGUELIKE_CONFIG.magnet,      ...(override.magnet      ?? {}) },
+    pierce:      { ...ROGUELIKE_CONFIG.pierce,      ...(override.pierce      ?? {}) },
     speed:       { ...ROGUELIKE_CONFIG.speed,       ...(override.speed       ?? {}) },
     strength:    { ...ROGUELIKE_CONFIG.strength,    ...(override.strength    ?? {}) },
     projectile:  { ...ROGUELIKE_CONFIG.projectile,  ...(override.projectile  ?? {}) },
@@ -151,6 +159,22 @@ export interface PlayerStats {
   hasPermShield: boolean;
   permShieldDuration: number;
   permShieldCooldown: number;
+
+  // ─── Vampirism ────────────────────────────────────────────────────────
+  hasVampirism: boolean;
+  vampirismKillsNeeded: number;
+
+  // ─── Bounce ───────────────────────────────────────────────────────────
+  hasBounce: boolean;
+  bounceCount: number;
+
+  // ─── Magnet ───────────────────────────────────────────────────────────
+  hasMagnet: boolean;
+  magnetRadius: number;
+
+  // ─── Pierce ───────────────────────────────────────────────────────────
+  hasPierce: boolean;
+  pierceCount: number;
 }
 
 /**
@@ -295,5 +319,17 @@ export function computePlayerStats(chosen: PermPowerUpState, override?: Roguelik
     hasPermShield:   sh > 0,
     permShieldDuration: cfg.shield.duration,
     permShieldCooldown: cfg.shield.cooldown,
+
+    hasVampirism:    get("vampirism") > 0,
+    vampirismKillsNeeded: Math.max(1, cfg.vampirism.baseKills - Math.max(0, get("vampirism") - 1) * cfg.vampirism.killsPerStack),
+
+    hasBounce:       get("bounce") > 0,
+    bounceCount:     Math.min(get("bounce") * cfg.bounce.bouncesPerStack, cfg.bounce.maxBounces),
+
+    hasMagnet:       get("magnet") > 0,
+    magnetRadius:    cfg.magnet.baseRadius + Math.max(0, get("magnet") - 1) * cfg.magnet.radiusPerStack,
+
+    hasPierce:       get("pierce") > 0,
+    pierceCount:     get("pierce") * cfg.pierce.piercePerStack,
   };
 }

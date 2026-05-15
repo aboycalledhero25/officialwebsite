@@ -44,6 +44,10 @@ export interface RoguelikeConfig {
   luck:        { dropChancePerStack: number };
   projectile:  { projectilesPerStack: number; normalMax: number; redDamage: number; purpleDamage: number; goldDamage: number; tierSize: number; superBulletSizeMultiplier: number; redSize: number; purpleSize: number; goldSize: number };
   nuke:        { cooldown: number; bossHPReduction: number; nukesPerStack: number };
+  vampirism:   { baseKills: number; killsPerStack: number };
+  bounce:      { bouncesPerStack: number; maxBounces: number };
+  magnet:      { baseRadius: number; radiusPerStack: number };
+  pierce:      { piercePerStack: number };
   rapidFire:   { ratePerStack: number; minCooldown: number };
   /** Seeker Missile: auto-fires a homing missile at the nearest enemy every cooldown seconds. */
   seeker:      { missileDamage: number; missileCooldown: number; missilesPerStack: number; missileSize: number };
@@ -109,6 +113,10 @@ export const ROGUELIKE_CONFIG: RoguelikeConfig = {
   health:     { slicesProgression: [1, 2, 3, 4] },
   luck:       { dropChancePerStack: 0.01 },
   nuke:       { cooldown: 30, bossHPReduction: 0.25, nukesPerStack: 1 },
+  vampirism:  { baseKills: 15, killsPerStack: 3 },
+  bounce:     { bouncesPerStack: 1, maxBounces: 3 },
+  magnet:     { baseRadius: 40, radiusPerStack: 20 },
+  pierce:     { piercePerStack: 1 },
   projectile: { projectilesPerStack: 1, normalMax: 4, redDamage: 30, purpleDamage: 50, goldDamage: 80, tierSize: 5, superBulletSizeMultiplier: 2.5, redSize: 10, purpleSize: 12, goldSize: 14 },
   rapidFire:  { ratePerStack: 0.02, minCooldown: 0.05 },
   seeker:     { missileDamage: 150, missileCooldown: 15, missilesPerStack: 1, missileSize: 6 },

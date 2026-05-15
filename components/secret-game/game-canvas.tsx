@@ -213,9 +213,16 @@ export function GameCanvas({
       dying: boolean;       // true while death anim plays (alive=false)
       facing: EnemyFacing;  // directional sprite facing
       orbitalHitCooldown: number; // prevents orbital from dealing damage every frame
+      // Elite champion modifiers
+      isElite: boolean;
+      eliteType: "shielded" | "explosive" | "regenerating" | "splitter" | null;
+      eliteShieldActive: boolean;
+      eliteShieldTimer: number;
+      eliteHealAccum: number;
     }[],
     bullets: [] as {
       x: number; y: number; vx: number; vy: number;
+      angle?: number;           // visual rotation angle
       isPlayer: boolean; isSeeker?: boolean;
       variant?: 0 | 1 | 2; isBoss?: boolean;
       projectileIndex?: number; // 0–15: which projectile sprite this bullet uses
@@ -225,6 +232,12 @@ export function GameCanvas({
       superBulletDamage?: number; // damage override (for seeker missiles)
       // Seeker missile: reference to the specific enemy this missile is tracking
       seekerTarget?: { x: number; y: number; alive: boolean; dying: boolean } | null;
+      // Bounce: how many bounces remaining off screen edges
+      bouncesRemaining?: number;
+      // Pierce: how many enemies can still be pierced through
+      pierceRemaining?: number;
+      // Track which enemies this bullet has already hit (pierce)
+      alreadyHit?: Set<number>;
     }[],
     particles: [] as {
       x: number; y: number; vx: number; vy: number;
@@ -260,6 +273,13 @@ export function GameCanvas({
       projectileSpeed: number;
       projectileDamage: number;
       collisionDamage: number;
+      // Boss phases
+      phase: number;
+      isCharging: boolean;
+      chargeTimer: number;
+      chargeTargetX: number;
+      chargeTargetY: number;
+      chargeCooldown: number;
     } | null,
     // ── Roguelike: health slicing ─────────────────────────────────────
     currentSlices: ROGUELIKE_CONFIG.startingHearts,
@@ -298,6 +318,12 @@ export function GameCanvas({
     spawnTimer: 0,         // countdown until next enemy spawn
     spawnRate: 1,          // enemies per second
     waveCompleteDelay: 0,  // delay before auto-advancing to next wave
+    // ── Combo system ───────────────────────────────────────────────────
+    comboCount: 0,
+    comboTimer: 0,
+    maxComboThisRun: 0,
+    // ── Vampirism ──────────────────────────────────────────────────────
+    vampKillsSinceHeal: 0,
   });
 
   // Resize canvas to fill viewport
@@ -403,6 +429,12 @@ export function GameCanvas({
         projectileSpeed: bossGroupConfig?.projectileSpeed ?? (bossCfg?.projectileSpeed ?? 80),
         projectileDamage: bossGroupConfig?.projectileDamage ?? (siteData.secretGame?.enemyProjectileDamage ?? 1),
         collisionDamage: bossGroupConfig?.collisionDamage ?? (siteData.secretGame?.enemyCollisionDamage ?? 1),
+        phase: 1,
+        isCharging: false,
+        chargeTimer: 0,
+        chargeTargetX: 0,
+        chargeTargetY: 0,
+        chargeCooldown: 2.0,
       };
     } else {
       // Horde wave: set up spawn counters instead of spawning all at once
@@ -496,6 +528,11 @@ export function GameCanvas({
     s.orbitalTimer = 0;
     s.orbitalBaseAngle = 0;
     s.seekerMissileAccum = 0;
+    // Reset combo and vampirism
+    s.comboCount = 0;
+    s.comboTimer = 0;
+    s.maxComboThisRun = 0;
+    s.vampKillsSinceHeal = 0;
     onScoreChange(0);
     onLivesChange(startH);
     onWaveChange(1);
@@ -754,6 +791,9 @@ export function GameCanvas({
             const ew2 = settingsRef.current.enemy.width;
             const eh2 = settingsRef.current.enemy.height;
             const xScale2 = logW / BASE_W;
+            const isElite = s.wave >= (siteData.secretGame?.eliteSpawnWaveStart ?? 5) && Math.random() < (siteData.secretGame?.eliteSpawnChance ?? 0.15);
+            const eliteTypes: Array<"shielded" | "explosive" | "regenerating" | "splitter"> = ["shielded", "explosive", "regenerating", "splitter"];
+            const eliteType = isElite ? eliteTypes[Math.floor(Math.random() * eliteTypes.length)] : null;
             s.enemies.push({
               x: sp.x * xScale2 - ew2 / 2,
               y: sp.y,
@@ -771,6 +811,11 @@ export function GameCanvas({
               dying: false,
               facing: "down",
               orbitalHitCooldown: 0,
+              isElite: isElite,
+              eliteType: eliteType,
+              eliteShieldActive: isElite && eliteType === "shielded",
+              eliteShieldTimer: 0,
+              eliteHealAccum: 0,
             });
             s.enemiesToSpawn--;
             s.spawnTimer = 1 / s.spawnRate;
@@ -975,7 +1020,10 @@ export function GameCanvas({
               x: px, y: py,
               vx: Math.cos(angle) * BULLET_SPEED_BASE,
               vy: Math.sin(angle) * BULLET_SPEED_BASE,
+              angle,
               isPlayer: true,
+              bouncesRemaining: playerStats.hasBounce ? playerStats.bounceCount : 0,
+              pierceRemaining: playerStats.hasPierce ? playerStats.pierceCount : 0,
             });
           }
           play("shoot");
@@ -1131,6 +1179,7 @@ export function GameCanvas({
             }
             s.bullets.push({
               x: pcx, y: pcy, vx: mvx, vy: mvy,
+              angle: Math.atan2(mvy, mvx),
               isPlayer: true,
               isSeeker: true,
               superBulletDamage: playerStats.seekerMissileDamage,
@@ -1235,6 +1284,14 @@ export function GameCanvas({
         }
       }
 
+      // ── Combo timer decay ───────────────────────────────────────────
+      if (s.comboTimer > 0) {
+        s.comboTimer -= dt;
+        if (s.comboTimer <= 0) {
+          s.comboCount = 0;
+        }
+      }
+
       // ── Player auto-fire ────────────────────────────────────────────
       // Automatically targets the closest threat (enemy, boss, or enemy projectile).
       // Stops firing when no threats remain on screen.
@@ -1313,14 +1370,19 @@ export function GameCanvas({
         const speed = BULLET_SPEED_BASE;
 
         const fireBulletNow = (angle: number) => {
+          const bounces = playerStats.hasBounce ? playerStats.bounceCount : 0;
+          const pierce = playerStats.hasPierce ? playerStats.pierceCount : 0;
           s.bullets.push({
             x: bpx,
             y: bpy,
             vx: Math.cos(angle) * speed,
             vy: Math.sin(angle) * speed,
+            angle,
             isPlayer: true,
             isSuperBullet: playerStats.superBulletTier > 0,
             superBulletTier: playerStats.superBulletTier,
+            bouncesRemaining: bounces,
+            pierceRemaining: pierce,
           });
         };
 
@@ -1376,6 +1438,21 @@ export function GameCanvas({
         } else {
           e.facing = dy < 0 ? "up" : "down";
         }
+        // Elite regenerating heal
+        if (e.eliteType === "regenerating") {
+          e.eliteHealAccum += dt;
+          if (e.eliteHealAccum >= 2.0) {
+            e.eliteHealAccum = 0;
+            if (e.hp < e.maxHp) e.hp = Math.min(e.maxHp, e.hp + 1);
+          }
+        }
+        // Elite shielded recharge
+        if (e.eliteType === "shielded" && !e.eliteShieldActive) {
+          e.eliteShieldTimer -= dt;
+          if (e.eliteShieldTimer <= 0) {
+            e.eliteShieldActive = true;
+          }
+        }
       }
 
       // ── Enemy shooting (rate-limited: 1 shot per second per enemy) ──
@@ -1412,16 +1489,53 @@ export function GameCanvas({
       if (s.boss && bossCfg?.enabled) {
         const bw = bossCfg?.width ?? 40;
         const bh = bossCfg?.height ?? 30;
-        const bossSpeed = s.boss.trackSpeed;
-        // Track player like regular enemies
-        const bcx = s.boss.x + bw / 2;
-        const bcy = s.boss.y + bh / 2;
-        const bdx2 = pCx - bcx;
-        const bdy2 = pCy - bcy;
-        const bdist2 = Math.sqrt(bdx2 * bdx2 + bdy2 * bdy2);
-        if (bdist2 > 1) {
-          s.boss.x += (bdx2 / bdist2) * bossSpeed * dt;
-          s.boss.y += (bdy2 / bdist2) * bossSpeed * dt;
+        // Determine boss phase based on HP
+        const hpRatio = s.boss.health / s.boss.maxHealth;
+        let phase = 1;
+        if (hpRatio <= 0.25) phase = 4;
+        else if (hpRatio <= 0.50) phase = 3;
+        else if (hpRatio <= 0.75) phase = 2;
+        s.boss.phase = phase;
+
+        const enrageMult = phase === 4 ? 1.5 : 1.0;
+        const fireRateMult = phase === 4 ? 0.7 : 1.0;
+        const bossSpeed = s.boss.trackSpeed * enrageMult;
+
+        // Charge dash (Phase 3)
+        if (phase >= 3 && !s.boss.isCharging) {
+          s.boss.chargeCooldown = (s.boss.chargeCooldown ?? 0) - dt;
+          if ((s.boss.chargeCooldown ?? 0) <= 0) {
+            s.boss.isCharging = true;
+            s.boss.chargeTimer = 0.8;
+            s.boss.chargeTargetX = s.playerX + PLAYER_W_BASE / 2;
+            s.boss.chargeTargetY = s.playerY + PLAYER_H_BASE / 2;
+            s.boss.chargeCooldown = 4.0;
+          }
+        }
+
+        if (s.boss.isCharging) {
+          s.boss.chargeTimer -= dt;
+          const cdx = s.boss.chargeTargetX - (s.boss.x + bw / 2);
+          const cdy = s.boss.chargeTargetY - (s.boss.y + bh / 2);
+          const cdist = Math.sqrt(cdx * cdx + cdy * cdy);
+          if (cdist > 1) {
+            s.boss.x += (cdx / cdist) * bossSpeed * 3 * dt;
+            s.boss.y += (cdy / cdist) * bossSpeed * 3 * dt;
+          }
+          if (s.boss.chargeTimer <= 0) {
+            s.boss.isCharging = false;
+          }
+        } else {
+          // Track player like regular enemies
+          const bcx = s.boss.x + bw / 2;
+          const bcy = s.boss.y + bh / 2;
+          const bdx2 = pCx - bcx;
+          const bdy2 = pCy - bcy;
+          const bdist2 = Math.sqrt(bdx2 * bdx2 + bdy2 * bdy2);
+          if (bdist2 > 1) {
+            s.boss.x += (bdx2 / bdist2) * bossSpeed * dt;
+            s.boss.y += (bdy2 / bdist2) * bossSpeed * dt;
+          }
         }
         // Clamp to play area
         s.boss.x = Math.max(4, Math.min(playAreaW - 4 - bw, s.boss.x));
@@ -1429,7 +1543,7 @@ export function GameCanvas({
 
         // Fire projectiles at player every N seconds
         s.boss.fireCooldown -= dt;
-        if (s.boss.fireCooldown <= 0) {
+        if (s.boss.fireCooldown <= 0 && !s.boss.isCharging) {
           const bx = s.boss.x + bw / 2;
           const by = s.boss.y + bh;
           const px2 = s.playerX + PLAYER_W_BASE / 2;
@@ -1437,22 +1551,39 @@ export function GameCanvas({
           const bdx3 = px2 - bx;
           const bdy3 = py2 - by;
           const bdist3 = Math.sqrt(bdx3 * bdx3 + bdy3 * bdy3);
-          const pspeed = s.boss.projectileSpeed;
+          const pspeed = s.boss.projectileSpeed * (phase === 4 ? 1.2 : 1.0);
           const baseAngle = Math.atan2(bdist3 > 1 ? (bdy3 / bdist3) * pspeed : pspeed, bdist3 > 1 ? (bdx3 / bdist3) * pspeed : 0);
-          const count = bossCfg?.projectileCount ?? 1;
-          const spread = count > 1 ? 0.15 : 0;
-          for (let i = 0; i < count; i++) {
-            const angle = baseAngle + (count > 1 ? (i - (count - 1) / 2) * spread : 0);
-            s.bullets.push({
-              x: bx,
-              y: by,
-              vx: Math.cos(angle) * pspeed,
-              vy: Math.sin(angle) * pspeed,
-              isPlayer: false,
-              isBoss: true,
-            });
+
+          if (phase === 2) {
+            // Spray burst: 8 projectiles in 180° arc
+            const sprayCount = 8;
+            const arc = Math.PI / 2;
+            for (let i = 0; i < sprayCount; i++) {
+              const angle = baseAngle - arc / 2 + (arc * i) / (sprayCount - 1);
+              s.bullets.push({
+                x: bx, y: by,
+                vx: Math.cos(angle) * pspeed,
+                vy: Math.sin(angle) * pspeed,
+                isPlayer: false,
+                isBoss: true,
+              });
+            }
+          } else {
+            const count = bossCfg?.projectileCount ?? 1;
+            const spread = count > 1 ? 0.15 : 0;
+            for (let i = 0; i < count; i++) {
+              const angle = baseAngle + (count > 1 ? (i - (count - 1) / 2) * spread : 0);
+              s.bullets.push({
+                x: bx,
+                y: by,
+                vx: Math.cos(angle) * pspeed,
+                vy: Math.sin(angle) * pspeed,
+                isPlayer: false,
+                isBoss: true,
+              });
+            }
           }
-          s.boss.fireCooldown = s.boss.fireInterval;
+          s.boss.fireCooldown = s.boss.fireInterval * fireRateMult;
           // Trigger Throwing animation
           s.boss.animState = "throwing";
           s.boss.animAccum = 0;
@@ -1477,16 +1608,31 @@ export function GameCanvas({
       }
 
       // ── Power-up drift ──
+      const powerUpSize = siteData.secretGame?.powerUpSize ?? 8;
       for (let i = s.powerups.length - 1; i >= 0; i--) {
         const pu = s.powerups[i];
         pu.y += POWERUP_DRIFT_SPEED * dt;
+        // Magnet pull
+        if (playerStats.hasMagnet) {
+          const pux = pu.x + powerUpSize / 2;
+          const puy = pu.y + powerUpSize / 2;
+          const ppx = s.playerX + PLAYER_W_BASE / 2;
+          const ppy = s.playerY + PLAYER_H_BASE / 2;
+          const mdx = ppx - pux;
+          const mdy = ppy - puy;
+          const mdist = Math.sqrt(mdx * mdx + mdy * mdy);
+          if (mdist < playerStats.magnetRadius && mdist > 1) {
+            const pullStrength = (1 - mdist / playerStats.magnetRadius) * 120;
+            pu.x += (mdx / mdist) * pullStrength * dt;
+            pu.y += (mdy / mdist) * pullStrength * dt;
+          }
+        }
         if (pu.y > BASE_H + 10) {
           s.powerups.splice(i, 1);
         }
       }
 
       // ── Power-up collection ──
-      const powerUpSize = siteData.secretGame?.powerUpSize ?? 8;
       for (let i = s.powerups.length - 1; i >= 0; i--) {
         const pu = s.powerups[i];
         // AABB collision with player — generous 4px padding for better feel
@@ -1623,6 +1769,18 @@ export function GameCanvas({
         }
         b.x += (b.vx || 0) * dt;
         b.y += b.vy * dt;
+        // Bounce off screen edges
+        if (b.isPlayer && playerStats.hasBounce && (b.bouncesRemaining ?? 0) > 0) {
+          let bounced = false;
+          if (b.x < 0) { b.x = 0; b.vx = Math.abs(b.vx); bounced = true; }
+          else if (b.x > playAreaW) { b.x = playAreaW; b.vx = -Math.abs(b.vx); bounced = true; }
+          if (b.y < 0) { b.y = 0; b.vy = Math.abs(b.vy); bounced = true; }
+          else if (b.y > BASE_H) { b.y = BASE_H; b.vy = -Math.abs(b.vy); bounced = true; }
+          if (bounced) {
+            b.bouncesRemaining = (b.bouncesRemaining ?? 0) - 1;
+            b.angle = Math.atan2(b.vy, b.vx);
+          }
+        }
         if (b.y < -20 || b.y > BASE_H + 20 || b.x < -20 || b.x > playAreaW + 20) {
           s.bullets.splice(i, 1);
         }
@@ -1700,6 +1858,27 @@ export function GameCanvas({
           ) {
             const impactX = e.x + ew / 2;
             const impactY = e.y + eh / 2;
+
+            // Elite shielded: absorb first hit
+            if (e.eliteType === "shielded" && e.eliteShieldActive) {
+              e.eliteShieldActive = false;
+              e.eliteShieldTimer = 1.0;
+              spawnParticles(impactX, impactY, "#00f0ff", 6);
+              play("enemyHit");
+              // Pierce: bullet may continue
+              if (playerStats.hasPierce && (b.pierceRemaining ?? 0) > 0) {
+                b.pierceRemaining = (b.pierceRemaining ?? 0) - 1;
+                if (!b.alreadyHit) b.alreadyHit = new Set();
+                b.alreadyHit.add(ei);
+                continue;
+              }
+              s.bullets.splice(bi, 1);
+              break;
+            }
+
+            // Skip if already hit this enemy (pierce)
+            if (b.alreadyHit && b.alreadyHit.has(ei)) continue;
+
             // Virus: infect the enemy instead of killing it outright
             if (playerStats.hasVirus && !e.alive) { /* already dead, skip */ }
             else if (playerStats.hasVirus && e.virusStacks < playerStats.virusMaxStacks) {
@@ -1708,7 +1887,13 @@ export function GameCanvas({
               e.virusAccum = 0;
               // Show hurt animation while infected
               e.animState = "hurt"; e.animAccum = 0;
-              s.bullets.splice(bi, 1);
+              if (!playerStats.hasPierce || (b.pierceRemaining ?? 0) <= 0) {
+                s.bullets.splice(bi, 1);
+              } else {
+                b.pierceRemaining = (b.pierceRemaining ?? 0) - 1;
+                if (!b.alreadyHit) b.alreadyHit = new Set();
+                b.alreadyHit.add(ei);
+              }
               spawnEffect(s.activeEffects, "virus", impactX, impactY, siteData.secretGame?.impacts?.virus ?? { w: 30, h: 30 });
               spawnParticles(impactX, impactY, "#39ff14", 5);
               play("enemyHit");
@@ -1731,14 +1916,101 @@ export function GameCanvas({
                   : (dnCfg?.playerBulletColor ?? "#ffffff");
               e.hp = (e.hp ?? 1) - bulletDmg;
               s.totalDamageDealt += bulletDmg;
-              s.bullets.splice(bi, 1);
+
+              // Pierce handling
+              if (playerStats.hasPierce && (b.pierceRemaining ?? 0) > 0) {
+                b.pierceRemaining = (b.pierceRemaining ?? 0) - 1;
+                if (!b.alreadyHit) b.alreadyHit = new Set();
+                b.alreadyHit.add(ei);
+              } else {
+                s.bullets.splice(bi, 1);
+              }
+
               // Spawn damage number
               const dnX = impactX + (Math.random() - 0.5) * 8;
               if (s.damageNumbers.length < 100) s.damageNumbers.push({ x: dnX, y: e.y, value: String(Math.round(bulletDmg)), timer: 1.0, maxTimer: 1.0, color: dmgColor });
               if (e.hp <= 0) {
                 e.alive = false; e.dying = true; e.animState = "dying"; e.animAccum = 0;
-                s.score += 10 * s.wave;
+                // Combo
+                const comboDecay = siteData.secretGame?.comboDecayTime ?? 2.0;
+                const comboMult = siteData.secretGame?.comboMultiplierPerKill ?? 0.1;
+                s.comboCount++;
+                s.comboTimer = comboDecay;
+                if (s.comboCount > s.maxComboThisRun) s.maxComboThisRun = s.comboCount;
+                const scoreGain = Math.floor(10 * s.wave * (1 + s.comboCount * comboMult));
+                s.score += scoreGain;
                 onScoreChange(s.score);
+                // Vampirism
+                if (playerStats.hasVampirism) {
+                  s.vampKillsSinceHeal++;
+                  if (s.vampKillsSinceHeal >= playerStats.vampirismKillsNeeded) {
+                    s.vampKillsSinceHeal = 0;
+                    s.currentSlices = Math.min(s.maxSlices, s.currentSlices + 1);
+                    s.lives = Math.ceil(s.currentSlices / s.slicesPerHeart);
+                    onLivesChange(s.lives);
+                    if (onHealthDetailChange) onHealthDetailChange(s.currentSlices, s.maxSlices, s.slicesPerHeart);
+                    spawnParticles(s.playerX + PLAYER_W_BASE / 2, s.playerY + PLAYER_H_BASE / 2, "#ff0000", 6);
+                  }
+                }
+                // Elite explosive AOE
+                if (e.eliteType === "explosive") {
+                  const aoeRadius = 30;
+                  for (const other of s.enemies) {
+                    if (!other.alive || other === e) continue;
+                    const odx = other.x + ew / 2 - impactX;
+                    const ody = other.y + eh / 2 - impactY;
+                    if (Math.sqrt(odx * odx + ody * ody) < aoeRadius) {
+                      other.hp = (other.hp ?? 1) - 5;
+                      if (other.hp <= 0) {
+                        other.alive = false; other.dying = true; other.animState = "dying"; other.animAccum = 0;
+                        s.score += Math.floor(10 * s.wave * (1 + s.comboCount * comboMult));
+                        onScoreChange(s.score);
+                      }
+                    }
+                  }
+                  // Damage player if too close
+                  const pdx = s.playerX + PLAYER_W_BASE / 2 - impactX;
+                  const pdy = s.playerY + PLAYER_H_BASE / 2 - impactY;
+                  if (Math.sqrt(pdx * pdx + pdy * pdy) < aoeRadius && s.playerBodyHitTimer <= 0 && !isInvincible && !hasShield && !s.permShieldActive) {
+                    s.currentSlices = Math.max(0, s.currentSlices - 1);
+                    s.lives = Math.ceil(s.currentSlices / s.slicesPerHeart);
+                    onLivesChange(s.lives);
+                    if (onHealthDetailChange) onHealthDetailChange(s.currentSlices, s.maxSlices, s.slicesPerHeart);
+                    s.playerBodyHitTimer = 1.0;
+                    play("playerHit");
+                    spawnParticles(s.playerX + PLAYER_W_BASE / 2, s.playerY + PLAYER_H_BASE / 2, "#ff4400", 6);
+                  }
+                  spawnEffect(s.activeEffects, "bomb", impactX, impactY, siteData.secretGame?.impacts?.bomb ?? { w: 40, h: 40 });
+                  spawnParticles(impactX, impactY, "#ff8800", 10);
+                }
+                // Elite splitter
+                if (e.eliteType === "splitter") {
+                  for (let si = 0; si < 2; si++) {
+                    s.enemies.push({
+                      x: e.x + (Math.random() - 0.5) * 10,
+                      y: e.y + (Math.random() - 0.5) * 10,
+                      variant: e.variant,
+                      alive: true,
+                      cooldown: Math.random() * 2,
+                      projectileIndex: e.projectileIndex,
+                      virusStacks: 0,
+                      virusTimer: 0,
+                      virusAccum: 0,
+                      hp: Math.max(1, Math.floor(e.maxHp / 2)),
+                      maxHp: Math.max(1, Math.floor(e.maxHp / 2)),
+                      animState: "walking",
+                      animAccum: 0,
+                      dying: false,
+                      facing: e.facing,
+                      orbitalHitCooldown: 0,
+                      isElite: false,
+                      eliteType: null,
+                      eliteShieldActive: false,
+                      eliteShieldTimer: 0,
+                      eliteHealAccum: 0,
+                    });
+                  }
+                }
                 spawnEffect(s.activeEffects, "bullet", impactX, impactY, playerBulletImpact);
                 spawnParticles(impactX, impactY, "#ff006e", 8);
                 spawnParticles(impactX, impactY, "#fcee0a", 4);
@@ -1832,7 +2104,12 @@ export function GameCanvas({
             b.y >= bhby &&
             b.y <= bhby + bhbh
           ) {
-            s.bullets.splice(bi, 1);
+            // Pierce: bullet may continue through boss
+            if (playerStats.hasPierce && (b.pierceRemaining ?? 0) > 0) {
+              b.pierceRemaining = (b.pierceRemaining ?? 0) - 1;
+            } else {
+              s.bullets.splice(bi, 1);
+            }
             // Apply damage: missile uses superBulletDamage, super bullet uses multiplier, else base
             const baseDmg = bossCfg?.bulletDamage ?? 20;
             const damage = b.superBulletDamage != null
@@ -1867,8 +2144,26 @@ export function GameCanvas({
               spawnParticles(b.x, b.y, "#39ff14", 3);
             }
             if (s.boss.health <= 0) {
-              s.score += bossCfg?.scoreReward ?? 500;
+              // Combo on boss kill
+              const comboDecay = siteData.secretGame?.comboDecayTime ?? 2.0;
+              const comboMult = siteData.secretGame?.comboMultiplierPerKill ?? 0.1;
+              s.comboCount++;
+              s.comboTimer = comboDecay;
+              if (s.comboCount > s.maxComboThisRun) s.maxComboThisRun = s.comboCount;
+              s.score += Math.floor((bossCfg?.scoreReward ?? 500) * (1 + s.comboCount * comboMult));
               onScoreChange(s.score);
+              // Vampirism on boss kill
+              if (playerStats.hasVampirism) {
+                s.vampKillsSinceHeal++;
+                if (s.vampKillsSinceHeal >= playerStats.vampirismKillsNeeded) {
+                  s.vampKillsSinceHeal = 0;
+                  s.currentSlices = Math.min(s.maxSlices, s.currentSlices + 1);
+                  s.lives = Math.ceil(s.currentSlices / s.slicesPerHeart);
+                  onLivesChange(s.lives);
+                  if (onHealthDetailChange) onHealthDetailChange(s.currentSlices, s.maxSlices, s.slicesPerHeart);
+                  spawnParticles(s.playerX + PLAYER_W_BASE / 2, s.playerY + PLAYER_H_BASE / 2, "#ff0000", 6);
+                }
+              }
               spawnEffect(s.activeEffects, "boss", s.boss.x + bw / 2, s.boss.y + bh / 2, siteData.secretGame?.impacts?.boss ?? { w: 80, h: 80 });
               spawnParticles(s.boss.x + bw / 2, s.boss.y + bh / 2, "#ff006e", 20);
               spawnParticles(s.boss.x + bw / 2, s.boss.y + bh / 2, "#fcee0a", 15);
@@ -2197,6 +2492,25 @@ export function GameCanvas({
         // Procedural fallback while sprites are loading
         () => drawEnemy(ctx, sprX, sprY, e.variant, s.frame, e.cooldown > 0.75, sprW, sprH),
       );
+      // Elite glow outline
+      if (e.isElite && e.alive) {
+        const eliteColors: Record<string, string> = {
+          shielded: "#00f0ff",
+          explosive: "#ff8800",
+          regenerating: "#39ff14",
+          splitter: "#cc44ff",
+        };
+        const ec = eliteColors[e.eliteType ?? ""] ?? "#ffffff";
+        ctx.strokeStyle = ec;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([3, 3]);
+        ctx.strokeRect(sprX - 2, sprY - 2, sprW + 4, sprH + 4);
+        ctx.setLineDash([]);
+        ctx.fillStyle = ec;
+        ctx.font = "bold 7px monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(e.eliteType?.toUpperCase() ?? "ELITE", sprX + sprW / 2, sprY - 6);
+      }
       ctx.restore();
     }
 
@@ -2330,6 +2644,14 @@ export function GameCanvas({
         // No procedural fallback — only render new sprite assets
         () => {},
       );
+      // Phase 4 enrage tint
+      if (s.boss.phase === 4) {
+        ctx.save();
+        ctx.globalCompositeOperation = "source-atop";
+        ctx.fillStyle = "rgba(255, 0, 0, 0.25)";
+        ctx.fillRect(sprX, sprY, sprW, sprH);
+        ctx.restore();
+      }
       // Boss health bar — attached above the boss, editable offset/size
       if (bossCfg?.healthBarVisible !== false) {
         const barW = bossCfg?.healthBarWidth ?? 40;
@@ -2417,7 +2739,8 @@ export function GameCanvas({
         } else {
           const platProjSizes = siteData.secretGame?.[_renderPlatform]?.projectileSizes;
           const bulletSize = platProjSizes?.playerBullet ?? 4;
-          drawPlayerBullet(ctx, b.x, b.y, s.frame, bulletSize);
+          const bulletAngle = b.angle ?? Math.atan2(b.vy, b.vx);
+          drawPlayerBullet(ctx, b.x, b.y, s.frame, bulletSize, bulletAngle);
         }
       } else if (b.isBoss) {
         const platProjSizes = siteData.secretGame?.[_renderPlatform]?.projectileSizes;
@@ -2481,6 +2804,21 @@ export function GameCanvas({
         ctx.fillText(dn.value, dn.x, dn.y);
         ctx.restore();
       }
+    }
+
+    // Draw combo counter
+    if (s.comboCount > 0) {
+      const comboColors = ["#ffffff", "#ffff00", "#ff8800", "#ff0000"];
+      const comboColor = comboColors[Math.min(s.comboCount / 10, 3)];
+      ctx.save();
+      ctx.fillStyle = comboColor;
+      ctx.shadowColor = comboColor;
+      ctx.shadowBlur = 6;
+      ctx.font = "bold 10px monospace";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      ctx.fillText(`COMBO x${Math.min(s.comboCount, 99)}`, 8, 28);
+      ctx.restore();
     }
 
     ctx.restore();

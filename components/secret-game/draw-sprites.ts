@@ -646,13 +646,14 @@ export function drawEnemy(
 }
 
 /* ── Player bullet: 8-bit electricity burst ── */
-export function drawPlayerBullet(ctx: CanvasRenderingContext2D, x: number, y: number, frame: number, size = 4) {
+export function drawPlayerBullet(ctx: CanvasRenderingContext2D, x: number, y: number, frame: number, size = 4, angle = -Math.PI / 2) {
   const scale = size / 4;
   const primary = frame % 3 === 0 ? "#ffffff" : "#00f0ff";
   const secondary = frame % 3 === 0 ? "#00f0ff" : "#88ffff";
 
   ctx.save();
   ctx.translate(x, y);
+  ctx.rotate(angle + Math.PI / 2); // bolt is drawn pointing up, rotate to match velocity
   ctx.scale(scale, scale);
   ctx.fillStyle = primary;
 

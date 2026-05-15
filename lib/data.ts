@@ -365,6 +365,14 @@ export interface SecretGameSettings {
   enemyProjectileDamagePerWave?: number;
   /** Extra enemy projectile speed added per wave beyond wave 1 (default 0) */
   enemyProjectileSpeedPerWave?: number;
+  /** First wave where elite enemies can spawn (default 5) */
+  eliteSpawnWaveStart?: number;
+  /** Chance (0–1) that a spawned enemy becomes an elite champion (default 0.15) */
+  eliteSpawnChance?: number;
+  /** Combo decay time in seconds (default 2.0) */
+  comboDecayTime?: number;
+  /** Score multiplier added per combo kill (default 0.1) */
+  comboMultiplierPerKill?: number;
   /** Configurable GIF sizes for hit/death impacts */
   impacts: GameImpactSettings;
   /** Per-type relative spawn rates for standard temp power-ups */
@@ -437,6 +445,10 @@ export interface SecretGameSettings {
     orbital?: { damage?: number; orbitSpeed?: number; orbSize?: number; hitboxSize?: number; cooldown?: number; orbitRadius?: number; duration?: number };
     virus?: { baseInfectionChance?: number; chancePerStack?: number; baseDamagePerTick?: number; damagePerStack?: number; duration?: number; maxVirusStacks?: number };
     nuke?: { cooldown?: number; bossHPReduction?: number; nukesPerStack?: number };
+    vampirism?: { baseKills?: number; killsPerStack?: number };
+    bounce?: { bouncesPerStack?: number; maxBounces?: number };
+    magnet?: { baseRadius?: number; radiusPerStack?: number };
+    pierce?: { piercePerStack?: number };
     speed?: { speedPerStack?: number };
     strength?: { damagePerStack?: number };
     projectile?: { projectilesPerStack?: number; superBulletThreshold?: number; superBulletSizeMultiplier?: number; redSize?: number; purpleSize?: number; goldSize?: number; redDamage?: number; purpleDamage?: number; goldDamage?: number };

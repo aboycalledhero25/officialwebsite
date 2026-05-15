@@ -300,6 +300,76 @@ export const POWER_UP_REGISTRY: PowerUpDefinition[] = [
       return `${pct}% chance, ${dmg} dmg/tick`;
     },
   },
+  {
+    id: "vampirism",
+    name: "Vampirism",
+    description: "Heal 1 heart slice every N kills.",
+    icon: "/powerups/icons/vampirism.png",
+    canStack: true, maxStacks: 5, removeFromPoolAfterMaxed: true,
+    getCurrentStat: (c) => {
+      const n = c["vampirism"] ?? 0;
+      if (n === 0) return "Heal every: — kills";
+      const kills = Math.max(1, ROGUELIKE_CONFIG.vampirism.baseKills - (n - 1) * ROGUELIKE_CONFIG.vampirism.killsPerStack);
+      return `Heal every ${kills} kills`;
+    },
+    getNextStat: (c) => {
+      const n = (c["vampirism"] ?? 0) + 1;
+      const kills = Math.max(1, ROGUELIKE_CONFIG.vampirism.baseKills - (n - 1) * ROGUELIKE_CONFIG.vampirism.killsPerStack);
+      return `Heal every ${kills} kills`;
+    },
+  },
+  {
+    id: "bounce",
+    name: "Bounce",
+    description: "Player bullets bounce off screen edges.",
+    icon: "/powerups/icons/bounce.png",
+    canStack: true, maxStacks: 3, removeFromPoolAfterMaxed: true,
+    getCurrentStat: (c) => {
+      const n = c["bounce"] ?? 0;
+      if (n === 0) return "Bounces: 0";
+      const bounces = Math.min(n * ROGUELIKE_CONFIG.bounce.bouncesPerStack, ROGUELIKE_CONFIG.bounce.maxBounces);
+      return `Bounces: ${bounces}`;
+    },
+    getNextStat: (c) => {
+      const n = (c["bounce"] ?? 0) + 1;
+      const bounces = Math.min(n * ROGUELIKE_CONFIG.bounce.bouncesPerStack, ROGUELIKE_CONFIG.bounce.maxBounces);
+      return `Bounces: ${bounces}`;
+    },
+  },
+  {
+    id: "magnet",
+    name: "Magnet",
+    description: "Pulls power-up drops toward the player.",
+    icon: "/powerups/icons/magnet.png",
+    canStack: true, maxStacks: 5, removeFromPoolAfterMaxed: false,
+    getCurrentStat: (c) => {
+      const n = c["magnet"] ?? 0;
+      if (n === 0) return "Radius: 0";
+      const r = ROGUELIKE_CONFIG.magnet.baseRadius + (n - 1) * ROGUELIKE_CONFIG.magnet.radiusPerStack;
+      return `Radius: ${r}px`;
+    },
+    getNextStat: (c) => {
+      const n = (c["magnet"] ?? 0) + 1;
+      const r = ROGUELIKE_CONFIG.magnet.baseRadius + (n - 1) * ROGUELIKE_CONFIG.magnet.radiusPerStack;
+      return `Radius: ${r}px`;
+    },
+  },
+  {
+    id: "pierce",
+    name: "Pierce",
+    description: "Bullets pass through enemies, hitting multiple targets.",
+    icon: "/powerups/icons/pierce.png",
+    canStack: true, maxStacks: 5, removeFromPoolAfterMaxed: false,
+    getCurrentStat: (c) => {
+      const n = c["pierce"] ?? 0;
+      if (n === 0) return "Pierce: 0";
+      return `Pierce: ${n * ROGUELIKE_CONFIG.pierce.piercePerStack}`;
+    },
+    getNextStat: (c) => {
+      const n = (c["pierce"] ?? 0) + 1;
+      return `Pierce: ${n * ROGUELIKE_CONFIG.pierce.piercePerStack}`;
+    },
+  },
 ];
 
 // ─── Utility helpers ──────────────────────────────────────────────────────────

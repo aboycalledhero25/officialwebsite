@@ -485,6 +485,23 @@ export default function SecretGameAdminPage() {
         <p className="text-xs text-neutral-500 mt-2">Collision damage = Base + (Wave − 1) × Per Wave (slices removed on body contact). Projectile damage = same formula. Projectile speed increases by Per Wave each wave.</p>
       </Section>
 
+      <Section title="Elite Enemies">
+        <p className="text-xs text-neutral-500 mb-3">Champion enemies with special modifiers spawn starting at the configured wave.</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          <NumberField label="Spawn Wave Start" value={settings.eliteSpawnWaveStart ?? 5} onChange={(v) => updateField("eliteSpawnWaveStart", v)} min={1} max={100} step={1} />
+          <NumberField label="Spawn Chance" value={(settings.eliteSpawnChance ?? 0.15) * 100} onChange={(v) => updateField("eliteSpawnChance", v / 100)} min={0} max={100} step={1} />
+        </div>
+        <p className="text-xs text-neutral-500 mt-2">Types: Shielded (absorbs first hit), Explosive (death AOE), Regenerating (heals over time), Splitter (splits on death).</p>
+      </Section>
+
+      <Section title="Combo System">
+        <p className="text-xs text-neutral-500 mb-3">Combo counter increments on each kill. Decays after no kills for the set time. Score multiplier = 1 + (combo × multiplier).</p>
+        <div className="grid grid-cols-2 gap-4">
+          <NumberField label="Decay Time (s)" value={settings.comboDecayTime ?? 2.0} onChange={(v) => updateField("comboDecayTime", v)} min={0.5} max={10} step={0.5} />
+          <NumberField label="Multiplier/Kill" value={settings.comboMultiplierPerKill ?? 0.1} onChange={(v) => updateField("comboMultiplierPerKill", v)} min={0} max={1} step={0.05} />
+        </div>
+      </Section>
+
       <Section title="Enemy Difficulty Per Wave Group">
         <p className="text-xs text-neutral-500 mb-3">Override all enemy stats for specific wave ranges. Group 1 = Waves 1–10, Group 2 = Waves 11–20, etc. When a group is set, it replaces the formula scaling for every wave in that range.</p>
         <div className="space-y-3">
@@ -851,6 +868,10 @@ export default function SecretGameAdminPage() {
     const orbital   = rc.orbital     ?? { damage: 30, orbitSpeed: 2.5, orbSize: 8, cooldown: 10, orbitRadius: 35, duration: 10 };
     const virus     = rc.virus       ?? { baseInfectionChance: 0.2, chancePerStack: 0.05, baseDamagePerTick: 10, damagePerStack: 5, duration: 3, maxVirusStacks: 3 };
     const nuke      = rc.nuke        ?? { cooldown: 30, bossHPReduction: 0.25, nukesPerStack: 1 };
+    const vampirism = rc.vampirism   ?? { baseKills: 15, killsPerStack: 3 };
+    const bounce    = rc.bounce      ?? { bouncesPerStack: 1, maxBounces: 3 };
+    const magnet    = rc.magnet      ?? { baseRadius: 40, radiusPerStack: 20 };
+    const pierce    = rc.pierce      ?? { piercePerStack: 1 };
     const shield    = rc.shield      ?? { duration: 10, cooldown: 30 };
     const speed     = rc.speed       ?? { speedPerStack: 0.01 };
     const strength  = rc.strength    ?? { damagePerStack: 0.02 };
@@ -957,6 +978,37 @@ export default function SecretGameAdminPage() {
           </div>
         </Section>
 
+        <Section title="Vampirism (perm upgrade)">
+          <p className="text-xs text-neutral-500 mb-3">Heal 1 heart slice every N kills. Stacks reduce N.</p>
+          <div className="grid grid-cols-2 gap-4">
+            <NumberField label="Base Kills" value={vampirism.baseKills ?? 15} onChange={(v) => upRc("vampirism", { baseKills: v })} min={1} max={50} step={1} />
+            <NumberField label="Kills/Stack Reduction" value={vampirism.killsPerStack ?? 3} onChange={(v) => upRc("vampirism", { killsPerStack: v })} min={1} max={10} step={1} />
+          </div>
+        </Section>
+
+        <Section title="Bounce (perm upgrade)">
+          <p className="text-xs text-neutral-500 mb-3">Player bullets bounce off screen edges.</p>
+          <div className="grid grid-cols-2 gap-4">
+            <NumberField label="Bounces/Stack" value={bounce.bouncesPerStack ?? 1} onChange={(v) => upRc("bounce", { bouncesPerStack: v })} min={1} max={3} step={1} />
+            <NumberField label="Max Bounces" value={bounce.maxBounces ?? 3} onChange={(v) => upRc("bounce", { maxBounces: v })} min={1} max={10} step={1} />
+          </div>
+        </Section>
+
+        <Section title="Magnet (perm upgrade)">
+          <p className="text-xs text-neutral-500 mb-3">Pulls power-up drops toward the player.</p>
+          <div className="grid grid-cols-2 gap-4">
+            <NumberField label="Base Radius (px)" value={magnet.baseRadius ?? 40} onChange={(v) => upRc("magnet", { baseRadius: v })} min={10} max={200} step={5} />
+            <NumberField label="Radius/Stack (px)" value={magnet.radiusPerStack ?? 20} onChange={(v) => upRc("magnet", { radiusPerStack: v })} min={5} max={100} step={5} />
+          </div>
+        </Section>
+
+        <Section title="Pierce (perm upgrade)">
+          <p className="text-xs text-neutral-500 mb-3">Bullets pass through enemies, hitting multiple targets.</p>
+          <div className="grid grid-cols-1 gap-4">
+            <NumberField label="Pierce/Stack" value={pierce.piercePerStack ?? 1} onChange={(v) => upRc("pierce", { piercePerStack: v })} min={1} max={5} step={1} />
+          </div>
+        </Section>
+
         <Section title="Perm Shield (perm upgrade)">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             <NumberField label="Duration (s)" value={shield.duration ?? 10} onChange={(v) => upRc("shield", { duration: v })} min={1} max={60} step={1} />
@@ -1012,6 +1064,10 @@ export default function SecretGameAdminPage() {
               { id: "superProjectile2", label: "Super Projectile (Purple)" },
               { id: "superProjectile3", label: "Super Projectile (Gold)" },
               { id: "virus", label: "Virus" },
+              { id: "vampirism", label: "Vampirism" },
+              { id: "bounce", label: "Bounce" },
+              { id: "magnet", label: "Magnet" },
+              { id: "pierce", label: "Pierce" },
             ].map(({ id, label }) => {
               const disabled = settings.disabledPowerUps ?? [];
               const isEnabled = !disabled.includes(id);
