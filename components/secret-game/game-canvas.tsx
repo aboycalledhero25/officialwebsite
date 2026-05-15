@@ -3074,6 +3074,12 @@ export function GameCanvas({
               ecby + ech > py
             );
           }
+          // DEBUG: log first collision per session to verify hitboxes
+          if (bodyHit && typeof window !== "undefined" && !(window as any).__bodyHitLogged) {
+            (window as any).__bodyHitLogged = true;
+            // eslint-disable-next-line no-console
+            console.log("[Game] Body collision:", { ex: e.x, ey: e.y, ecw, ech, px, py, pw, ph, bodyHit });
+          }
           if (bodyHit) {
             if (isInvincible || s.permShieldActive || hasShield) break;
             s.currentSlices = Math.max(0, s.currentSlices - waveEnemyCollisionDmg);
