@@ -317,19 +317,38 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
   // ── Wave 100 song unlock ────────────────────────────────────────────
   const songUnlockStartedRef = useRef(false);
   const songAudioRef = useRef<HTMLAudioElement | null>(null);
+  const songEndedRef = useRef(false);
+  const wasMutedRef = useRef(muted);
   const [songFinished, setSongFinished] = useState(false);
+
+  // Keep wasMutedRef in sync so callbacks always use the correct value
+  useEffect(() => {
+    wasMutedRef.current = muted;
+  }, [muted]);
+
   useEffect(() => {
     if (phase !== "songunlock") {
+      // Always clean up audio when leaving songunlock
+      if (songAudioRef.current) {
+        const a = songAudioRef.current;
+        a.pause();
+        a.src = "";
+        a.load();
+        songAudioRef.current = null;
+      }
       songUnlockStartedRef.current = false;
+      songEndedRef.current = false;
       setSongUnlockNeedsTap(false);
       setSongFinished(false);
       return;
     }
-    if (songUnlockStartedRef.current) return;
-    songUnlockStartedRef.current = true;
 
-    let ended = false;
-    const wasMuted = muted;
+    // Prevent duplicate creation using the audio ref itself (survives Strict Mode remounts)
+    if (songAudioRef.current) return;
+    songUnlockStartedRef.current = true;
+    songEndedRef.current = false;
+
+    const wasMuted = wasMutedRef.current;
 
     // Mute all game audio so only the song plays
     setMuted(true);
@@ -341,7 +360,8 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
     songAudioRef.current = audio;
 
     const onEnded = () => {
-      ended = true;
+      if (songEndedRef.current) return;
+      songEndedRef.current = true;
       setSongFinished(true);
       setMuted(wasMuted);
       setAudioMuted(wasMuted);
@@ -349,18 +369,27 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
     };
 
     const onError = () => {
-      // On error, just let the user continue manually — don't auto-skip
+      if (songEndedRef.current) return;
+      songEndedRef.current = true;
       setSongFinished(true);
       setMuted(wasMuted);
       setAudioMuted(wasMuted);
       setMusicMuted(wasMuted);
     };
 
+    // Mobile: resume playback when user returns to the page
+    const onVisibilityChange = () => {
+      if (!document.hidden && songAudioRef.current && !songEndedRef.current && songAudioRef.current.paused) {
+        songAudioRef.current.play().catch(() => {});
+      }
+    };
+
     audio.addEventListener("ended", onEnded);
     audio.addEventListener("error", onError);
+    document.addEventListener("visibilitychange", onVisibilityChange);
 
     const tryPlay = () => {
-      if (!audio || ended) return;
+      if (!audio || songEndedRef.current) return;
       audio.play().then(() => {
         setSongUnlockNeedsTap(false);
       }).catch(() => {
@@ -372,10 +401,10 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
     tryPlay();
 
     return () => {
-      // Only pause if we're actually leaving songunlock (not on re-render)
-      // The phase check below prevents Strict Mode double-mount from killing audio
       audio.removeEventListener("ended", onEnded);
       audio.removeEventListener("error", onError);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      // Only destroy audio if we're truly leaving the phase (not Strict Mode simulation)
       if (phase !== "songunlock") {
         audio.pause();
         audio.src = "";

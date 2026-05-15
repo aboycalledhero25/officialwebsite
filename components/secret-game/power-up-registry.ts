@@ -322,7 +322,7 @@ export const POWER_UP_REGISTRY: PowerUpDefinition[] = [
     id: "bounce",
     name: "Ricochet",
     description: "Player bullets bounce off screen edges.",
-    icon: "/powerups/icons/bounce.png",
+    icon: "/powerups/icons/ricochet.png",
     canStack: true, maxStacks: 3, removeFromPoolAfterMaxed: true,
     getCurrentStat: (c) => {
       const n = c["bounce"] ?? 0;

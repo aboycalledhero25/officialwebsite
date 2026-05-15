@@ -463,8 +463,19 @@ export function GameCanvas({
 
     const resize = () => {
       const vw = window.visualViewport;
-      const w = vw ? Math.round(vw.width) : window.innerWidth;
-      const h = vw ? Math.round(vw.height) : window.innerHeight;
+      let w = vw ? Math.round(vw.width) : window.innerWidth;
+      let h = vw ? Math.round(vw.height) : window.innerHeight;
+      // Cap canvas resolution on mobile to reduce GPU fill-rate load
+      const isMobile = typeof window !== "undefined" && (window.innerWidth < 768 || "ontouchstart" in window);
+      if (isMobile) {
+        const MAX_MOBILE_W = 640;
+        const MAX_MOBILE_H = 854;
+        if (w > MAX_MOBILE_W || h > MAX_MOBILE_H) {
+          const scale = Math.min(MAX_MOBILE_W / w, MAX_MOBILE_H / h, 1);
+          w = Math.round(w * scale);
+          h = Math.round(h * scale);
+        }
+      }
       canvas.width = w;
       canvas.height = h;
       const sc = h / BASE_H;
@@ -829,8 +840,31 @@ export function GameCanvas({
       const py = s.playerY + (hbCfg?.offsetY ?? 0);
       const pw = hbCfg?.width  ?? PLAYER_W_BASE;
       const ph = hbCfg?.height ?? PLAYER_H_BASE;
-      const hasShield = s.activePowerUps.some((p) => p.type === "shield");
-      const isInvincible = s.activePowerUps.some((p) => p.type === "invincible");
+      // ── Cache power-up lookups (scan once per frame) ─────────────────
+      let hasShield = false;
+      let isInvincible = false;
+      let timeWarpPU: ActivePowerUp | undefined;
+      let wideShotPU: ActivePowerUp | undefined;
+      let projectilePU: ActivePowerUp | undefined;
+      let rapidPU: ActivePowerUp | undefined;
+      let doubleShotPU: ActivePowerUp | undefined;
+      let groupiePU: ActivePowerUp | undefined;
+      let ricochetPU: ActivePowerUp | undefined;
+      let shieldPU: ActivePowerUp | undefined;
+      for (const p of s.activePowerUps) {
+        switch (p.type) {
+          case "shield": hasShield = true; shieldPU = p; break;
+          case "invincible": isInvincible = true; break;
+          case "timewarp": timeWarpPU = p; break;
+          case "wideshot": wideShotPU = p; break;
+          case "projectile": projectilePU = p; break;
+          case "rapid": rapidPU = p; break;
+          case "doubleshot": doubleShotPU = p; break;
+          case "groupie": groupiePU = p; break;
+          case "ricochet": ricochetPU = p; break;
+        }
+      }
+      const timeWarpFactor = timeWarpPU ? 0.5 : 1.0;
 
       // Helper: check if a point is inside a polygon (ray-cast)
       function pointInPolygon(lx: number, ly: number, poly: { x: number; y: number }[]) {
@@ -1449,10 +1483,6 @@ export function GameCanvas({
         if (onPowerUpChange) onPowerUpChange(s.activePowerUps);
       }
 
-      // ── Time Warp: apply slow effect ──
-      const timeWarp = s.activePowerUps.find((p) => p.type === "timewarp");
-      const timeWarpFactor = timeWarp ? 0.5 : 1.0;
-
       // ── Seeker Missile auto-fire ─────────────────────────────────────
       if (playerStats.hasSeekerMissile) {
         s.seekerMissileAccum += dt;
@@ -1682,10 +1712,7 @@ export function GameCanvas({
 
       const autoFireRange = effectiveSettingsRef.current?.autoFireRange ?? 0;
       if (hasThreat && s.playerCooldown <= 0 && (autoFireRange <= 0 || bestDist <= autoFireRange * autoFireRange)) {
-        const wideShot = s.activePowerUps.find((p) => p.type === "wideshot");
-        const projectilePU = s.activePowerUps.find((p) => p.type === "projectile");
-        const rapid = s.activePowerUps.find((p) => p.type === "rapid");
-        const rapidStacks = rapid?.stacks ?? 0;
+        const rapidStacks = rapidPU?.stacks ?? 0;
         let baseCooldown = rapidStacks > 0
           ? Math.min(playerStats.reloadTime, Math.max(0.06, 0.12 - 0.02 * (rapidStacks - 1)))
           : playerStats.reloadTime;
@@ -1695,15 +1722,14 @@ export function GameCanvas({
         }
 
         const permProj = playerStats.projectileCount - 1;
-        let totalBullets = wideShot ? (2 + wideShot.stacks + permProj) : playerStats.projectileCount;
+        let totalBullets = wideShotPU ? (2 + wideShotPU.stacks + permProj) : playerStats.projectileCount;
         if (projectilePU) {
           totalBullets += projectilePU.stacks;
         }
         totalBullets = Math.min(totalBullets, 3);
         const speed = BULLET_SPEED_BASE;
 
-        const doubleShot = s.activePowerUps.find((p) => p.type === "doubleshot");
-        const doubleShotStacks = doubleShot?.stacks ?? 0;
+        const doubleShotStacks = doubleShotPU?.stacks ?? 0;
         const overchargeActive = s.overchargeShots > 0;
 
         const fireBulletNow = (angle: number, offsetX = 0, offsetY = 0) => {
@@ -1740,7 +1766,7 @@ export function GameCanvas({
             angle = Math.atan2(tdy, tdx);
           }
           // Wide shot adds a small spread even when multi-targeting
-          if (totalBullets > 1 && wideShot) {
+          if (totalBullets > 1 && wideShotPU) {
             const spread = 0.13;
             const spreadOffset = -spread + (spread * 2 * i) / (totalBullets - 1);
             angle += spreadOffset;
@@ -1811,8 +1837,6 @@ export function GameCanvas({
         }
       }
 
-      // ── Groupie pet AI ──
-      const groupiePU = s.activePowerUps.find((p) => p.type === "groupie");
       const groupieStacks = groupiePU?.stacks ?? 0;
       const expectedGroupies = groupieStacks;
       // Remove excess groupies if power-up expired
@@ -2472,7 +2496,7 @@ export function GameCanvas({
               }
 
               // Ricochet: redirect to nearest unhit enemy
-              const ricochet = s.activePowerUps.find((p) => p.type === "ricochet");
+              const ricochet = ricochetPU;
               const ricochetBounces = ricochet ? ricochet.stacks : 0;
               const canRicochet = ricochetBounces > 0 && (b.ricochetRemaining ?? 0) > 0;
 
@@ -2900,7 +2924,7 @@ export function GameCanvas({
           }
           if (hasShield) {
             // Shield absorbs one hit then breaks
-            const shieldIdx = s.activePowerUps.findIndex((p) => p.type === "shield");
+            const shieldIdx = shieldPU ? s.activePowerUps.indexOf(shieldPU) : -1;
             if (shieldIdx >= 0) {
               s.activePowerUps.splice(shieldIdx, 1);
               if (onPowerUpChange) onPowerUpChange(s.activePowerUps);
@@ -3223,6 +3247,18 @@ export function GameCanvas({
       siteData.secretGame?.[_renderPlatform]?.enemy ??
       settingsRef.current.enemy;
 
+    // ── Cache render-phase power-up lookups ──────────────────────────
+    let renderTimeWarp = false;
+    let renderInvincible = false;
+    let renderShieldPU: ActivePowerUp | undefined;
+    for (const p of s.activePowerUps) {
+      switch (p.type) {
+        case "timewarp": renderTimeWarp = true; break;
+        case "invincible": renderInvincible = true; break;
+        case "shield": renderShieldPU = p; break;
+      }
+    }
+
     // ── CRITICAL: clear the ENTIRE physical canvas BEFORE any transform ──
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, CW, CH);
@@ -3250,9 +3286,7 @@ export function GameCanvas({
       ctx.translate(shakeX, shakeY);
     }
 
-    // Time Warp: blue tint overlay when active
-    const timeWarpActive = s.activePowerUps.some((p) => p.type === "timewarp");
-    if (timeWarpActive) {
+    if (renderTimeWarp) {
       ctx.save();
       ctx.globalCompositeOperation = "source-over";
       ctx.fillStyle = "rgba(0, 100, 255, 0.08)";
@@ -3395,7 +3429,7 @@ export function GameCanvas({
     );
 
     // Draw invincibility sparkles (Sonic-style) around the guitar
-    if (s.activePowerUps.some((p) => p.type === "invincible")) {
+    if (renderInvincible) {
       const sc = spriteConfig;
       const cx = s.playerX + sc.offsetX + sc.width / 2;
       const cy = s.playerY + sc.offsetY + sc.height / 2;
@@ -3475,16 +3509,14 @@ export function GameCanvas({
       drawShieldSprite(cx2, cy2, permR, permProgress, permScale);
     }
 
-    // Draw shield bubble if active — animation spans the temp shield duration
-    const shieldPU = s.activePowerUps.find((p) => p.type === "shield");
-    if (shieldPU) {
+    if (renderShieldPU) {
       const shieldCfg = settingsRef.current.shield;
       const sc = spriteConfig;
       const cx = s.playerX + sc.offsetX + sc.width / 2 + (shieldCfg?.offsetX ?? 0);
       const cy = s.playerY + sc.offsetY + sc.height / 2 + (shieldCfg?.offsetY ?? 0);
       const shR = shieldCfg?.radius ?? 16;
       const shDur = s.shieldDuration > 0 ? s.shieldDuration : 4;
-      const shProgress = 1 - (shieldPU.timer / shDur);
+      const shProgress = 1 - (renderShieldPU.timer / shDur);
       drawShieldSprite(cx, cy, shR, shProgress);
     }
 
