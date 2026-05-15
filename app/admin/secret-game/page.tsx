@@ -71,6 +71,7 @@ const TABS = [
   { id: "player",      label: "Player",      icon: User },
   { id: "powerups",    label: "Power-ups",   icon: Zap },
   { id: "roguelike",   label: "Roguelike",   icon: Sparkles },
+  { id: "platform",    label: "Platform",    icon: Smartphone },
   { id: "visuals",     label: "Visuals",     icon: Palette },
   { id: "audio",       label: "Audio",       icon: Music },
   { id: "leaderboard", label: "Leaderboard", icon: BarChart3 },
@@ -143,8 +144,8 @@ export default function SecretGameAdminPage() {
           waveConfigs: sg.waveConfigs ?? [{ spawnCount: 8, spawnRate: 1, spawnDelay: 1 }, { spawnCount: 12, spawnRate: 1.2, spawnDelay: 0.5 }, { spawnCount: 16, spawnRate: 1.4, spawnDelay: 0.5 }],
           sfxVolumes: sg.sfxVolumes ?? {},
           damageNumbers: sg.damageNumbers ?? {},
-          desktop: { ...DEFAULT_PLATFORM, ...sg.desktop, enemy: { ...DEFAULT_PLATFORM.enemy, ...(sg.desktop?.enemy ?? {}) }, spawnPoints: padSpawnPoints(sg.desktop?.spawnPoints) },
-          mobile:  { ...DEFAULT_PLATFORM, ...sg.mobile,  enemy: { ...DEFAULT_PLATFORM.enemy, ...(sg.mobile?.enemy  ?? {}) }, spawnPoints: padSpawnPoints(sg.mobile?.spawnPoints) },
+          desktop: { ...DEFAULT_PLATFORM, ...sg.desktop, enemy: { ...DEFAULT_PLATFORM.enemy, ...(sg.desktop?.enemy ?? {}) }, spawnPoints: padSpawnPoints(sg.desktop?.spawnPoints), platformOverrides: sg.desktop?.platformOverrides ?? {} },
+          mobile:  { ...DEFAULT_PLATFORM, ...sg.mobile,  enemy: { ...DEFAULT_PLATFORM.enemy, ...(sg.mobile?.enemy  ?? {}) }, spawnPoints: padSpawnPoints(sg.mobile?.spawnPoints), platformOverrides: sg.mobile?.platformOverrides ?? {} },
         };
         setSettings(merged);
         setLoading(false);
@@ -1120,6 +1121,112 @@ export default function SecretGameAdminPage() {
     );
   };
 
+  const PlatformOverridesTab = () => {
+    const po = plat.platformOverrides ?? {};
+    const upPo = (patch: Partial<typeof po>) => updateField(`${platform}.platformOverrides`, { ...po, ...patch });
+    const globalVal = (key: keyof typeof po) => (settings as any)[key];
+    const val = (key: keyof typeof po, fallback: any) => po[key] !== undefined ? po[key] : fallback;
+
+    return (
+      <div className="space-y-4">
+        <div className="flex gap-2 mb-2">
+          <button onClick={() => setPlatform("desktop")} className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${platform === "desktop" ? "bg-[#00f0ff] text-black" : "bg-[#1e1e1e] text-neutral-300 hover:bg-[#2a2a2a]"}`}>
+            <Monitor className="w-4 h-4" /> Desktop
+          </button>
+          <button onClick={() => setPlatform("mobile")} className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${platform === "mobile" ? "bg-[#00f0ff] text-black" : "bg-[#1e1e1e] text-neutral-300 hover:bg-[#2a2a2a]"}`}>
+            <Smartphone className="w-4 h-4" /> Mobile
+          </button>
+        </div>
+
+        <p className="text-xs text-neutral-500">
+          Override any global balance setting for {platform} only. Leave a field at its global value to inherit from the main settings. Fields shown in <span className="text-yellow-400">yellow</span> are overridden for this platform.
+        </p>
+
+        <Section title="Enemy HP & Damage">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <OverridableNumberField label="Base HP" globalValue={globalVal("enemyBaseHp") ?? 1} overrideValue={po.enemyBaseHp} onChange={(v) => upPo({ enemyBaseHp: v })} min={1} max={50} step={1} />
+            <OverridableNumberField label="HP Per Wave" globalValue={globalVal("enemyHpPerWave") ?? 0} overrideValue={po.enemyHpPerWave} onChange={(v) => upPo({ enemyHpPerWave: v })} min={0} max={20} step={1} />
+            <OverridableNumberField label="Collision Damage" globalValue={globalVal("enemyCollisionDamage") ?? 1} overrideValue={po.enemyCollisionDamage} onChange={(v) => upPo({ enemyCollisionDamage: v })} min={1} max={20} step={1} />
+            <OverridableNumberField label="Collision Dmg/Wave" globalValue={globalVal("enemyCollisionDamagePerWave") ?? 0} overrideValue={po.enemyCollisionDamagePerWave} onChange={(v) => upPo({ enemyCollisionDamagePerWave: v })} min={0} max={10} step={1} />
+            <OverridableNumberField label="Projectile Damage" globalValue={globalVal("enemyProjectileDamage") ?? 1} overrideValue={po.enemyProjectileDamage} onChange={(v) => upPo({ enemyProjectileDamage: v })} min={1} max={20} step={1} />
+            <OverridableNumberField label="Projectile Dmg/Wave" globalValue={globalVal("enemyProjectileDamagePerWave") ?? 0} overrideValue={po.enemyProjectileDamagePerWave} onChange={(v) => upPo({ enemyProjectileDamagePerWave: v })} min={0} max={10} step={1} />
+            <OverridableNumberField label="Projectile Speed/Wave" globalValue={globalVal("enemyProjectileSpeedPerWave") ?? 0} overrideValue={po.enemyProjectileSpeedPerWave} onChange={(v) => upPo({ enemyProjectileSpeedPerWave: v })} min={0} max={50} step={1} />
+          </div>
+        </Section>
+
+        <Section title="Elite Enemies">
+          <div className="grid grid-cols-2 gap-4">
+            <OverridableNumberField label="Spawn Wave Start" globalValue={globalVal("eliteSpawnWaveStart") ?? 5} overrideValue={po.eliteSpawnWaveStart} onChange={(v) => upPo({ eliteSpawnWaveStart: v })} min={1} max={100} step={1} />
+            <OverridableNumberField label="Spawn Chance" globalValue={(globalVal("eliteSpawnChance") ?? 0.15) * 100} overrideValue={po.eliteSpawnChance !== undefined ? po.eliteSpawnChance * 100 : undefined} onChange={(v) => upPo({ eliteSpawnChance: v !== undefined ? v / 100 : undefined })} min={0} max={100} step={1} />
+          </div>
+        </Section>
+
+        <Section title="Combo System">
+          <div className="grid grid-cols-2 gap-4">
+            <OverridableNumberField label="Decay Time (s)" globalValue={globalVal("comboDecayTime") ?? 2.0} overrideValue={po.comboDecayTime} onChange={(v) => upPo({ comboDecayTime: v })} min={0.5} max={10} step={0.5} />
+            <OverridableNumberField label="Multiplier/Kill" globalValue={globalVal("comboMultiplierPerKill") ?? 0.1} overrideValue={po.comboMultiplierPerKill} onChange={(v) => upPo({ comboMultiplierPerKill: v })} min={0} max={1} step={0.05} />
+          </div>
+        </Section>
+
+        <Section title="Power-ups">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <OverridableNumberField label="Spawn Chance" globalValue={(globalVal("powerUpSpawnChance") ?? 0.12) * 100} overrideValue={po.powerUpSpawnChance !== undefined ? po.powerUpSpawnChance * 100 : undefined} onChange={(v) => upPo({ powerUpSpawnChance: v !== undefined ? v / 100 : undefined })} min={0} max={100} step={1} />
+            <OverridableNumberField label="Boss Projectile Drop %" globalValue={(globalVal("bossProjectileDropRate") ?? 0.15) * 100} overrideValue={po.bossProjectileDropRate !== undefined ? po.bossProjectileDropRate * 100 : undefined} onChange={(v) => upPo({ bossProjectileDropRate: v !== undefined ? v / 100 : undefined })} min={0} max={100} step={1} />
+            <OverridableNumberField label="Power-up Size" globalValue={globalVal("powerUpSize") ?? 8} overrideValue={po.powerUpSize} onChange={(v) => upPo({ powerUpSize: v })} min={1} max={50} step={1} />
+            <OverridableNumberField label="Choice Drop Chance %" globalValue={(globalVal("enemyChoiceDropChance") ?? 0.05) * 100} overrideValue={po.enemyChoiceDropChance !== undefined ? po.enemyChoiceDropChance * 100 : undefined} onChange={(v) => upPo({ enemyChoiceDropChance: v !== undefined ? v / 100 : undefined })} min={0} max={100} step={1} />
+          </div>
+        </Section>
+
+        <Section title="Power-up Durations (seconds)">
+          {(() => {
+            const globalDurations = settings.powerUpDurations ?? { rapid: 5, wideShot: 4, projectile: 4, invincible: 4 };
+            const overrideDurations = po.powerUpDurations ?? {};
+            const upDurations = (patch: Partial<typeof overrideDurations>) => upPo({ powerUpDurations: { ...overrideDurations, ...patch } });
+            const types = [
+              { key: "rapid", label: "Rapid Fire" },
+              { key: "wideShot", label: "Wide Shot" },
+              { key: "projectile", label: "Extra Projectile" },
+              { key: "invincible", label: "Invincible" },
+              { key: "timewarp", label: "Time Warp" },
+              { key: "doubleshot", label: "Double Shot" },
+              { key: "ricochet", label: "Ricochet" },
+              { key: "overcharge", label: "Overcharge" },
+              { key: "groupie", label: "Groupie" },
+            ] as const;
+            return (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {types.map(({ key, label }) => (
+                  <OverridableNumberField key={key} label={label} globalValue={(globalDurations as any)[key] ?? 4} overrideValue={(overrideDurations as any)[key]} onChange={(v) => upDurations({ [key]: v })} min={1} max={60} step={1} />
+                ))}
+              </div>
+            );
+          })()}
+        </Section>
+
+        <Section title="Player Settings">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <OverridableNumberField label="Bullet Spawn Offset X" globalValue={globalVal("bulletSpawnOffsetX") ?? 5} overrideValue={po.bulletSpawnOffsetX} onChange={(v) => upPo({ bulletSpawnOffsetX: v })} min={-50} max={50} step={1} />
+            <OverridableNumberField label="Bullet Spawn Offset Y" globalValue={globalVal("bulletSpawnOffsetY") ?? 10} overrideValue={po.bulletSpawnOffsetY} onChange={(v) => upPo({ bulletSpawnOffsetY: v })} min={-50} max={50} step={1} />
+            <OverridableNumberField label="Mouse Follow Offset X" globalValue={globalVal("mouseFollowOffsetX") ?? 0} overrideValue={po.mouseFollowOffsetX} onChange={(v) => upPo({ mouseFollowOffsetX: v })} min={-50} max={50} step={1} />
+            <OverridableNumberField label="Mouse Follow Offset Y" globalValue={globalVal("mouseFollowOffsetY") ?? 0} overrideValue={po.mouseFollowOffsetY} onChange={(v) => upPo({ mouseFollowOffsetY: v })} min={-50} max={50} step={1} />
+            <OverridableNumberField label="Auto Fire Range" globalValue={globalVal("autoFireRange") ?? 0} overrideValue={po.autoFireRange} onChange={(v) => upPo({ autoFireRange: v })} min={0} max={500} step={10} />
+            <OverridableNumberField label="Orbital Offset X" globalValue={globalVal("orbitalOffsetX") ?? 0} overrideValue={po.orbitalOffsetX} onChange={(v) => upPo({ orbitalOffsetX: v })} min={-50} max={50} step={1} />
+            <OverridableNumberField label="Orbital Offset Y" globalValue={globalVal("orbitalOffsetY") ?? 0} overrideValue={po.orbitalOffsetY} onChange={(v) => upPo({ orbitalOffsetY: v })} min={-50} max={50} step={1} />
+          </div>
+        </Section>
+
+        <Section title="Wave Reward">
+          <div className="flex items-center gap-4">
+            <Toggle label="Show reward after every wave" checked={po.waveRewardEnabled !== undefined ? po.waveRewardEnabled : (settings.waveRewardEnabled ?? true)} onChange={(v) => upPo({ waveRewardEnabled: v })} />
+            {po.waveRewardEnabled !== undefined && (
+              <button onClick={() => upPo({ waveRewardEnabled: undefined })} className="text-xs text-yellow-400 hover:text-yellow-300 underline">Reset to global</button>
+            )}
+          </div>
+        </Section>
+      </div>
+    );
+  };
+
   const VisualsTab = () => (
     <div className="space-y-4">
       <Section title="Damage Numbers">
@@ -1243,6 +1350,7 @@ export default function SecretGameAdminPage() {
     player: PlayerTab(),
     powerups: PowerupsTab(),
     roguelike: RoguelikeTab(),
+    platform: PlatformOverridesTab(),
     visuals: VisualsTab(),
     audio: AudioTab(),
     leaderboard: LeaderboardTab(),
@@ -1377,6 +1485,34 @@ function NumberField({ label, value, onChange, min, max, step }: { label: string
       <input type="number" value={value} min={min} max={max} step={step} onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
         className="w-full rounded-lg border border-[#1e1e1e] bg-[#0a0a0a] px-3 py-2 text-sm text-white outline-none transition-colors focus:border-[#00f0ff] focus:ring-1 focus:ring-[#00f0ff]"
       />
+    </div>
+  );
+}
+
+function OverridableNumberField({ label, globalValue, overrideValue, onChange, min, max, step }: { label: string; globalValue: number; overrideValue?: number; onChange: (v: number | undefined) => void; min?: number; max?: number; step?: number }) {
+  const isOverridden = overrideValue !== undefined;
+  const displayValue = isOverridden ? overrideValue : globalValue;
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <label className={`text-xs font-medium uppercase tracking-wider ${isOverridden ? "text-yellow-400" : "text-neutral-500"}`}>{label}</label>
+        {isOverridden && (
+          <button onClick={() => onChange(undefined)} className="text-[10px] text-yellow-400 hover:text-yellow-300 underline">Reset</button>
+        )}
+      </div>
+      <input
+        type="number"
+        value={displayValue}
+        min={min}
+        max={max}
+        step={step}
+        onChange={(e) => {
+          const val = parseFloat(e.target.value);
+          onChange(isNaN(val) ? undefined : val);
+        }}
+        className={`w-full rounded-lg border px-3 py-2 text-sm text-white outline-none transition-colors focus:ring-1 ${isOverridden ? "border-yellow-400/50 bg-yellow-400/5 focus:border-yellow-400 focus:ring-yellow-400" : "border-[#1e1e1e] bg-[#0a0a0a] focus:border-[#00f0ff] focus:ring-[#00f0ff]"}`}
+      />
+      {!isOverridden && <p className="text-[10px] text-neutral-600 mt-0.5">Global: {globalValue}</p>}
     </div>
   );
 }

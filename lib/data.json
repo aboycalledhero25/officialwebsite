@@ -725,7 +725,8 @@
         { "x": 60, "y": 30, "enabled": true },
         { "x": 120, "y": 30, "enabled": true },
         { "x": 180, "y": 30, "enabled": true }
-      ]
+      ],
+      "platformOverrides": {}
     },
     "mobile": {
       "player": {
@@ -811,7 +812,8 @@
         { "x": 60, "y": 30, "enabled": true },
         { "x": 120, "y": 30, "enabled": true },
         { "x": 180, "y": 30, "enabled": true }
-      ]
+      ],
+      "platformOverrides": {}
     }
   },
   "guitarColors": {

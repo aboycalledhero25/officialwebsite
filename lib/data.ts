@@ -259,6 +259,63 @@ export interface GamePlatformSettings {
     seeker?: number;
     orbital?: number;
   };
+  /**
+   * Per-platform overrides for any global balance setting.
+   * When a field is provided here, it takes precedence over the global
+   * SecretGameSettings value for this platform only. Omit a field to
+   * inherit the global default.
+   */
+  platformOverrides?: {
+    powerUpSpawnChance?: number;
+    bossProjectileDropRate?: number;
+    powerUpSize?: number;
+    powerUpDurations?: {
+      rapid?: number;
+      wideShot?: number;
+      projectile?: number;
+      invincible?: number;
+      timewarp?: number;
+      doubleshot?: number;
+      ricochet?: number;
+      overcharge?: number;
+      groupie?: number;
+    };
+    enemyBaseHp?: number;
+    enemyHpPerWave?: number;
+    enemyCollisionDamage?: number;
+    enemyCollisionDamagePerWave?: number;
+    enemyProjectileDamage?: number;
+    enemyProjectileDamagePerWave?: number;
+    enemyProjectileSpeedPerWave?: number;
+    eliteSpawnWaveStart?: number;
+    eliteSpawnChance?: number;
+    comboDecayTime?: number;
+    comboMultiplierPerKill?: number;
+    impacts?: GameImpactSettings;
+    powerUpDropRates?: GamePowerUpDropRates;
+    waveRewardEnabled?: boolean;
+    enemyChoiceDropChance?: number;
+    disabledPowerUps?: string[];
+    powerUpMaxStacks?: Record<string, number>;
+    playerHitbox?: PlayerHitbox;
+    bulletSpawnOffsetX?: number;
+    bulletSpawnOffsetY?: number;
+    mouseFollowOffsetX?: number;
+    mouseFollowOffsetY?: number;
+    autoFireRange?: number;
+    orbitalOffsetX?: number;
+    orbitalOffsetY?: number;
+    permShield?: GameShieldSettings;
+    roguelikeConfig?: SecretGameSettings["roguelikeConfig"];
+    boss?: Partial<BossSettings>;
+    waveOverrides?: SecretGameSettings["waveOverrides"];
+    bossHealthPerWaveGroup?: number[];
+    bossDifficultyPerWaveGroup?: SecretGameSettings["bossDifficultyPerWaveGroup"];
+    enemyDifficultyPerWaveGroup?: SecretGameSettings["enemyDifficultyPerWaveGroup"];
+    waveConfigs?: WaveConfig[];
+    sfxVolumes?: Record<string, number>;
+    damageNumbers?: SecretGameSettings["damageNumbers"];
+  };
 }
 
 export interface BossSettings {
