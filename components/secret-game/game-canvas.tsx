@@ -2962,8 +2962,9 @@ export function GameCanvas({
     // Draw orbital orbs — use orbs.png spritesheet (4×8 grid, 32×32 per cell, row 0 = first orb)
     const playerStats2 = playerStatsRef.current;
     if (playerStats2.hasOrbital && s.orbitalActive) {
-      const pcx3 = s.playerX + PLAYER_W_BASE / 2;
-      const pcy3 = s.playerY + PLAYER_H_BASE / 2;
+      // Orbital center = player sprite centre + configurable offset
+      const pcx3 = s.playerX + spriteConfig.offsetX + spriteConfig.width / 2 + (siteData.secretGame?.orbitalOffsetX ?? 0);
+      const pcy3 = s.playerY + spriteConfig.offsetY + spriteConfig.height / 2 + (siteData.secretGame?.orbitalOffsetY ?? 0);
       // Animate through 4 frames of row 0 at ~8fps
       const orbFrame = Math.floor(s.frame / 8) % 4;
       const ORB_CELL = 32; // sprite cell size

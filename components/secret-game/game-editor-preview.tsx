@@ -72,7 +72,10 @@ interface Props {
   autoFireRange?: number;
   spawnPoints?: [SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint];
   roguelikeConfig?: Record<string, unknown>;
+  orbitalOffsetX?: number;
+  orbitalOffsetY?: number;
   onChange: (next: GamePlatformSettings) => void;
+  onOrbitalOffsetChange?: (ox: number, oy: number) => void;
   onBossChange?: (next: BossSettings) => void;
   onHitboxChange?: (points: HitboxPoint[]) => void;
   onBulletSpawnChange?: (ox: number, oy: number) => void;
@@ -131,7 +134,7 @@ function Num({ label, value, onChange, min, max, step = 1 }: {
 
 /* ── Inspector panel ─────────────────────────────────────────────────────── */
 
-function Inspector({ sel, settings, playerSprite, bossSettings, playerHitbox, hitboxPoints, bulletSpawnOffsetX, bulletSpawnOffsetY, roguelikeConfig, onChange, onBossChange, onBulletSpawnChange, onPlayerSpriteChange, onPlayerHitboxChange, onPermShieldChange, onHitboxChange, onRoguelikeChange }: {
+function Inspector({ sel, settings, playerSprite, bossSettings, playerHitbox, hitboxPoints, bulletSpawnOffsetX, bulletSpawnOffsetY, roguelikeConfig, orbitalOffsetX, orbitalOffsetY, onChange, onBossChange, onBulletSpawnChange, onPlayerSpriteChange, onPlayerHitboxChange, onPermShieldChange, onHitboxChange, onRoguelikeChange, onOrbitalOffsetChange }: {
   sel: Sel | null;
   settings: GamePlatformSettings;
   playerSprite: PlayerSprite;
@@ -141,6 +144,8 @@ function Inspector({ sel, settings, playerSprite, bossSettings, playerHitbox, hi
   bulletSpawnOffsetX?: number;
   bulletSpawnOffsetY?: number;
   roguelikeConfig?: Record<string, unknown>;
+  orbitalOffsetX?: number;
+  orbitalOffsetY?: number;
   onChange: (next: GamePlatformSettings) => void;
   onBossChange?: (next: BossSettings) => void;
   onBulletSpawnChange?: (ox: number, oy: number) => void;
@@ -149,6 +154,7 @@ function Inspector({ sel, settings, playerSprite, bossSettings, playerHitbox, hi
   onPermShieldChange?: (next: GameShieldSettings) => void;
   onHitboxChange?: (points: HitboxPoint[]) => void;
   onRoguelikeChange?: (next: Record<string, unknown>) => void;
+  onOrbitalOffsetChange?: (ox: number, oy: number) => void;
 }) {
   if (!sel) {
     return (
@@ -343,6 +349,9 @@ function Inspector({ sel, settings, playerSprite, bossSettings, playerHitbox, hi
       return (
         <div className="rounded-lg border border-[#1e1e1e] bg-[#0a0a0a]/95 p-3 space-y-2">
           <div className="text-[11px] font-semibold text-white">Orbital Orbs</div>
+          <div className="text-[10px] text-neutral-500">Centre offset (relative to sprite centre)</div>
+          <Num label="Offset X" value={orbitalOffsetX ?? 0} onChange={(v) => onOrbitalOffsetChange?.(v, orbitalOffsetY ?? 0)} />
+          <Num label="Offset Y" value={orbitalOffsetY ?? 0} onChange={(v) => onOrbitalOffsetChange?.(orbitalOffsetX ?? 0, v)} />
           <Num label="Orbit Radius" value={orb.orbitRadius ?? 35} onChange={(v) => onRoguelikeChange?.({ ...roguelikeConfig, orbital: { ...orb, orbitRadius: Math.max(1, v) } })} min={1} max={200} />
           <Num label="Orb Size" value={orb.orbSize ?? 8} onChange={(v) => onRoguelikeChange?.({ ...roguelikeConfig, orbital: { ...orb, orbSize: Math.max(1, v) } })} min={1} max={50} />
           <Num label="Hitbox Size" value={orb.hitboxSize ?? 8} onChange={(v) => onRoguelikeChange?.({ ...roguelikeConfig, orbital: { ...orb, hitboxSize: Math.max(1, v) } })} min={1} max={50} />
@@ -541,6 +550,8 @@ export function GameEditorPreview({
   autoFireRange,
   spawnPoints,
   roguelikeConfig,
+  orbitalOffsetX,
+  orbitalOffsetY,
   onChange,
   onBossChange,
   onHitboxChange,
@@ -551,6 +562,7 @@ export function GameEditorPreview({
   onPlayerHitboxChange,
   onPermShieldChange,
   onRoguelikeChange,
+  onOrbitalOffsetChange,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -811,7 +823,7 @@ export function GameEditorPreview({
     }
 
     return null;
-  }, [settings, playerSprite, bossSettings, bulletSpawnOffsetX, bulletSpawnOffsetY, spawnPoints, getScale, dims.w, hitboxPoints, playerHitbox, sel]);
+  }, [settings, playerSprite, bossSettings, bulletSpawnOffsetX, bulletSpawnOffsetY, spawnPoints, getScale, dims.w, hitboxPoints, playerHitbox, sel, orbitalOffsetX, orbitalOffsetY]);
 
   // ── Handle detection ──
   const getHandle = useCallback((el: Sel, gx: number, gy: number): string | null => {
@@ -897,11 +909,12 @@ export function GameEditorPreview({
         return null;
       }
       case "orbital": {
-        const pcx = settings.player.x * xs + playerSprite.offsetX + playerSprite.width / 2;
-        const pcy = settings.player.y + playerSprite.offsetY + playerSprite.height / 2;
+        const pcx = settings.player.x * xs + playerSprite.offsetX + playerSprite.width / 2 + (orbitalOffsetX ?? 0);
+        const pcy = settings.player.y + playerSprite.offsetY + playerSprite.height / 2 + (orbitalOffsetY ?? 0);
         const orbCfg = (roguelikeConfig as any)?.orbital;
         const oRadius = orbCfg?.orbitRadius ?? 35;
         const oSize = orbCfg?.orbSize ?? 8;
+        if (near(pcx, pcy)) return "center";
         if (near(pcx + oRadius + oSize, pcy)) return "radius";
         return null;
       }
@@ -947,7 +960,7 @@ export function GameEditorPreview({
       default:
         return null;
     }
-  }, [settings, playerSprite, bossSettings, spawnPoints, getScale, dims.w, hitboxPoints, playerHitbox, sps]);
+  }, [settings, playerSprite, bossSettings, spawnPoints, getScale, dims.w, hitboxPoints, playerHitbox, sps, orbitalOffsetX, orbitalOffsetY]);
 
   // ── Draw ──
   const draw = useCallback(() => {
@@ -1097,8 +1110,8 @@ export function GameEditorPreview({
     // ── Orbital orbs (preview) ──
     const orbCfg2 = (roguelikeConfig as any)?.orbital;
     if (orbCfg2) {
-      const pcx = pbx + playerSprite.offsetX + playerSprite.width / 2;
-      const pcy = pby + playerSprite.offsetY + playerSprite.height / 2;
+      const pcx = pbx + playerSprite.offsetX + playerSprite.width / 2 + (orbitalOffsetX ?? 0);
+      const pcy = pby + playerSprite.offsetY + playerSprite.height / 2 + (orbitalOffsetY ?? 0);
       const oRadius = orbCfg2.orbitRadius ?? 35;
       const oSize = orbCfg2.orbSize ?? 8;
       const oCount = 3;
@@ -1128,6 +1141,20 @@ export function GameEditorPreview({
         ctx.fill();
         ctx.restore();
       }
+      // Orbital centre crosshair marker
+      ctx.save();
+      ctx.strokeStyle = isOrbSel ? "#fff" : "rgba(0,240,255,0.8)";
+      ctx.lineWidth = 1.5;
+      const chLen = 6;
+      ctx.beginPath();
+      ctx.moveTo(pcx - chLen, pcy); ctx.lineTo(pcx + chLen, pcy);
+      ctx.moveTo(pcx, pcy - chLen); ctx.lineTo(pcx, pcy + chLen);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(pcx, pcy, 3, 0, Math.PI * 2);
+      ctx.strokeStyle = isOrbSel ? "#fff" : "#00f0ff";
+      ctx.stroke();
+      ctx.restore();
       if (isOrbSel) {
         ctx.fillStyle = "#fff";
         ctx.beginPath();
@@ -1589,7 +1616,9 @@ export function GameEditorPreview({
           }
           break;
         case "orbital":
-          if (drag.handle === "radius") {
+          if (drag.handle === "center") {
+            onOrbitalOffsetChange?.((orbitalOffsetX ?? 0) + dx, (orbitalOffsetY ?? 0) + dy);
+          } else if (drag.handle === "radius") {
             const orb = (roguelikeConfig as any)?.orbital ?? {};
             onRoguelikeChange?.({ ...roguelikeConfig, orbital: { ...orb, orbSize: Math.max(1, (orb.orbSize ?? 8) + dx) } });
           }
@@ -1698,11 +1727,6 @@ export function GameEditorPreview({
           });
           break;
         }
-        case "orbital": {
-          const orb = (roguelikeConfig as any)?.orbital ?? {};
-          onRoguelikeChange?.({ ...roguelikeConfig, orbital: { ...orb, orbitRadius: Math.max(1, (orb.orbitRadius ?? 35) + dx) } });
-          break;
-        }
         case "spawnPoint": {
           const idx = (drag.el as Extract<Sel, { type: "spawnPoint" }>).index;
           const nextSps = sps.map((sp: SpawnPoint, i: number) =>
@@ -1748,7 +1772,7 @@ export function GameEditorPreview({
     }
 
     setDrag((prev) => prev.kind === "none" ? prev : { ...prev, sx: gx, sy: gy });
-  }, [drag, getScale, dims.w, settings, playerSprite, bossSettings, spawnPoints, bulletSpawnOffsetX, bulletSpawnOffsetY, onChange, onBossChange, onBulletSpawnChange, onSpawnPointsChange, onPlayerSpriteChange, onPlayerHitboxChange, onPermShieldChange, onHitboxChange, hitboxPoints, playerHitbox, hitTest, getHandle, pixToGame, sel, roguelikeConfig, onRoguelikeChange]);
+  }, [drag, getScale, dims.w, settings, playerSprite, bossSettings, spawnPoints, bulletSpawnOffsetX, bulletSpawnOffsetY, onChange, onBossChange, onBulletSpawnChange, onSpawnPointsChange, onPlayerSpriteChange, onPlayerHitboxChange, onPermShieldChange, onHitboxChange, hitboxPoints, playerHitbox, hitTest, getHandle, pixToGame, sel, roguelikeConfig, onRoguelikeChange, orbitalOffsetX, orbitalOffsetY, onOrbitalOffsetChange]);
 
   const onMouseUp = useCallback(() => setDrag({ kind: "none" }), []);
 
@@ -1775,6 +1799,8 @@ export function GameEditorPreview({
           bulletSpawnOffsetX={bulletSpawnOffsetX}
           bulletSpawnOffsetY={bulletSpawnOffsetY}
           roguelikeConfig={roguelikeConfig}
+          orbitalOffsetX={orbitalOffsetX}
+          orbitalOffsetY={orbitalOffsetY}
           onChange={onChange}
           onBossChange={onBossChange}
           onBulletSpawnChange={onBulletSpawnChange}
@@ -1783,6 +1809,7 @@ export function GameEditorPreview({
           onPermShieldChange={onPermShieldChange}
           onHitboxChange={onHitboxChange}
           onRoguelikeChange={onRoguelikeChange}
+          onOrbitalOffsetChange={onOrbitalOffsetChange}
         />
       </div>
     </div>

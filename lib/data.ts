@@ -427,6 +427,13 @@ export interface SecretGameSettings {
    */
   autoFireRange?: number;
   /**
+   * Orbital orb center offset, relative to the player sprite centre.
+   * Use this to fine-tune where the orbital orbs rotate around.
+   * Defaults to { offsetX: 0, offsetY: 0 } (centre of the player sprite).
+   */
+  orbitalOffsetX?: number;
+  orbitalOffsetY?: number;
+  /**
    * Permanent shield bubble appearance. The offset is relative to the player sprite centre.
    * Defaults to { offsetX: 0, offsetY: 0, radius: 20 }.
    */

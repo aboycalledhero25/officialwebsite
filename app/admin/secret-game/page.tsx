@@ -1336,6 +1336,9 @@ export default function SecretGameAdminPage() {
                 onPermShieldChange={(next) => setSettings((prev) => prev ? { ...prev, permShield: next } : prev)}
                 roguelikeConfig={settings.roguelikeConfig}
                 onRoguelikeChange={(next) => updateField("roguelikeConfig", next)}
+                orbitalOffsetX={settings.orbitalOffsetX}
+                orbitalOffsetY={settings.orbitalOffsetY}
+                onOrbitalOffsetChange={(ox, oy) => setSettings((prev) => prev ? { ...prev, orbitalOffsetX: ox, orbitalOffsetY: oy } : prev)}
               />
             </div>
           </div>
