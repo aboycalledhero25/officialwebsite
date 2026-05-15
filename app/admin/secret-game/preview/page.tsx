@@ -183,6 +183,8 @@ export default function FullscreenPreviewPage() {
             onPlayerSpriteChange={(next) => setSettings((prev) => prev ? { ...prev, playerSprite: next } : prev)}
             onPlayerHitboxChange={(next) => setSettings((prev) => prev ? { ...prev, playerHitbox: { ...(prev.playerHitbox ?? {}), ...next } } : prev)}
             onPermShieldChange={(next) => setSettings((prev) => prev ? { ...prev, permShield: next } : prev)}
+            roguelikeConfig={settings.roguelikeConfig}
+            onRoguelikeChange={(next) => updateField("roguelikeConfig", next)}
           />
         </div>
       </div>

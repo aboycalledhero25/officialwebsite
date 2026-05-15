@@ -44,6 +44,8 @@ type Sel =
   | { type: "permShield" }
   | { type: "boss" }
   | { type: "bossHitbox" }
+  | { type: "bossBody" }
+  | { type: "orbital" }
   | { type: "spawnPoint"; index: number }
   | { type: "enemyHitbox"; index: number }
   | { type: "enemyBody"; index: number }
@@ -68,6 +70,7 @@ interface Props {
   mouseFollowOffsetY?: number;
   autoFireRange?: number;
   spawnPoints?: [SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint, SpawnPoint];
+  roguelikeConfig?: Record<string, unknown>;
   onChange: (next: GamePlatformSettings) => void;
   onBossChange?: (next: BossSettings) => void;
   onHitboxChange?: (points: HitboxPoint[]) => void;
@@ -77,6 +80,7 @@ interface Props {
   onPlayerSpriteChange?: (next: PlayerSprite) => void;
   onPlayerHitboxChange?: (next: PlayerHitbox) => void;
   onPermShieldChange?: (next: GameShieldSettings) => void;
+  onRoguelikeChange?: (next: Record<string, unknown>) => void;
 }
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
@@ -126,7 +130,7 @@ function Num({ label, value, onChange, min, max, step = 1 }: {
 
 /* ── Inspector panel ─────────────────────────────────────────────────────── */
 
-function Inspector({ sel, settings, playerSprite, bossSettings, playerHitbox, hitboxPoints, bulletSpawnOffsetX, bulletSpawnOffsetY, onChange, onBossChange, onBulletSpawnChange, onPlayerSpriteChange, onPlayerHitboxChange, onPermShieldChange, onHitboxChange }: {
+function Inspector({ sel, settings, playerSprite, bossSettings, playerHitbox, hitboxPoints, bulletSpawnOffsetX, bulletSpawnOffsetY, roguelikeConfig, onChange, onBossChange, onBulletSpawnChange, onPlayerSpriteChange, onPlayerHitboxChange, onPermShieldChange, onHitboxChange, onRoguelikeChange }: {
   sel: Sel | null;
   settings: GamePlatformSettings;
   playerSprite: PlayerSprite;
@@ -135,6 +139,7 @@ function Inspector({ sel, settings, playerSprite, bossSettings, playerHitbox, hi
   hitboxPoints?: HitboxPoint[];
   bulletSpawnOffsetX?: number;
   bulletSpawnOffsetY?: number;
+  roguelikeConfig?: Record<string, unknown>;
   onChange: (next: GamePlatformSettings) => void;
   onBossChange?: (next: BossSettings) => void;
   onBulletSpawnChange?: (ox: number, oy: number) => void;
@@ -142,6 +147,7 @@ function Inspector({ sel, settings, playerSprite, bossSettings, playerHitbox, hi
   onPlayerHitboxChange?: (next: PlayerHitbox) => void;
   onPermShieldChange?: (next: GameShieldSettings) => void;
   onHitboxChange?: (points: HitboxPoint[]) => void;
+  onRoguelikeChange?: (next: Record<string, unknown>) => void;
 }) {
   if (!sel) {
     return (
@@ -303,6 +309,29 @@ function Inspector({ sel, settings, playerSprite, bossSettings, playerHitbox, hi
           <Num label="Height" value={bossSettings.hitboxHeight ?? bossSettings.height} onChange={(v) => onBossChange?.({ ...bossSettings, hitboxHeight: Math.max(1, v) })} min={1} max={200} />
         </div>
       );
+    case "bossBody":
+      return (
+        <div className="rounded-lg border border-[#1e1e1e] bg-[#0a0a0a]/95 p-3 space-y-2">
+          <div className="text-[11px] font-semibold text-white">Boss Body</div>
+          <Num label="Offset X" value={bossSettings.collisionOffsetX ?? 0} onChange={(v) => onBossChange?.({ ...bossSettings, collisionOffsetX: v })} />
+          <Num label="Offset Y" value={bossSettings.collisionOffsetY ?? 0} onChange={(v) => onBossChange?.({ ...bossSettings, collisionOffsetY: v })} />
+          <Num label="Width" value={bossSettings.collisionWidth ?? bossSettings.width} onChange={(v) => onBossChange?.({ ...bossSettings, collisionWidth: Math.max(1, v) })} min={1} max={200} />
+          <Num label="Height" value={bossSettings.collisionHeight ?? bossSettings.height} onChange={(v) => onBossChange?.({ ...bossSettings, collisionHeight: Math.max(1, v) })} min={1} max={200} />
+        </div>
+      );
+    case "orbital": {
+      const orb = (roguelikeConfig as any)?.orbital ?? {};
+      return (
+        <div className="rounded-lg border border-[#1e1e1e] bg-[#0a0a0a]/95 p-3 space-y-2">
+          <div className="text-[11px] font-semibold text-white">Orbital Orbs</div>
+          <Num label="Orbit Radius" value={orb.orbitRadius ?? 35} onChange={(v) => onRoguelikeChange?.({ ...roguelikeConfig, orbital: { ...orb, orbitRadius: Math.max(1, v) } })} min={1} max={200} />
+          <Num label="Orb Size" value={orb.orbSize ?? 8} onChange={(v) => onRoguelikeChange?.({ ...roguelikeConfig, orbital: { ...orb, orbSize: Math.max(1, v) } })} min={1} max={50} />
+          <Num label="Hitbox Size" value={orb.hitboxSize ?? 8} onChange={(v) => onRoguelikeChange?.({ ...roguelikeConfig, orbital: { ...orb, hitboxSize: Math.max(1, v) } })} min={1} max={50} />
+          <Num label="Orbit Speed" value={orb.orbitSpeed ?? 2.5} onChange={(v) => onRoguelikeChange?.({ ...roguelikeConfig, orbital: { ...orb, orbitSpeed: v } })} min={0.1} max={20} step={0.1} />
+          <Num label="Damage" value={orb.damage ?? 30} onChange={(v) => onRoguelikeChange?.({ ...roguelikeConfig, orbital: { ...orb, damage: v } })} min={1} max={500} />
+        </div>
+      );
+    }
     case "spawnPoint": {
       const sp = settings.spawnPoints[sel.index];
       return (
@@ -500,6 +529,7 @@ export function GameEditorPreview({
   mouseFollowOffsetY,
   autoFireRange,
   spawnPoints,
+  roguelikeConfig,
   onChange,
   onBossChange,
   onHitboxChange,
@@ -509,6 +539,7 @@ export function GameEditorPreview({
   onPlayerSpriteChange,
   onPlayerHitboxChange,
   onPermShieldChange,
+  onRoguelikeChange,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -640,6 +671,24 @@ export function GameEditorPreview({
       if (dist(gx, gy, pcx, pcy) < (ps.radius ?? 20) + 4) return { type: "permShield" };
     }
 
+    // Orbital orbs
+    const orbCfg = (roguelikeConfig as any)?.orbital;
+    if (orbCfg) {
+      const pcx = settings.player.x * xs + playerSprite.offsetX + playerSprite.width / 2;
+      const pcy = settings.player.y + playerSprite.offsetY + playerSprite.height / 2;
+      const oRadius = orbCfg.orbitRadius ?? 35;
+      const oSize = orbCfg.orbSize ?? 8;
+      const oCount = 3; // preview with 3 orbs
+      for (let oi = 0; oi < oCount; oi++) {
+        const angle = (oi / oCount) * Math.PI * 2;
+        const ox = pcx + Math.cos(angle) * oRadius;
+        const oy = pcy + Math.sin(angle) * oRadius;
+        if (dist(gx, gy, ox, oy) < oSize + 4) return { type: "orbital" };
+      }
+      // Also allow clicking the orbit ring
+      if (Math.abs(dist(gx, gy, pcx, pcy) - oRadius) < 8) return { type: "orbital" };
+    }
+
     // Hitbox (polygon or rect)
     const hb = playerHitbox ?? {};
     const pbx2 = settings.player.x * xs;
@@ -666,6 +715,17 @@ export function GameEditorPreview({
     const sprX = settings.player.x * xs + playerSprite.offsetX;
     const sprY = settings.player.y + playerSprite.offsetY;
     if (inRect(gx, gy, sprX, sprY, playerSprite.width, playerSprite.height)) return { type: "player" };
+
+    // Boss body (check before hitbox and sprite)
+    if (bossSettings.enabled) {
+      const bx = settings.boss.x * xs;
+      const by = settings.boss.y;
+      const bcbx = bx + (bossSettings.collisionOffsetX ?? 0);
+      const bcby = by + (bossSettings.collisionOffsetY ?? 0);
+      const bcbw = bossSettings.collisionWidth ?? bossSettings.width;
+      const bcbh = bossSettings.collisionHeight ?? bossSettings.height;
+      if (inRect(gx, gy, bcbx, bcby, bcbw, bcbh)) return { type: "bossBody" };
+    }
 
     // Boss hitbox (check before boss sprite)
     if (bossSettings.enabled) {
@@ -793,6 +853,25 @@ export function GameEditorPreview({
         const bhbw = bossSettings.hitboxWidth ?? bossSettings.width;
         const bhbh = bossSettings.hitboxHeight ?? bossSettings.height;
         if (near(bhbx + bhbw, bhby + bhbh)) return "se";
+        return null;
+      }
+      case "bossBody": {
+        const bx = settings.boss.x * xs;
+        const by = settings.boss.y;
+        const bcbx = bx + (bossSettings.collisionOffsetX ?? 0);
+        const bcby = by + (bossSettings.collisionOffsetY ?? 0);
+        const bcbw = bossSettings.collisionWidth ?? bossSettings.width;
+        const bcbh = bossSettings.collisionHeight ?? bossSettings.height;
+        if (near(bcbx + bcbw, bcby + bcbh)) return "se";
+        return null;
+      }
+      case "orbital": {
+        const pcx = settings.player.x * xs + playerSprite.offsetX + playerSprite.width / 2;
+        const pcy = settings.player.y + playerSprite.offsetY + playerSprite.height / 2;
+        const orbCfg = (roguelikeConfig as any)?.orbital;
+        const oRadius = orbCfg?.orbitRadius ?? 35;
+        const oSize = orbCfg?.orbSize ?? 8;
+        if (near(pcx + oRadius + oSize, pcy)) return "radius";
         return null;
       }
       case "spawnPoint": {
@@ -983,6 +1062,52 @@ export function GameEditorPreview({
       ctx.fillStyle = "#fff";
       ctx.fillRect(psx + playerSprite.width - 3, psy + playerSprite.height - 3, 6, 6);
       ctx.restore();
+    }
+
+    // ── Orbital orbs (preview) ──
+    const orbCfg2 = (roguelikeConfig as any)?.orbital;
+    if (orbCfg2) {
+      const pcx = pbx + playerSprite.offsetX + playerSprite.width / 2;
+      const pcy = pby + playerSprite.offsetY + playerSprite.height / 2;
+      const oRadius = orbCfg2.orbitRadius ?? 35;
+      const oSize = orbCfg2.orbSize ?? 8;
+      const oCount = 3;
+      const isOrbSel = sel?.type === "orbital";
+      // Orbit ring
+      ctx.save();
+      ctx.strokeStyle = isOrbSel ? "#fff" : "rgba(0,240,255,0.35)";
+      ctx.lineWidth = isOrbSel ? 2 : 1;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.arc(pcx, pcy, oRadius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+      // Orbs
+      for (let oi = 0; oi < oCount; oi++) {
+        const angle = (oi / oCount) * Math.PI * 2;
+        const ox = pcx + Math.cos(angle) * oRadius;
+        const oy = pcy + Math.sin(angle) * oRadius;
+        ctx.save();
+        ctx.strokeStyle = isOrbSel ? "#fff" : "#00f0ff";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(ox, oy, oSize, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = isOrbSel ? "rgba(0,240,255,0.2)" : "rgba(0,240,255,0.1)";
+        ctx.fill();
+        ctx.restore();
+      }
+      if (isOrbSel) {
+        ctx.fillStyle = "#fff";
+        ctx.beginPath();
+        ctx.arc(pcx + oRadius + oSize, pcy, 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = isOrbSel ? "#00f0ff" : "rgba(0,240,255,0.6)";
+      ctx.font = "bold 8px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText("Orbital", pcx, pcy - oRadius - 6);
     }
 
     // ── Hitbox ──
@@ -1217,6 +1342,30 @@ export function GameEditorPreview({
       ctx.textAlign = "center";
       ctx.fillText("Boss HB", bhbx + bhbw / 2, bhby - 6);
       ctx.restore();
+
+      // Boss body outline (collision with player — separate from hitbox and sprite)
+      const bcbx = bx + (bossSettings.collisionOffsetX ?? 0);
+      const bcby = by + (bossSettings.collisionOffsetY ?? 0);
+      const bcbw = bossSettings.collisionWidth ?? bw;
+      const bcbh = bossSettings.collisionHeight ?? bh;
+      const isBodySel = sel?.type === "bossBody";
+      ctx.save();
+      ctx.strokeStyle = isBodySel ? "#fff" : "#ff006e";
+      ctx.lineWidth = isBodySel ? 2 : 1.5;
+      ctx.setLineDash([2, 2]);
+      ctx.strokeRect(bcbx, bcby, bcbw, bcbh);
+      ctx.setLineDash([]);
+      ctx.fillStyle = isBodySel ? "rgba(255,0,110,0.12)" : "rgba(255,0,110,0.04)";
+      ctx.fillRect(bcbx, bcby, bcbw, bcbh);
+      if (isBodySel) {
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(bcbx + bcbw - 3, bcby + bcbh - 3, 6, 6);
+      }
+      ctx.fillStyle = isBodySel ? "#ff006e" : "rgba(255,0,110,0.6)";
+      ctx.font = "bold 8px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText("Boss Body", bcbx + bcbw / 2, bcby - 6);
+      ctx.restore();
     }
 
     // ── Aim cursor (mouse-follow) ──
@@ -1268,7 +1417,7 @@ export function GameEditorPreview({
     }
 
     ctx.restore();
-  }, [dims, settings, playerSprite, bossSettings, sel, spawnPoints, bulletSpawnOffsetX, bulletSpawnOffsetY, mouseFollowOffsetX, mouseFollowOffsetY, hitboxPoints, platform, assetsReady]);
+  }, [dims, settings, playerSprite, bossSettings, sel, spawnPoints, bulletSpawnOffsetX, bulletSpawnOffsetY, mouseFollowOffsetX, mouseFollowOffsetY, hitboxPoints, platform, assetsReady, roguelikeConfig]);
   drawRef.current = draw;
 
   // ── Mouse events ──
@@ -1366,6 +1515,21 @@ export function GameEditorPreview({
             });
           }
           break;
+        case "bossBody":
+          if (drag.handle === "se") {
+            onBossChange?.({
+              ...bossSettings,
+              collisionWidth: Math.max(1, (bossSettings.collisionWidth ?? bossSettings.width) + dx),
+              collisionHeight: Math.max(1, (bossSettings.collisionHeight ?? bossSettings.height) + dy),
+            });
+          }
+          break;
+        case "orbital":
+          if (drag.handle === "radius") {
+            const orb = (roguelikeConfig as any)?.orbital ?? {};
+            onRoguelikeChange?.({ ...roguelikeConfig, orbital: { ...orb, orbSize: Math.max(1, (orb.orbSize ?? 8) + dx) } });
+          }
+          break;
         case "ui": {
           const u = (settings as any)[drag.el.key];
           if (drag.handle === "se") {
@@ -1395,19 +1559,6 @@ export function GameEditorPreview({
                 ...settings.enemy,
                 collisionWidth: Math.max(1, (settings.enemy.collisionWidth ?? settings.enemy.width) + dx),
                 collisionHeight: Math.max(1, (settings.enemy.collisionHeight ?? settings.enemy.height) + dy),
-              },
-            });
-          }
-          break;
-        }
-        case "enemyHitbox": {
-          if (drag.handle === "se") {
-            onChange({
-              ...settings,
-              enemy: {
-                ...settings.enemy,
-                hitboxWidth: Math.max(1, (settings.enemy.hitboxWidth ?? settings.enemy.width) + dx),
-                hitboxHeight: Math.max(1, (settings.enemy.hitboxHeight ?? settings.enemy.height) + dy),
               },
             });
           }
@@ -1467,6 +1618,19 @@ export function GameEditorPreview({
           });
           break;
         }
+        case "bossBody": {
+          onBossChange?.({
+            ...bossSettings,
+            collisionOffsetX: (bossSettings.collisionOffsetX ?? 0) + dx,
+            collisionOffsetY: (bossSettings.collisionOffsetY ?? 0) + dy,
+          });
+          break;
+        }
+        case "orbital": {
+          const orb = (roguelikeConfig as any)?.orbital ?? {};
+          onRoguelikeChange?.({ ...roguelikeConfig, orbital: { ...orb, orbitRadius: Math.max(1, (orb.orbitRadius ?? 35) + dx) } });
+          break;
+        }
         case "spawnPoint": {
           const idx = (drag.el as Extract<Sel, { type: "spawnPoint" }>).index;
           const nextSps = sps.map((sp: SpawnPoint, i: number) =>
@@ -1512,7 +1676,7 @@ export function GameEditorPreview({
     }
 
     setDrag((prev) => prev.kind === "none" ? prev : { ...prev, sx: gx, sy: gy });
-  }, [drag, getScale, dims.w, settings, playerSprite, bossSettings, spawnPoints, bulletSpawnOffsetX, bulletSpawnOffsetY, onChange, onBossChange, onBulletSpawnChange, onSpawnPointsChange, onPlayerSpriteChange, onPlayerHitboxChange, onPermShieldChange, onHitboxChange, hitboxPoints, playerHitbox, hitTest, getHandle, pixToGame, sel]);
+  }, [drag, getScale, dims.w, settings, playerSprite, bossSettings, spawnPoints, bulletSpawnOffsetX, bulletSpawnOffsetY, onChange, onBossChange, onBulletSpawnChange, onSpawnPointsChange, onPlayerSpriteChange, onPlayerHitboxChange, onPermShieldChange, onHitboxChange, hitboxPoints, playerHitbox, hitTest, getHandle, pixToGame, sel, roguelikeConfig, onRoguelikeChange]);
 
   const onMouseUp = useCallback(() => setDrag({ kind: "none" }), []);
 
@@ -1538,6 +1702,7 @@ export function GameEditorPreview({
           hitboxPoints={hitboxPoints}
           bulletSpawnOffsetX={bulletSpawnOffsetX}
           bulletSpawnOffsetY={bulletSpawnOffsetY}
+          roguelikeConfig={roguelikeConfig}
           onChange={onChange}
           onBossChange={onBossChange}
           onBulletSpawnChange={onBulletSpawnChange}
@@ -1545,6 +1710,7 @@ export function GameEditorPreview({
           onPlayerHitboxChange={onPlayerHitboxChange}
           onPermShieldChange={onPermShieldChange}
           onHitboxChange={onHitboxChange}
+          onRoguelikeChange={onRoguelikeChange}
         />
       </div>
     </div>

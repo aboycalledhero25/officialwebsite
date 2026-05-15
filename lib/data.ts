@@ -280,6 +280,10 @@ export interface BossSettings {
   hitboxOffsetY?: number;
   hitboxWidth?: number;
   hitboxHeight?: number;
+  collisionOffsetX?: number;
+  collisionOffsetY?: number;
+  collisionWidth?: number;
+  collisionHeight?: number;
 }
 
 export interface SpawnPoint {

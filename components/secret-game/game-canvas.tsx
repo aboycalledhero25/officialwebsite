@@ -1954,19 +1954,20 @@ export function GameCanvas({
       if (s.boss && bossCfg?.enabled) {
         const bw = bossCfg?.width ?? 40;
         const bh = bossCfg?.height ?? 30;
-        const bhbx = s.boss.x + (bossCfg?.hitboxOffsetX ?? 0);
-        const bhby = s.boss.y + (bossCfg?.hitboxOffsetY ?? 0);
-        const bhbw = bossCfg?.hitboxWidth ?? bw;
-        const bhbh = bossCfg?.hitboxHeight ?? bh;
+        // Boss body collision (separate from hitbox)
+        const bcbx = s.boss.x + (bossCfg?.collisionOffsetX ?? 0);
+        const bcby = s.boss.y + (bossCfg?.collisionOffsetY ?? 0);
+        const bcbw = bossCfg?.collisionWidth ?? bw;
+        const bcbh = bossCfg?.collisionHeight ?? bh;
         let bossHit: boolean;
         if (usePolygon && hbPoints) {
-          bossHit = enemyRectIntersectsPolygon(bhbx, bhby, bhbw, bhbh);
+          bossHit = enemyRectIntersectsPolygon(bcbx, bcby, bcbw, bcbh);
         } else {
           bossHit = (
-            bhbx < px + pw &&
-            bhbx + bhbw > px &&
-            bhby < py + ph &&
-            bhby + bhbh > py
+            bcbx < px + pw &&
+            bcbx + bcbw > px &&
+            bcby < py + ph &&
+            bcby + bcbh > py
           );
         }
         if (bossHit) {
