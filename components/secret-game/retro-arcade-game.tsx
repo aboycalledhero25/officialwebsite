@@ -317,16 +317,18 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
   // ── Wave 100 song unlock ────────────────────────────────────────────
   const songUnlockStartedRef = useRef(false);
   const songAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [songFinished, setSongFinished] = useState(false);
   useEffect(() => {
     if (phase !== "songunlock") {
       songUnlockStartedRef.current = false;
       setSongUnlockNeedsTap(false);
+      setSongFinished(false);
       return;
     }
     if (songUnlockStartedRef.current) return;
     songUnlockStartedRef.current = true;
 
-    let cancelled = false;
+    let ended = false;
     const wasMuted = muted;
 
     // Mute all game audio so only the song plays
@@ -338,19 +340,27 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
     audio.volume = 1;
     songAudioRef.current = audio;
 
-    const cleanup = () => {
-      if (cancelled) return;
+    const onEnded = () => {
+      ended = true;
+      setSongFinished(true);
       setMuted(wasMuted);
       setAudioMuted(wasMuted);
       setMusicMuted(wasMuted);
-      setPhase("wavereward");
     };
 
-    audio.addEventListener("ended", cleanup);
-    audio.addEventListener("error", cleanup);
+    const onError = () => {
+      // On error, just let the user continue manually — don't auto-skip
+      setSongFinished(true);
+      setMuted(wasMuted);
+      setAudioMuted(wasMuted);
+      setMusicMuted(wasMuted);
+    };
+
+    audio.addEventListener("ended", onEnded);
+    audio.addEventListener("error", onError);
 
     const tryPlay = () => {
-      if (!audio || cancelled) return;
+      if (!audio || ended) return;
       audio.play().then(() => {
         setSongUnlockNeedsTap(false);
       }).catch(() => {
@@ -362,11 +372,16 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
     tryPlay();
 
     return () => {
-      cancelled = true;
-      songAudioRef.current = null;
-      audio.pause();
-      audio.src = "";
-      audio.load();
+      // Only pause if we're actually leaving songunlock (not on re-render)
+      // The phase check below prevents Strict Mode double-mount from killing audio
+      audio.removeEventListener("ended", onEnded);
+      audio.removeEventListener("error", onError);
+      if (phase !== "songunlock") {
+        audio.pause();
+        audio.src = "";
+        audio.load();
+        songAudioRef.current = null;
+      }
     };
   }, [phase, setAudioMuted, setMusicMuted]);
 
@@ -502,17 +517,28 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
             <div className="text-white/90 text-lg md:text-xl leading-relaxed">
               Here&apos;s a new song - Can&apos;t Let Her Go
             </div>
-            {songUnlockNeedsTap && (
-              <div className="mt-2 px-6 py-3 bg-[#ff006e]/20 border border-[#ff006e]/40 rounded-sm text-[#ff006e] font-bold text-sm uppercase tracking-widest animate-pulse cursor-pointer">
+            {songUnlockNeedsTap && !songFinished && (
+              <div
+                className="mt-2 px-6 py-3 bg-[#ff006e]/20 border border-[#ff006e]/40 rounded-sm text-[#ff006e] font-bold text-sm uppercase tracking-widest animate-pulse cursor-pointer"
+                onClick={() => songAudioRef.current?.play().catch(() => {})}
+              >
                 Tap to play
               </div>
             )}
-            {!songUnlockNeedsTap && (
+            {!songUnlockNeedsTap && !songFinished && (
               <div className="flex gap-2 mt-6">
                 <span className="w-3 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: "0s" }} />
                 <span className="w-3 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
                 <span className="w-3 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: "0.4s" }} />
               </div>
+            )}
+            {songFinished && (
+              <button
+                onClick={() => setPhase("wavereward")}
+                className="mt-4 px-10 py-4 bg-[#ff006e] hover:bg-[#e6005f] text-white font-bold text-lg rounded-sm uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(255,0,110,0.4)] hover:shadow-[0_0_30px_rgba(255,0,110,0.6)] active:scale-95 focus:outline-none focus:ring-2 focus:ring-white/50"
+              >
+                Continue
+              </button>
             )}
           </div>
         </div>
