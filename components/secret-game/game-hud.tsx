@@ -7,7 +7,7 @@ const BASE_H = 320;
 const BASE_W = 240;
 
 interface ActivePowerUp {
-  type: "rapid" | "shield" | "wideshot" | "extralife" | "invincible" | "projectile" | "timewarp" | "doubleshot" | "ricochet" | "overcharge" | "groupie" | "cryo";
+  type: "rapid" | "shield" | "wideshot" | "extralife" | "invincible" | "projectile" | "timewarp" | "doubleshot" | "ricochet" | "overcharge" | "groupie";
   timer: number;
   stacks?: number;
 }
@@ -77,8 +77,8 @@ function PowerUpLabel({ type, size, stacks }: { type: ActivePowerUp["type"]; siz
     doubleshot: { text: "DBL", color: "#ff8800" },
     ricochet: { text: "ZAP", color: "#fcee0a" },
     overcharge: { text: "POW", color: "#ff2222" },
-    groupie: { text: "PET", color: "#ff69b4" },
-    cryo: { text: "CRYO", color: "#00b4d8" },
+    groupie: { text: "GROUPIE", color: "#ff69b4" },
+
   };
   const l = labels[type];
   const suffix = stacks && stacks > 1 ? `x${stacks}` : "";
@@ -193,7 +193,6 @@ export function GameHUD({ score, lives, wave, muted, activePowerUps, onPause, on
     ricochet: settingsDurations?.ricochet ?? 5,
     overcharge: 0,
     groupie: settingsDurations?.groupie ?? 8,
-    cryo: settingsDurations?.cryo ?? 5,
   };
 
   return (

@@ -97,7 +97,7 @@ function drawElectricityBolt(
   ctx.stroke();
 }
 
-type PowerUpType = "rapid" | "shield" | "wideshot" | "extralife" | "invincible" | "choice" | "projectile" | "timewarp" | "doubleshot" | "ricochet" | "overcharge" | "groupie" | "cryo";
+type PowerUpType = "rapid" | "shield" | "wideshot" | "extralife" | "invincible" | "choice" | "projectile" | "timewarp" | "doubleshot" | "ricochet" | "overcharge" | "groupie";
 
 interface PowerUp {
   x: number;
@@ -291,6 +291,14 @@ export function GameCanvas({
       virusStacks: number;
       virusTimer: number;
       virusAccum: number;
+      // Cold Feet DOT
+      coldStacks: number;
+      coldTimer: number;
+      coldAccum: number;
+      // Pyromaniac DOT
+      burnStacks: number;
+      burnTimer: number;
+      burnAccum: number;
       // HP system (hp > 1 = takes multiple hits)
       hp: number;
       maxHp: number;
@@ -352,6 +360,8 @@ export function GameCanvas({
       x: number; y: number; health: number; maxHealth: number;
       fireCooldown: number; hitFlash: number; dir: number; bossNumber: number;
       virusStacks: number; virusTimer: number; virusAccum: number;
+      coldStacks: number; coldTimer: number; coldAccum: number;
+      burnStacks: number; burnTimer: number; burnAccum: number;
       orbitalHitCooldown: number; // rate-limits orbital damage per frame
       // Sprite animation
       skinIndex: number;        // 1-18, randomly chosen at wave start
@@ -385,12 +395,12 @@ export function GameCanvas({
     permShieldActive: false,
     permShieldTimer: 0,
     blackHoleAccum: 0,
-    // ── Cryo Rounds: enemy bullet slow timer ───────────────────────────
-    cryoSlowTimer: 0,
-    // ── Pyromaniac: burning enemies ────────────────────────────────────
-    burningEnemies: [] as { enemyIndex: number; timer: number; tickAccum: number }[],
+    // ── Pyromaniac: burning enemies (now tracked on enemy objects)
+    // ── Cold Feet: frozen enemies (now tracked on enemy objects)
     // ── Roguelike: connect beam visuals ──────────────────────────────
     lightningBeams: [] as { x1: number; y1: number; x2: number; y2: number; timer: number }[],
+    // ── Resonance: shockwave ring visuals ─────────────────────────────
+    shockwaves: [] as { x: number; y: number; timer: number; maxRadius: number }[],
     // ── GIF impact effects ────────────────────────────────────────────
     activeEffects: [] as ActiveEffect[],
     // ── Shield animation ──────────────────────────────────────────────
@@ -439,6 +449,10 @@ export function GameCanvas({
     // ── Second Wind / Phoenix tracking ─────────────────────────────────
     secondWindUsed: false,
     phoenixUsed: false,
+    // ── Bloodlust: kill streak damage bonus ────────────────────────────
+    bloodlustKillCount: 0,
+    // ── Last Stand: active when at 1 heart or less ────────────────────
+    lastStandActive: false,
     // ── Boss intro animation ───────────────────────────────────────────
     bossIntroTimer: 0,
     bossIntroText: "",
@@ -540,6 +554,12 @@ export function GameCanvas({
         virusStacks: 0,
         virusTimer: 0,
         virusAccum: 0,
+        coldStacks: 0,
+        coldTimer: 0,
+        coldAccum: 0,
+        burnStacks: 0,
+        burnTimer: 0,
+        burnAccum: 0,
         skinIndex,
         animState: "walking",
         animAccum: 0,
@@ -592,6 +612,8 @@ export function GameCanvas({
     s.wave = w;
     s.spawnAnim = 0;
     s.playAreaW = logW;
+    // Bloodlust: reset kill streak at wave start
+    s.bloodlustKillCount = 0;
     // Reset the nuke timer so it fires at the predictable 30s mark into the new wave,
     // not immediately because the previous wave happened to leave the accumulator near 30s.
     s.nukeAccum = 0;
@@ -644,6 +666,7 @@ export function GameCanvas({
     s.permShieldActive = false;
     s.permShieldTimer = 0;
     s.lightningBeams = [];
+    s.shockwaves = [];
     s.activeEffects = [];
     s.damageNumbers = [];
     s.playerBodyHitTimer = 0;
@@ -653,8 +676,7 @@ export function GameCanvas({
     s.orbitalBaseAngle = 0;
     s.seekerMissileAccum = 0;
     s.blackHoleAccum = 0;
-    s.cryoSlowTimer = 0;
-    s.burningEnemies = [];
+
     // Reset combo and vampirism
     s.comboCount = 0;
     s.comboTimer = 0;
@@ -665,6 +687,8 @@ export function GameCanvas({
     s.groupies = [];
     s.secondWindUsed = false;
     s.phoenixUsed = false;
+    s.bloodlustKillCount = 0;
+    s.lastStandActive = false;
     s.bossIntroTimer = 0;
     s.bossIntroText = "";
     onScoreChange(0);
@@ -938,6 +962,12 @@ export function GameCanvas({
               virusStacks: 0,
               virusTimer: 0,
               virusAccum: 0,
+              coldStacks: 0,
+              coldTimer: 0,
+              coldAccum: 0,
+              burnStacks: 0,
+              burnTimer: 0,
+              burnAccum: 0,
               hp: waveHp2,
               maxHp: waveHp2,
               animState: "walking",
@@ -1034,6 +1064,22 @@ export function GameCanvas({
             if (s.boss) {
               s.boss.health -= bDmg;
               s.boss.hitFlash = 0.15;
+              // Pyromaniac: chance to set boss on fire
+              if (playerStats.hasPyromaniac && Math.random() < playerStats.pyromaniacBurnChance) {
+                if (s.boss.burnStacks <= 0) {
+                  s.boss.burnStacks = 1;
+                  s.boss.burnTimer = playerStats.pyromaniacBurnDuration;
+                  s.boss.burnAccum = 0;
+                }
+              }
+              // Cold Feet: chance to inflict boss with frost
+              if (playerStats.hasColdFeet && Math.random() < playerStats.coldFeetChance) {
+                if (s.boss.coldStacks <= 0) {
+                  s.boss.coldStacks = 1;
+                  s.boss.coldTimer = playerStats.coldFeetDuration;
+                  s.boss.coldAccum = 0;
+                }
+              }
               if (s.boss.animState === "walking") { s.boss.animState = "hurt"; s.boss.animAccum = 0; }
               if (s.boss.health <= 0) {
                 s.score += (effectiveSettingsRef.current?.boss?.scoreReward ?? 500);
@@ -1129,6 +1175,11 @@ export function GameCanvas({
       for (let i = s.lightningBeams.length - 1; i >= 0; i--) {
         s.lightningBeams[i].timer -= dt;
         if (s.lightningBeams[i].timer <= 0) s.lightningBeams.splice(i, 1);
+      }
+      // Decay shockwaves
+      for (let i = s.shockwaves.length - 1; i >= 0; i--) {
+        s.shockwaves[i].timer -= dt;
+        if (s.shockwaves[i].timer <= 0) s.shockwaves.splice(i, 1);
       }
 
       // ── Timed effect: Frenzy ─────────────────────────────────────────
@@ -1253,6 +1304,50 @@ export function GameCanvas({
         }
       }
 
+      // ── Boss Pyromaniac burn tick ────────────────────────────────────
+      if (s.boss && s.boss.burnStacks > 0) {
+        s.boss.burnTimer -= dt;
+        s.boss.burnAccum += dt;
+        if (s.boss.burnAccum >= playerStats.pyromaniacTickInterval) {
+          s.boss.burnAccum -= playerStats.pyromaniacTickInterval;
+          s.boss.health -= playerStats.pyromaniacBurnDamagePerTick;
+          s.boss.hitFlash = 0.05;
+          if (s.boss.animState === "walking") { s.boss.animState = "hurt"; s.boss.animAccum = 0; }
+          spawnParticles(s.boss.x + 20, s.boss.y + 15, "#ff4400", 4);
+          if (s.boss.health <= 0) {
+            s.score += (effectiveSettingsRef.current?.boss?.scoreReward ?? 500);
+            onScoreChange(s.score);
+            play("levelComplete");
+            s.boss = null;
+            onPhaseChange("bossreward");
+            return;
+          }
+        }
+        if (s.boss.burnTimer <= 0) { s.boss.burnStacks = 0; s.boss.burnAccum = 0; }
+      }
+
+      // ── Boss Cold Feet frost tick ────────────────────────────────────
+      if (s.boss && s.boss.coldStacks > 0) {
+        s.boss.coldTimer -= dt;
+        s.boss.coldAccum += dt;
+        if (s.boss.coldAccum >= playerStats.coldFeetTickInterval) {
+          s.boss.coldAccum -= playerStats.coldFeetTickInterval;
+          s.boss.health -= playerStats.coldFeetDamagePerTick;
+          s.boss.hitFlash = 0.05;
+          if (s.boss.animState === "walking") { s.boss.animState = "hurt"; s.boss.animAccum = 0; }
+          spawnParticles(s.boss.x + 20, s.boss.y + 15, "#00b4d8", 4);
+          if (s.boss.health <= 0) {
+            s.score += (effectiveSettingsRef.current?.boss?.scoreReward ?? 500);
+            onScoreChange(s.score);
+            play("levelComplete");
+            s.boss = null;
+            onPhaseChange("bossreward");
+            return;
+          }
+        }
+        if (s.boss.coldTimer <= 0) { s.boss.coldStacks = 0; s.boss.coldAccum = 0; }
+      }
+
       // ── Black Hole (timed pull effect) ──────────────────────────────
       if (playerStats.hasBlackHole) {
         s.blackHoleAccum += dt;
@@ -1305,32 +1400,41 @@ export function GameCanvas({
         }
       }
 
-      // ── Cryo Rounds: decay slow timer ────────────────────────────────
-      if (s.cryoSlowTimer > 0) {
-        s.cryoSlowTimer -= dt;
-      }
-
       // ── Pyromaniac: tick burning enemies ─────────────────────────────
-      if (playerStats.hasPyromaniac && s.burningEnemies.length > 0) {
-        for (let i = s.burningEnemies.length - 1; i >= 0; i--) {
-          const burn = s.burningEnemies[i];
-          burn.timer -= dt;
-          burn.tickAccum += dt;
-          if (burn.tickAccum >= playerStats.pyromaniacTickInterval) {
-            burn.tickAccum -= playerStats.pyromaniacTickInterval;
-            const enemy = s.enemies[burn.enemyIndex];
-            if (enemy && enemy.alive) {
-              enemy.hp = (enemy.hp ?? 1) - playerStats.pyromaniacBurnDamagePerTick;
-              spawnParticles(enemy.x + settingsRef.current.enemy.width / 2, enemy.y + settingsRef.current.enemy.height / 2, "#ff4400", 3);
-              if (enemy.hp <= 0) {
-                enemy.alive = false; enemy.dying = true; enemy.animState = "dying"; enemy.animAccum = 0;
-                s.score += Math.floor(10 * s.wave);
-              }
+      if (playerStats.hasPyromaniac) {
+        for (const e of s.enemies) {
+          if (!e.alive || e.burnStacks <= 0) continue;
+          e.burnTimer -= dt;
+          e.burnAccum += dt;
+          if (e.burnAccum >= playerStats.pyromaniacTickInterval) {
+            e.burnAccum -= playerStats.pyromaniacTickInterval;
+            e.hp = (e.hp ?? 1) - playerStats.pyromaniacBurnDamagePerTick;
+            spawnParticles(e.x + settingsRef.current.enemy.width / 2, e.y + settingsRef.current.enemy.height / 2, "#ff4400", 3);
+            if (e.hp <= 0) {
+              e.alive = false; e.dying = true; e.animState = "dying"; e.animAccum = 0;
+              s.score += Math.floor(10 * s.wave);
             }
           }
-          if (burn.timer <= 0) {
-            s.burningEnemies.splice(i, 1);
+          if (e.burnTimer <= 0) { e.burnStacks = 0; e.burnAccum = 0; }
+        }
+      }
+
+      // ── Cold Feet: tick frozen enemies ─────────────────────────────────
+      if (playerStats.hasColdFeet) {
+        for (const e of s.enemies) {
+          if (!e.alive || e.coldStacks <= 0) continue;
+          e.coldTimer -= dt;
+          e.coldAccum += dt;
+          if (e.coldAccum >= playerStats.coldFeetTickInterval) {
+            e.coldAccum -= playerStats.coldFeetTickInterval;
+            e.hp = (e.hp ?? 1) - playerStats.coldFeetDamagePerTick;
+            spawnParticles(e.x + settingsRef.current.enemy.width / 2, e.y + settingsRef.current.enemy.height / 2, "#00b4d8", 3);
+            if (e.hp <= 0) {
+              e.alive = false; e.dying = true; e.animState = "dying"; e.animAccum = 0;
+              s.score += Math.floor(10 * s.wave);
+            }
           }
+          if (e.coldTimer <= 0) { e.coldStacks = 0; e.coldAccum = 0; }
         }
       }
 
@@ -1585,9 +1689,13 @@ export function GameCanvas({
         const projectilePU = s.activePowerUps.find((p) => p.type === "projectile");
         const rapid = s.activePowerUps.find((p) => p.type === "rapid");
         const rapidStacks = rapid?.stacks ?? 0;
-        const baseCooldown = rapidStacks > 0
+        let baseCooldown = rapidStacks > 0
           ? Math.min(playerStats.reloadTime, Math.max(0.06, 0.12 - 0.02 * (rapidStacks - 1)))
           : playerStats.reloadTime;
+        // Last Stand: faster fire rate when at 1 heart or less
+        if (playerStats.hasLastStand && s.lives <= 1) {
+          baseCooldown *= (1 - playerStats.lastStandFireRateBonus);
+        }
 
         const permProj = playerStats.projectileCount - 1;
         let totalBullets = wideShot ? (2 + wideShot.stacks + permProj) : playerStats.projectileCount;
@@ -2057,11 +2165,10 @@ export function GameCanvas({
               pu.type === "ricochet" ? (durations?.ricochet ?? 5) :
               pu.type === "overcharge" ? (durations?.overcharge ?? 0) :
               pu.type === "groupie" ? (durations?.groupie ?? 8) :
-              pu.type === "cryo" ? (durations?.cryo ?? 5) :
               (durations?.wideShot ?? 4);
             const dilatedDuration = duration * (1 + playerStats.timeDilationBonus);
             const existing = s.activePowerUps.find((p) => p.type === pu.type);
-            const noStackTypes: PowerUpType[] = ["shield", "invincible", "projectile", "timewarp", "overcharge", "cryo"];
+            const noStackTypes: PowerUpType[] = ["shield", "invincible", "projectile", "timewarp", "overcharge"];
             const maxStack = 5;
 
             if (existing) {
@@ -2088,10 +2195,6 @@ export function GameCanvas({
             // Overcharge: add shots (no timer, uses shot count)
             if (pu.type === "overcharge") {
               s.overchargeShots += 5;
-            }
-            // Cryo: activate slow effect on enemy bullets
-            if (pu.type === "cryo") {
-              s.cryoSlowTimer = playerStats.cryoSlowDuration;
             }
             // Groupie: spawn a new groupie pet
             if (pu.type === "groupie") {
@@ -2181,58 +2284,9 @@ export function GameCanvas({
             }
           }
         }
-        // Take Me Home: gentle homing toward nearest enemy
-        if (b.isPlayer && playerStats.hasTakeMeHome && !b.isSeeker) {
-          let nearX: number | null = null;
-          let nearY: number | null = null;
-          let nearDist = Infinity;
-          for (const e of s.enemies) {
-            if (!e.alive) continue;
-            const ex = e.x + settingsRef.current.enemy.width / 2;
-            const ey = e.y + settingsRef.current.enemy.height / 2;
-            const dist = Math.hypot(ex - b.x, ey - b.y);
-            if (dist < nearDist) {
-              nearDist = dist;
-              nearX = ex;
-              nearY = ey;
-            }
-          }
-          if (s.boss) {
-            const bossCfg3 = effectiveSettingsRef.current?.boss;
-            const bossW = bossCfg3?.width ?? 40;
-            const bossH = bossCfg3?.height ?? 30;
-            const bhbx3 = s.boss.x + (bossCfg3?.hitboxOffsetX ?? 0);
-            const bhby3 = s.boss.y + (bossCfg3?.hitboxOffsetY ?? 0);
-            const bhbw3 = bossCfg3?.hitboxWidth ?? bossW;
-            const bhbh3 = bossCfg3?.hitboxHeight ?? bossH;
-            const bossCx = bhbx3 + bhbw3 / 2;
-            const bossCy = bhby3 + bhbh3 / 2;
-            const dist = Math.hypot(bossCx - b.x, bossCy - b.y);
-            if (dist < nearDist) {
-              nearDist = dist;
-              nearX = bossCx;
-              nearY = bossCy;
-            }
-          }
-          if (nearX !== null && nearY !== null && nearDist > 1) {
-            const sdx = nearX - b.x, sdy = nearY - b.y;
-            const targetAngle = Math.atan2(sdy, sdx);
-            const currentAngle = Math.atan2(b.vy, b.vx);
-            let angleDiff = targetAngle - currentAngle;
-            while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-            while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-            const turn = angleDiff * playerStats.takeMeHomeHomingStrength * dt * 3;
-            const speed = Math.hypot(b.vx, b.vy);
-            const newAngle = currentAngle + turn;
-            b.vx = Math.cos(newAngle) * speed;
-            b.vy = Math.sin(newAngle) * speed;
-          }
-        }
         const bulletTimeFactor = b.isPlayer ? 1.0 : timeWarpFactor;
-        // Cryo Rounds: slow enemy bullets
-        const cryoFactor = (!b.isPlayer && s.cryoSlowTimer > 0) ? 0.6 : 1.0;
-        b.x += (b.vx || 0) * dt * bulletTimeFactor * (b.isPlayer ? 1 : cryoFactor);
-        b.y += b.vy * dt * bulletTimeFactor * (b.isPlayer ? 1 : cryoFactor);
+        b.x += (b.vx || 0) * dt * bulletTimeFactor;
+        b.y += b.vy * dt * bulletTimeFactor;
         // Bounce off screen edges
         if (b.isPlayer && playerStats.hasBounce && (b.bouncesRemaining ?? 0) > 0) {
           let bounced = false;
@@ -2286,7 +2340,7 @@ export function GameCanvas({
         { type: "ricochet",   weight: dropRates?.ricochet   ?? 1 },
         { type: "overcharge", weight: dropRates?.overcharge ?? 1 },
         { type: "groupie",    weight: dropRates?.groupie    ?? 1 },
-        { type: "cryo",       weight: dropRates?.cryo       ?? 1 },
+
       ];
       const filteredDropRateEntries = dropRateEntries.filter((e) => {
         if (e.type === "projectile" && playerStats.projectileCount >= 3) return false;
@@ -2370,28 +2424,53 @@ export function GameCanvas({
             } else {
               // Compute bullet damage — missile uses superBulletDamage, super bullet uses multiplier
               // damageMultiplier from Strength power-up is applied to all player bullets
-              const bulletDmg = b.superBulletDamage != null && !b.isSeeker
+              let bulletDmg = b.superBulletDamage != null && !b.isSeeker
                 ? b.superBulletDamage
                 : b.isSeeker
                   ? b.superBulletDamage ?? playerStats.damageMultiplier
                   : b.isSuperBullet
                     ? playerStats.superBulletDamage * playerStats.damageMultiplier
                     : playerStats.damageMultiplier;
+              // Bloodlust: bonus damage per kill this wave
+              if (playerStats.hasBloodlust) {
+                bulletDmg *= (1 + s.bloodlustKillCount * playerStats.bloodlustDamagePerStack);
+              }
+              // Last Stand: bonus damage when at 1 heart or less
+              if (playerStats.hasLastStand && s.lives <= 1) {
+                bulletDmg *= (1 + playerStats.lastStandDamageBonus);
+              }
+              // Critical Hit: chance for multiplied damage
+              const isCrit = playerStats.hasCriticalHit && Math.random() < playerStats.criticalHitChance;
+              if (isCrit) {
+                bulletDmg *= playerStats.criticalHitDamageMultiplier;
+              }
               const dnCfg = effectiveSettingsRef.current?.damageNumbers;
-              const dmgColor = b.isSeeker
-                ? (dnCfg?.seekerColor ?? "#ff4400")
-                : b.superBulletDamage != null
-                  ? "#ff4400"
-                  : b.isSuperBullet ? (b.superBulletTier === 3 ? "#ffd700" : b.superBulletTier === 2 ? "#cc44ff" : "#ff2222")
-                  : (dnCfg?.playerBulletColor ?? "#ffffff");
+              const dmgColor = isCrit
+                ? "#ff0000"
+                : b.isSeeker
+                  ? (dnCfg?.seekerColor ?? "#ff4400")
+                  : b.superBulletDamage != null
+                    ? "#ff4400"
+                    : b.isSuperBullet ? (b.superBulletTier === 3 ? "#ffd700" : b.superBulletTier === 2 ? "#cc44ff" : "#ff2222")
+                    : (dnCfg?.playerBulletColor ?? "#ffffff");
               e.hp = (e.hp ?? 1) - bulletDmg;
               s.totalDamageDealt += bulletDmg;
 
               // Pyromaniac: chance to set enemy on fire
               if (playerStats.hasPyromaniac && Math.random() < playerStats.pyromaniacBurnChance) {
-                const alreadyBurning = s.burningEnemies.find((be) => be.enemyIndex === ei);
-                if (!alreadyBurning) {
-                  s.burningEnemies.push({ enemyIndex: ei, timer: playerStats.pyromaniacBurnDuration, tickAccum: 0 });
+                if (e.burnStacks <= 0) {
+                  e.burnStacks = 1;
+                  e.burnTimer = playerStats.pyromaniacBurnDuration;
+                  e.burnAccum = 0;
+                }
+              }
+
+              // Cold Feet: chance to inflict cold DOT
+              if (playerStats.hasColdFeet && Math.random() < playerStats.coldFeetChance) {
+                if (e.coldStacks <= 0) {
+                  e.coldStacks = 1;
+                  e.coldTimer = playerStats.coldFeetDuration;
+                  e.coldAccum = 0;
                 }
               }
 
@@ -2492,7 +2571,15 @@ export function GameCanvas({
 
               // Spawn damage number
               const dnX = impactX + (Math.random() - 0.5) * 8;
-              if (s.damageNumbers.length < 100) s.damageNumbers.push({ x: dnX, y: e.y, value: String(Math.round(bulletDmg)), timer: 1.0, maxTimer: 1.0, color: dmgColor });
+              if (s.damageNumbers.length < 100) {
+                if (isCrit) {
+                  // Crit: show "Crit" label above the damage number
+                  s.damageNumbers.push({ x: dnX, y: e.y - 6, value: "Crit", timer: 1.0, maxTimer: 1.0, color: "#ff0000" });
+                  s.damageNumbers.push({ x: dnX, y: e.y, value: String(Math.round(bulletDmg)), timer: 1.0, maxTimer: 1.0, color: "#ff8800" });
+                } else {
+                  s.damageNumbers.push({ x: dnX, y: e.y, value: String(Math.round(bulletDmg)), timer: 1.0, maxTimer: 1.0, color: dmgColor });
+                }
+              }
               if (e.hp <= 0) {
                 e.alive = false; e.dying = true; e.animState = "dying"; e.animAccum = 0;
                 // Combo
@@ -2505,6 +2592,31 @@ export function GameCanvas({
                 s.score += scoreGain;
                 s.waveKillScore += scoreGain;
                 onScoreChange(s.score);
+                // Bloodlust: increment kill count for damage bonus
+                if (playerStats.hasBloodlust) {
+                  s.bloodlustKillCount++;
+                }
+                // Resonance: shockwave damages nearby enemies on kill
+                if (playerStats.hasResonance) {
+                  const resR = playerStats.resonanceRadius;
+                  const resD = playerStats.resonanceDamage;
+                  for (const other of s.enemies) {
+                    if (!other.alive || other === e) continue;
+                    const odx = other.x + ew / 2 - impactX;
+                    const ody = other.y + eh / 2 - impactY;
+                    if (Math.sqrt(odx * odx + ody * ody) < resR) {
+                      other.hp = (other.hp ?? 1) - resD;
+                      if (other.hp <= 0) {
+                        other.alive = false; other.dying = true; other.animState = "dying"; other.animAccum = 0;
+                        s.score += Math.floor(10 * s.wave * (1 + s.comboCount * comboMult));
+                        onScoreChange(s.score);
+                      }
+                    }
+                  }
+                  // Push a shockwave visual
+                  s.shockwaves.push({ x: impactX, y: impactY, timer: 0.3, maxRadius: resR });
+                  spawnParticles(impactX, impactY, "#8b5cf6", 6);
+                }
                 // Vampirism
                 if (playerStats.hasVampirism) {
                   s.vampKillsSinceHeal++;
@@ -2539,6 +2651,8 @@ export function GameCanvas({
                   if (Math.sqrt(pdx * pdx + pdy * pdy) < aoeRadius && s.playerBodyHitTimer <= 0 && !isInvincible && !hasShield && !s.permShieldActive) {
                     s.currentSlices = Math.max(0, s.currentSlices - 1);
                     s.waveDamageTaken = true;
+                    // Bloodlust: reset kill streak on damage taken
+                    if (playerStats.hasBloodlust) s.bloodlustKillCount = 0;
                     s.lives = Math.ceil(s.currentSlices / s.slicesPerHeart);
                     onLivesChange(s.lives);
                     if (onHealthDetailChange) onHealthDetailChange(s.currentSlices, s.maxSlices, s.slicesPerHeart);
@@ -2562,6 +2676,12 @@ export function GameCanvas({
                       virusStacks: 0,
                       virusTimer: 0,
                       virusAccum: 0,
+                      coldStacks: 0,
+                      coldTimer: 0,
+                      coldAccum: 0,
+                      burnStacks: 0,
+                      burnTimer: 0,
+                      burnAccum: 0,
                       hp: Math.max(1, Math.floor(e.maxHp / 2)),
                       maxHp: Math.max(1, Math.floor(e.maxHp / 2)),
                       animState: "walking",
@@ -2678,10 +2798,21 @@ export function GameCanvas({
                 : baseDmg * playerStats.damageMultiplier;
             s.boss.health -= damage;
             s.totalDamageDealt += damage;
-            // Pyromaniac: chance to burn boss (simple DOT via hitFlash extension)
+            // Pyromaniac: chance to set boss on fire
             if (playerStats.hasPyromaniac && Math.random() < playerStats.pyromaniacBurnChance) {
-              s.boss.health -= playerStats.pyromaniacBurnDamagePerTick * 2;
-              spawnParticles(s.boss.x + (bossCfg?.width ?? 40) / 2, s.boss.y + (bossCfg?.height ?? 30) / 2, "#ff4400", 4);
+              if (s.boss.burnStacks <= 0) {
+                s.boss.burnStacks = 1;
+                s.boss.burnTimer = playerStats.pyromaniacBurnDuration;
+                s.boss.burnAccum = 0;
+              }
+            }
+            // Cold Feet: chance to inflict boss with frost
+            if (playerStats.hasColdFeet && Math.random() < playerStats.coldFeetChance) {
+              if (s.boss.coldStacks <= 0) {
+                s.boss.coldStacks = 1;
+                s.boss.coldTimer = playerStats.coldFeetDuration;
+                s.boss.coldAccum = 0;
+              }
             }
             s.boss.hitFlash = 0.1;
             if (s.boss.animState === "walking") { s.boss.animState = "hurt"; s.boss.animAccum = 0; }
@@ -2787,6 +2918,8 @@ export function GameCanvas({
           const bulletDmg = b.isBoss ? (s.boss?.projectileDamage ?? waveEnemyBulletDmg) : waveEnemyBulletDmg;
           s.currentSlices = Math.max(0, s.currentSlices - bulletDmg);
           s.waveDamageTaken = true;
+          // Bloodlust: reset kill streak on damage taken
+          if (playerStats.hasBloodlust) s.bloodlustKillCount = 0;
           s.lives = Math.ceil(s.currentSlices / s.slicesPerHeart);
           onLivesChange(s.lives);
           if (onHealthDetailChange) onHealthDetailChange(s.currentSlices, s.maxSlices, s.slicesPerHeart);
@@ -2884,6 +3017,8 @@ export function GameCanvas({
             const touchDmg = s.boss.collisionDamage;
             s.currentSlices = Math.max(0, s.currentSlices - touchDmg);
             s.waveDamageTaken = true;
+            // Bloodlust: reset kill streak on damage taken
+            if (playerStats.hasBloodlust) s.bloodlustKillCount = 0;
             s.lives = Math.ceil(s.currentSlices / s.slicesPerHeart);
             onLivesChange(s.lives);
             if (onHealthDetailChange) onHealthDetailChange(s.currentSlices, s.maxSlices, s.slicesPerHeart);
@@ -2943,6 +3078,8 @@ export function GameCanvas({
             if (isInvincible || s.permShieldActive || hasShield) break;
             s.currentSlices = Math.max(0, s.currentSlices - waveEnemyCollisionDmg);
             s.waveDamageTaken = true;
+            // Bloodlust: reset kill streak on damage taken
+            if (playerStats.hasBloodlust) s.bloodlustKillCount = 0;
             s.lives = Math.ceil(s.currentSlices / s.slicesPerHeart);
             onLivesChange(s.lives);
             if (onHealthDetailChange) onHealthDetailChange(s.currentSlices, s.maxSlices, s.slicesPerHeart);
@@ -3217,6 +3354,37 @@ export function GameCanvas({
         ctx.textAlign = "center";
         ctx.fillText(e.eliteType?.toUpperCase() ?? "ELITE", sprX + sprW / 2, sprY - 8);
       }
+      // ── DOT status flash overlays ──────────────────────────────────────
+      // Virus: toxic green flash
+      if (e.virusStacks > 0 && e.alive) {
+        const flash = Math.sin(s.frame * 0.3) * 0.3 + 0.3; // 0–0.6 pulse
+        ctx.save();
+        ctx.globalAlpha = flash;
+        ctx.globalCompositeOperation = "source-atop";
+        ctx.fillStyle = "#39ff14";
+        ctx.fillRect(sprX, sprY, sprW, sprH);
+        ctx.restore();
+      }
+      // Pyromaniac: burn orange-red flash
+      if (e.burnStacks > 0 && e.alive) {
+        const flash = Math.sin(s.frame * 0.4) * 0.25 + 0.25; // 0–0.5 pulse
+        ctx.save();
+        ctx.globalAlpha = flash;
+        ctx.globalCompositeOperation = "source-atop";
+        ctx.fillStyle = "#ff4400";
+        ctx.fillRect(sprX, sprY, sprW, sprH);
+        ctx.restore();
+      }
+      // Cold Feet: frost white-cyan flash
+      if (e.coldStacks > 0 && e.alive) {
+        const flash = Math.sin(s.frame * 0.35) * 0.25 + 0.25; // 0–0.5 pulse
+        ctx.save();
+        ctx.globalAlpha = flash;
+        ctx.globalCompositeOperation = "source-atop";
+        ctx.fillStyle = "#a5f3fc";
+        ctx.fillRect(sprX, sprY, sprW, sprH);
+        ctx.restore();
+      }
       ctx.restore();
     }
 
@@ -3385,6 +3553,34 @@ export function GameCanvas({
         ctx.fillRect(sprX, sprY, sprW, sprH);
         ctx.restore();
       }
+      // Boss DOT status flash overlays
+      if (s.boss.virusStacks > 0) {
+        const flash = Math.sin(s.frame * 0.3) * 0.3 + 0.3;
+        ctx.save();
+        ctx.globalAlpha = flash;
+        ctx.globalCompositeOperation = "source-atop";
+        ctx.fillStyle = "#39ff14";
+        ctx.fillRect(sprX, sprY, sprW, sprH);
+        ctx.restore();
+      }
+      if (s.boss.burnStacks > 0) {
+        const flash = Math.sin(s.frame * 0.4) * 0.25 + 0.25;
+        ctx.save();
+        ctx.globalAlpha = flash;
+        ctx.globalCompositeOperation = "source-atop";
+        ctx.fillStyle = "#ff4400";
+        ctx.fillRect(sprX, sprY, sprW, sprH);
+        ctx.restore();
+      }
+      if (s.boss.coldStacks > 0) {
+        const flash = Math.sin(s.frame * 0.35) * 0.25 + 0.25;
+        ctx.save();
+        ctx.globalAlpha = flash;
+        ctx.globalCompositeOperation = "source-atop";
+        ctx.fillStyle = "#a5f3fc";
+        ctx.fillRect(sprX, sprY, sprW, sprH);
+        ctx.restore();
+      }
       // Boss health bar — attached above the boss, editable offset/size
       if (bossCfg?.healthBarVisible !== false) {
         const barW = bossCfg?.healthBarWidth ?? 40;
@@ -3511,6 +3707,29 @@ export function GameCanvas({
       ctx.shadowBlur = 4;
       ctx.lineWidth = 0.8;
       drawElectricityBolt(ctx, beam.x1, beam.y1, beam.x2, beam.y2, 6, 3);
+      ctx.restore();
+    }
+
+    // Draw Resonance shockwaves (expanding ring)
+    for (const sw of s.shockwaves) {
+      const progress = 1 - sw.timer / 0.3;
+      const radius = sw.maxRadius * progress;
+      const alpha = Math.max(0, 1 - progress);
+      ctx.save();
+      ctx.globalAlpha = alpha * 0.6;
+      ctx.strokeStyle = "#8b5cf6";
+      ctx.shadowColor = "#8b5cf6";
+      ctx.shadowBlur = 8;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(sw.x, sw.y, radius, 0, Math.PI * 2);
+      ctx.stroke();
+      // Inner brighter ring
+      ctx.globalAlpha = alpha * 0.3;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(sw.x, sw.y, radius * 0.7, 0, Math.PI * 2);
+      ctx.stroke();
       ctx.restore();
     }
 

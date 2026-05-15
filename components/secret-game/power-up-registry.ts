@@ -320,7 +320,7 @@ export const POWER_UP_REGISTRY: PowerUpDefinition[] = [
   },
   {
     id: "bounce",
-    name: "Bounce",
+    name: "Ricochet",
     description: "Player bullets bounce off screen edges.",
     icon: "/powerups/icons/bounce.png",
     canStack: true, maxStacks: 3, removeFromPoolAfterMaxed: true,
@@ -462,19 +462,19 @@ export const POWER_UP_REGISTRY: PowerUpDefinition[] = [
     getNextStat:    () => "Black Hole: Ready",
   },
   {
-    id: "cryo",
-    name: "Cryo Rounds",
-    description: "Enemy bullets move slower. Each stack increases the slow duration.",
-    icon: "/powerups/icons/cryo.png",
-    canStack: true, maxStacks: ROGUELIKE_CONFIG.cryo.maxStacks, removeFromPoolAfterMaxed: true,
+    id: "coldFeet",
+    name: "Cold Feet",
+    description: "Bullets have a chance to inflict cold DOT on enemies.",
+    icon: "/powerups/icons/cold_feet.png",
+    canStack: true, maxStacks: ROGUELIKE_CONFIG.coldFeet.maxStacks, removeFromPoolAfterMaxed: true,
     getCurrentStat: (c) => {
-      const n = c["cryo"] ?? 0;
-      if (n === 0) return "Slow: —";
-      return `Slow Duration: ${n * ROGUELIKE_CONFIG.cryo.slowDurationPerStack}s`;
+      const n = c["coldFeet"] ?? 0;
+      if (n === 0) return "Cold Chance: 0%";
+      return `Cold Chance: ${Math.min(100, n * ROGUELIKE_CONFIG.coldFeet.chancePerStack * 100).toFixed(0)}%`;
     },
     getNextStat: (c) => {
-      const n = (c["cryo"] ?? 0) + 1;
-      return `Slow Duration: ${n * ROGUELIKE_CONFIG.cryo.slowDurationPerStack}s`;
+      const n = (c["coldFeet"] ?? 0) + 1;
+      return `Cold Chance: ${Math.min(100, n * ROGUELIKE_CONFIG.coldFeet.chancePerStack * 100).toFixed(0)}%`;
     },
   },
   {
@@ -494,20 +494,61 @@ export const POWER_UP_REGISTRY: PowerUpDefinition[] = [
     },
   },
   {
-    id: "takeMeHome",
-    name: "Take Me Home",
-    description: "Bullets gently curve toward the nearest enemy.",
-    icon: "/powerups/icons/take_me_home.png",
-    canStack: true, maxStacks: ROGUELIKE_CONFIG.takeMeHome.maxStacks, removeFromPoolAfterMaxed: true,
+    id: "criticalHit",
+    name: "Critical Hit",
+    description: "Chance to deal 3x damage on hit. Crits show a big number.",
+    icon: "/powerups/icons/critical_hit.png",
+    canStack: true, maxStacks: ROGUELIKE_CONFIG.criticalHit.maxStacks, removeFromPoolAfterMaxed: true,
     getCurrentStat: (c) => {
-      const n = c["takeMeHome"] ?? 0;
-      if (n === 0) return "Homing: —";
-      return `Homing: ${Math.min(100, n * ROGUELIKE_CONFIG.takeMeHome.homingStrengthPerStack * 100).toFixed(0)}%`;
+      const n = c["criticalHit"] ?? 0;
+      if (n === 0) return "Crit Chance: 0%";
+      return `Crit Chance: ${Math.min(100, n * ROGUELIKE_CONFIG.criticalHit.chancePerStack * 100).toFixed(0)}%`;
     },
     getNextStat: (c) => {
-      const n = (c["takeMeHome"] ?? 0) + 1;
-      return `Homing: ${Math.min(100, n * ROGUELIKE_CONFIG.takeMeHome.homingStrengthPerStack * 100).toFixed(0)}%`;
+      const n = (c["criticalHit"] ?? 0) + 1;
+      return `Crit Chance: ${Math.min(100, n * ROGUELIKE_CONFIG.criticalHit.chancePerStack * 100).toFixed(0)}%`;
     },
+  },
+  {
+    id: "bloodlust",
+    name: "Bloodlust",
+    description: "+2% damage per kill this wave. Resets when you take damage.",
+    icon: "/powerups/icons/bloodlust.png",
+    canStack: true, maxStacks: ROGUELIKE_CONFIG.bloodlust.maxStacks, removeFromPoolAfterMaxed: true,
+    getCurrentStat: (c) => {
+      const n = c["bloodlust"] ?? 0;
+      if (n === 0) return "Bonus: —";
+      return `+${(n * ROGUELIKE_CONFIG.bloodlust.damagePerStack * 100).toFixed(0)}% dmg/kill`;
+    },
+    getNextStat: (c) => {
+      const n = (c["bloodlust"] ?? 0) + 1;
+      return `+${(n * ROGUELIKE_CONFIG.bloodlust.damagePerStack * 100).toFixed(0)}% dmg/kill`;
+    },
+  },
+  {
+    id: "resonance",
+    name: "Resonance",
+    description: "Killing an enemy sends out a shockwave that damages nearby foes.",
+    icon: "/powerups/icons/resonance.png",
+    canStack: true, maxStacks: ROGUELIKE_CONFIG.resonance.maxStacks, removeFromPoolAfterMaxed: true,
+    getCurrentStat: (c) => {
+      const n = c["resonance"] ?? 0;
+      if (n === 0) return "Shockwave: —";
+      return `Radius: ${n * ROGUELIKE_CONFIG.resonance.radiusPerStack}, Dmg: ${n * ROGUELIKE_CONFIG.resonance.damagePerStack}`;
+    },
+    getNextStat: (c) => {
+      const n = (c["resonance"] ?? 0) + 1;
+      return `Radius: ${n * ROGUELIKE_CONFIG.resonance.radiusPerStack}, Dmg: ${n * ROGUELIKE_CONFIG.resonance.damagePerStack}`;
+    },
+  },
+  {
+    id: "lastStand",
+    name: "Last Stand",
+    description: "When at 1 heart or less, fire 50% faster and deal +30% damage.",
+    icon: "/powerups/icons/last_stand.png",
+    canStack: false, maxStacks: 1, removeFromPoolAfterMaxed: true,
+    getCurrentStat: (c) => (c["lastStand"] ?? 0) > 0 ? "Last Stand: Ready" : "Last Stand: —",
+    getNextStat:    () => "Last Stand: Ready",
   },
 ];
 

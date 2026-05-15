@@ -22,6 +22,16 @@ interface LeaderboardEntry {
   created_at: string;
 }
 
+/** Saved run state — persisted to localStorage so players can resume later */
+interface SavedRunState {
+  chosenPowerUps: PermPowerUpState;
+  score: number;
+  lives: number;
+  wave: number;
+  healthDetail: { current: number; max: number; slicesPerHeart: number };
+  savedAt: number; // timestamp
+}
+
 interface RetroArcadeGameProps {
   title: string;
   instructions: string;
@@ -42,7 +52,8 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
   const [highScore, setHighScore] = useState(0);
   const [muted, setMuted] = useState(false);
   const [resetKey, setResetKey] = useState(0);
-  const [activePowerUps, setActivePowerUps] = useState<{ type: "rapid" | "shield" | "wideshot" | "extralife" | "invincible" | "projectile" | "timewarp" | "doubleshot" | "ricochet" | "overcharge" | "groupie" | "cryo"; timer: number; stacks: number }[]>([]);
+  const [hasSave, setHasSave] = useState(false);
+  const [activePowerUps, setActivePowerUps] = useState<{ type: "rapid" | "shield" | "wideshot" | "extralife" | "invincible" | "projectile" | "timewarp" | "doubleshot" | "ricochet" | "overcharge" | "groupie"; timer: number; stacks: number }[]>([]);
   const [songUnlockNeedsTap, setSongUnlockNeedsTap] = useState(false);
 
   // ── Roguelike permanent power-up state ──────────────────────────────
@@ -97,19 +108,67 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
       .catch(() => setLeaderboardLoading(false));
   }, []);
 
-  // Refresh high score when game ends
+  // Refresh high score when game ends + wipe save state on death
   useEffect(() => {
     if (phase === "gameover") {
       try {
         const hs = localStorage.getItem("abch-guitar-invaders-highscore");
         if (hs) setHighScore(parseInt(hs, 10));
       } catch {}
+      // Wipe saved run — death means start over
+      try { localStorage.removeItem("abch-guitar-invaders-save"); } catch {}
       // Also refresh leaderboard
       getLeaderboard(5)
         .then((data) => setLeaderboard(data))
         .catch(() => {});
     }
   }, [phase]);
+
+  // ── Save / Load run state ───────────────────────────────────────────
+  const SAVE_KEY = "abch-guitar-invaders-save";
+
+  /** Persist current run state to localStorage */
+  const saveRunState = useCallback(() => {
+    if (phase !== "playing" && phase !== "wavereward" && phase !== "bossreward") return;
+    const state: SavedRunState = {
+      chosenPowerUps,
+      score,
+      lives,
+      wave,
+      healthDetail,
+      savedAt: Date.now(),
+    };
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch {}
+  }, [chosenPowerUps, score, lives, wave, healthDetail, phase]);
+
+  /** Load saved run state from localStorage, returns true if a valid save was found */
+  const loadRunState = useCallback((): boolean => {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) return false;
+      const state = JSON.parse(raw) as SavedRunState;
+      if (!state || typeof state.wave !== "number") return false;
+      // Optional: reject saves older than 7 days
+      const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
+      if (Date.now() - state.savedAt > ONE_WEEK) {
+        localStorage.removeItem(SAVE_KEY);
+        return false;
+      }
+      setChosenPowerUps(state.chosenPowerUps ?? {});
+      setScore(state.score ?? 0);
+      setLives(state.lives ?? startingHearts);
+      setWave(state.wave ?? 1);
+      setHealthDetail(state.healthDetail ?? { current: startingHearts, max: startingHearts, slicesPerHeart: 1 });
+      return true;
+    } catch {
+      return false;
+    }
+  }, [startingHearts]);
+
+  // Auto-save whenever key run state changes
+  useEffect(() => {
+    saveRunState();
+  }, [chosenPowerUps, score, lives, wave, healthDetail, saveRunState]);
 
   /** Reset all roguelike state for a fresh run */
   const resetRoguelikeState = useCallback(() => {
@@ -128,6 +187,9 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
     setActivePowerUps([]);
     resetRoguelikeState();
     setResetKey((k) => k + 1);
+    // Wipe any existing save — this is a fresh run
+    try { localStorage.removeItem(SAVE_KEY); } catch {}
+    setHasSave(false);
     setPhase("playing");
   }, [resetRoguelikeState, startingHearts]);
 
@@ -142,8 +204,34 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
     setRunStats(undefined);
     resetRoguelikeState();
     setResetKey((k) => k + 1);
+    // Wipe save on restart too
+    try { localStorage.removeItem(SAVE_KEY); } catch {}
+    setHasSave(false);
     setPhase("playing");
   }, [resetRoguelikeState, startingHearts]);
+
+  // Check for existing save on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      setHasSave(!!raw);
+    } catch {
+      setHasSave(false);
+    }
+  }, []);
+
+  /** Resume a saved run */
+  const handleResume = useCallback(() => {
+    const loaded = loadRunState();
+    if (loaded) {
+      sharedKeys.shoot = false;
+      sharedAim.firing = false;
+      sharedAim.aiming = false;
+      setActivePowerUps([]);
+      setResetKey((k) => k + 1);
+      setPhase("playing");
+    }
+  }, [loadRunState]);
 
   // Generate 3 choices and play the fanfare whenever a reward screen is entered
   useEffect(() => {
@@ -377,10 +465,11 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
         onMusicVolume={handleMusicVolume}
         onSfxVolume={handleSfxVolume}
         onStart={handleStart}
-        onResume={() => setPhase("playing")}
+        onResume={handleResume}
         onRestart={handleRestart}
         onClose={onClose}
         runStats={runStats}
+        hasSave={hasSave}
       />
 
       {/* Roguelike power-up selection — after boss kill, wave clear, or choice pickup */}

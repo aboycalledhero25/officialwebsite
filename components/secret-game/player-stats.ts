@@ -45,9 +45,12 @@ export type RoguelikeConfigOverride = Partial<{
   phoenix: Partial<RoguelikeConfig['phoenix']>;
   chainReact: Partial<RoguelikeConfig['chainReact']>;
   blackHole: Partial<RoguelikeConfig['blackHole']>;
-  cryo: Partial<RoguelikeConfig['cryo']>;
+  coldFeet: Partial<RoguelikeConfig['coldFeet']>;
   pyromaniac: Partial<RoguelikeConfig['pyromaniac']>;
-  takeMeHome: Partial<RoguelikeConfig['takeMeHome']>;
+  criticalHit: Partial<RoguelikeConfig['criticalHit']>;
+  bloodlust: Partial<RoguelikeConfig['bloodlust']>;
+  resonance: Partial<RoguelikeConfig['resonance']>;
+  lastStand: Partial<RoguelikeConfig['lastStand']>;
   sprites: Partial<RoguelikeConfig['sprites']>;
 }>;
 
@@ -91,9 +94,12 @@ function mergeConfig(override?: RoguelikeConfigOverride): RoguelikeConfig {
     phoenix:     { ...ROGUELIKE_CONFIG.phoenix,     ...(override.phoenix     ?? {}) },
     chainReact:  { ...ROGUELIKE_CONFIG.chainReact,  ...(override.chainReact  ?? {}) },
     blackHole:   { ...ROGUELIKE_CONFIG.blackHole,   ...(override.blackHole   ?? {}) },
-    cryo:        { ...ROGUELIKE_CONFIG.cryo,        ...(override.cryo        ?? {}) },
+    coldFeet:    { ...ROGUELIKE_CONFIG.coldFeet,    ...(override.coldFeet    ?? {}) },
     pyromaniac:  { ...ROGUELIKE_CONFIG.pyromaniac,  ...(override.pyromaniac  ?? {}) },
-    takeMeHome:  { ...ROGUELIKE_CONFIG.takeMeHome,  ...(override.takeMeHome  ?? {}) },
+    criticalHit: { ...ROGUELIKE_CONFIG.criticalHit, ...(override.criticalHit ?? {}) },
+    bloodlust:   { ...ROGUELIKE_CONFIG.bloodlust,   ...(override.bloodlust   ?? {}) },
+    resonance:   { ...ROGUELIKE_CONFIG.resonance,   ...(override.resonance   ?? {}) },
+    lastStand:   { ...ROGUELIKE_CONFIG.lastStand,   ...(override.lastStand   ?? {}) },
     sprites:     { ...ROGUELIKE_CONFIG.sprites,     ...(override.sprites     ?? {}) },
   };
 }
@@ -231,9 +237,12 @@ export interface PlayerStats {
   blackHolePullRadius: number;
   blackHoleDamage: number;
 
-  // ─── Cryo Rounds ───────────────────────────────────────────────────────
-  hasCryo: boolean;
-  cryoSlowDuration: number;
+  // ─── Cold Feet ─────────────────────────────────────────────────────────
+  hasColdFeet: boolean;
+  coldFeetChance: number;
+  coldFeetDamagePerTick: number;
+  coldFeetTickInterval: number;
+  coldFeetDuration: number;
 
   // ─── Pyromaniac ────────────────────────────────────────────────────────
   hasPyromaniac: boolean;
@@ -242,9 +251,25 @@ export interface PlayerStats {
   pyromaniacBurnDuration: number;
   pyromaniacTickInterval: number;
 
-  // ─── Take Me Home (Homing Bullets) ─────────────────────────────────────
-  hasTakeMeHome: boolean;
-  takeMeHomeHomingStrength: number;
+  // ─── Critical Hit ──────────────────────────────────────────────────────
+  hasCriticalHit: boolean;
+  criticalHitChance: number;
+  criticalHitDamageMultiplier: number;
+
+  // ─── Bloodlust ─────────────────────────────────────────────────────────
+  hasBloodlust: boolean;
+  bloodlustDamagePerStack: number;
+
+  // ─── Resonance ─────────────────────────────────────────────────────────
+  hasResonance: boolean;
+  resonanceRadius: number;
+  resonanceDamage: number;
+
+  // ─── Last Stand ────────────────────────────────────────────────────────
+  hasLastStand: boolean;
+  lastStandFireRateBonus: number;
+  lastStandDamageBonus: number;
+
 }
 
 /**
@@ -430,8 +455,11 @@ export function computePlayerStats(chosen: PermPowerUpState, override?: Roguelik
     blackHolePullRadius: cfg.blackHole.pullRadius,
     blackHoleDamage: cfg.blackHole.damage,
 
-    hasCryo:         get("cryo") > 0,
-    cryoSlowDuration: get("cryo") * cfg.cryo.slowDurationPerStack,
+    hasColdFeet:     get("coldFeet") > 0,
+    coldFeetChance:  Math.min(1, get("coldFeet") * cfg.coldFeet.chancePerStack),
+    coldFeetDamagePerTick: cfg.coldFeet.damagePerTick,
+    coldFeetTickInterval: cfg.coldFeet.tickInterval,
+    coldFeetDuration: cfg.coldFeet.duration,
 
     hasPyromaniac:   get("pyromaniac") > 0,
     pyromaniacBurnChance: Math.min(1, get("pyromaniac") * cfg.pyromaniac.burnChancePerStack),
@@ -439,7 +467,20 @@ export function computePlayerStats(chosen: PermPowerUpState, override?: Roguelik
     pyromaniacBurnDuration: cfg.pyromaniac.burnDuration,
     pyromaniacTickInterval: cfg.pyromaniac.tickInterval,
 
-    hasTakeMeHome:   get("takeMeHome") > 0,
-    takeMeHomeHomingStrength: Math.min(1, get("takeMeHome") * cfg.takeMeHome.homingStrengthPerStack),
+    hasCriticalHit:  get("criticalHit") > 0,
+    criticalHitChance: Math.min(1, get("criticalHit") * cfg.criticalHit.chancePerStack),
+    criticalHitDamageMultiplier: cfg.criticalHit.damageMultiplier,
+
+    hasBloodlust:    get("bloodlust") > 0,
+    bloodlustDamagePerStack: cfg.bloodlust.damagePerStack,
+
+    hasResonance:    get("resonance") > 0,
+    resonanceRadius: get("resonance") * cfg.resonance.radiusPerStack,
+    resonanceDamage: get("resonance") * cfg.resonance.damagePerStack,
+
+    hasLastStand:    get("lastStand") > 0,
+    lastStandFireRateBonus: cfg.lastStand.fireRateBonus,
+    lastStandDamageBonus: cfg.lastStand.damageBonus,
+
   };
 }

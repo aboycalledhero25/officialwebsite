@@ -763,7 +763,7 @@ export function drawPowerUp(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
-  type: "rapid" | "shield" | "wideshot" | "extralife" | "invincible" | "choice" | "projectile" | "timewarp" | "doubleshot" | "ricochet" | "overcharge" | "groupie" | "cryo",
+  type: "rapid" | "shield" | "wideshot" | "extralife" | "invincible" | "choice" | "projectile" | "timewarp" | "doubleshot" | "ricochet" | "overcharge" | "groupie",
   frame: number,
   size = 8
 ) {
@@ -788,7 +788,6 @@ export function drawPowerUp(
     ricochet: { core: "#fcee0a", glow: "rgba(252, 238, 10,", bright: "#ffffff" },
     overcharge:{ core: "#ff2222", glow: "rgba(255, 34, 34,", bright: "#ffaaaa" },
     groupie:  { core: "#ff69b4", glow: "rgba(255, 105, 180,", bright: "#ffcce5" },
-    cryo:     { core: "#00b4d8", glow: "rgba(0, 180, 216,", bright: "#80e5ff" },
   };
   const c = colors[type];
 

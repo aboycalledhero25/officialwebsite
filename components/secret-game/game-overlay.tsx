@@ -38,6 +38,7 @@ export interface OverlayProps {
   onRestart: () => void;
   onClose: () => void;
   runStats?: RunStats;
+  hasSave?: boolean;
 }
 
 export function GameOverlay({
@@ -58,6 +59,7 @@ export function GameOverlay({
   onRestart,
   onClose,
   runStats,
+  hasSave = false,
 }: OverlayProps) {
   const [isMobile, setIsMobile] = useState(false);
   const [playerName, setPlayerName] = useState("");
@@ -168,12 +170,29 @@ export function GameOverlay({
                   : "Arrow keys / WASD to move · Space to shoot · P to pause · M to mute"}
               </span>
             </div>
-            <button
-              onClick={onStart}
-              className="mt-2 px-10 py-4 bg-[#ff006e] hover:bg-[#e6005f] text-white font-bold text-lg rounded-sm uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(255,0,110,0.4)] hover:shadow-[0_0_30px_rgba(255,0,110,0.6)] active:scale-95 focus:outline-none focus:ring-2 focus:ring-white/50"
-            >
-              Start Game
-            </button>
+            {hasSave ? (
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={onResume}
+                  className="px-10 py-4 bg-[#ff006e] hover:bg-[#e6005f] text-white font-bold text-lg rounded-sm uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(255,0,110,0.4)] hover:shadow-[0_0_30px_rgba(255,0,110,0.6)] active:scale-95 focus:outline-none focus:ring-2 focus:ring-white/50"
+                >
+                  Resume Run
+                </button>
+                <button
+                  onClick={onStart}
+                  className="px-8 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-sm uppercase tracking-widest transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-white/50"
+                >
+                  New Run
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={onStart}
+                className="mt-2 px-10 py-4 bg-[#ff006e] hover:bg-[#e6005f] text-white font-bold text-lg rounded-sm uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(255,0,110,0.4)] hover:shadow-[0_0_30px_rgba(255,0,110,0.6)] active:scale-95 focus:outline-none focus:ring-2 focus:ring-white/50"
+              >
+                Start Game
+              </button>
+            )}
             {highScore > 0 && (
               <div className="text-white/60 text-sm">
                 High Score: {highScore}
