@@ -35,6 +35,7 @@ export interface OverlayProps {
   onSfxVolume?: (v: number) => void;
   onStart: () => void;
   onResume: () => void;
+  onResumeSaved: () => void;
   onRestart: () => void;
   onClose: () => void;
   runStats?: RunStats;
@@ -56,6 +57,7 @@ export function GameOverlay({
   onSfxVolume,
   onStart,
   onResume,
+  onResumeSaved,
   onRestart,
   onClose,
   runStats,
@@ -108,7 +110,7 @@ export function GameOverlay({
         else if (phase === "paused") onResume();
       }
     },
-    [phase, onStart, onRestart, onResume]
+    [phase, onStart, onRestart, onResume, onResumeSaved]
   );
 
   const LeaderboardTable = () => (
@@ -173,7 +175,7 @@ export function GameOverlay({
             {hasSave ? (
               <div className="flex flex-col gap-3">
                 <button
-                  onClick={onResume}
+                  onClick={onResumeSaved}
                   className="px-10 py-4 bg-[#ff006e] hover:bg-[#e6005f] text-white font-bold text-lg rounded-sm uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(255,0,110,0.4)] hover:shadow-[0_0_30px_rgba(255,0,110,0.6)] active:scale-95 focus:outline-none focus:ring-2 focus:ring-white/50"
                 >
                   Resume Run

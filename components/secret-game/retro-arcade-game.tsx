@@ -220,8 +220,13 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
     }
   }, []);
 
-  /** Resume a saved run */
-  const handleResume = useCallback(() => {
+  /** Resume from pause — just switch back to playing, no reset */
+  const handlePauseResume = useCallback(() => {
+    setPhase("playing");
+  }, []);
+
+  /** Resume a saved run from localStorage (menu screen) */
+  const handleResumeSaved = useCallback(() => {
     const loaded = loadRunState();
     if (loaded) {
       sharedKeys.shoot = false;
@@ -521,7 +526,8 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
         onMusicVolume={handleMusicVolume}
         onSfxVolume={handleSfxVolume}
         onStart={handleStart}
-        onResume={handleResume}
+        onResume={handlePauseResume}
+        onResumeSaved={handleResumeSaved}
         onRestart={handleRestart}
         onClose={onClose}
         runStats={runStats}
