@@ -696,12 +696,6 @@
         "hitboxWidth": 40,
         "hitboxHeight": 40
       },
-      "bossHealthBar": {
-        "visible": true,
-        "x": 2,
-        "y": 248,
-        "size": 6
-      },
       "boss": {
         "x": 94,
         "y": 19
@@ -792,12 +786,6 @@
         "hitboxOffsetY": 10,
         "hitboxWidth": 40,
         "hitboxHeight": 40
-      },
-      "bossHealthBar": {
-        "visible": true,
-        "x": 2,
-        "y": 248,
-        "size": 6
       },
       "boss": {
         "x": 94,

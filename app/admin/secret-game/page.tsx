@@ -38,7 +38,6 @@ const DEFAULT_PLATFORM: GamePlatformSettings = {
     height: 28,
     spriteScale: 1,
   },
-  bossHealthBar: { visible: true, x: 90, y: 4, size: 6 },
   boss: { x: 100, y: 20 },
   spawnPoints: [
     { x: 40, y: 10, enabled: true },
@@ -393,17 +392,6 @@ export default function SecretGameAdminPage() {
         </div>
       </Section>
 
-      <Section title="Boss Health Bar">
-        <div className="flex items-center gap-4 mb-3">
-          <Toggle label="Visible" checked={plat.bossHealthBar.visible} onChange={(v) => updateField(`${platform}.bossHealthBar.visible`, v)} />
-        </div>
-        <div className="grid grid-cols-3 gap-4">
-          <NumberField label="X" value={plat.bossHealthBar.x} onChange={(v) => updateField(`${platform}.bossHealthBar.x`, v)} min={0} max={240} step={1} />
-          <NumberField label="Y" value={plat.bossHealthBar.y} onChange={(v) => updateField(`${platform}.bossHealthBar.y`, v)} min={0} max={320} step={1} />
-          <NumberField label="Size" value={plat.bossHealthBar.size ?? 6} onChange={(v) => updateField(`${platform}.bossHealthBar.size`, v)} min={4} max={32} step={1} />
-        </div>
-      </Section>
-
       <Section title={`Boss Position (${platform})`}>
         <p className="text-xs text-neutral-500 mb-3">Where the boss spawns. Drag the boss in the preview to move it.</p>
         <div className="grid grid-cols-2 gap-4">
@@ -625,6 +613,20 @@ export default function SecretGameAdminPage() {
           <NumberField label="Offset Y" value={settings.boss.collisionOffsetY ?? 0} onChange={(v) => updateField("boss.collisionOffsetY", v)} min={-100} max={100} step={1} />
           <NumberField label="Width" value={settings.boss.collisionWidth ?? settings.boss.width} onChange={(v) => updateField("boss.collisionWidth", v)} min={1} max={200} step={1} />
           <NumberField label="Height" value={settings.boss.collisionHeight ?? settings.boss.height} onChange={(v) => updateField("boss.collisionHeight", v)} min={1} max={200} step={1} />
+        </div>
+      </Section>
+
+      <Section title="Boss Health Bar">
+        <p className="text-xs text-neutral-500 mb-3">Health bar drawn above the boss. Offset is from the top-left of the boss sprite.</p>
+        <div className="flex items-center gap-4 mb-3">
+          <Toggle label="Visible" checked={settings.boss.healthBarVisible !== false} onChange={(v) => updateField("boss.healthBarVisible", v)} />
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          <NumberField label="Offset X" value={settings.boss.healthBarOffsetX ?? 0} onChange={(v) => updateField("boss.healthBarOffsetX", v)} min={-200} max={200} step={1} />
+          <NumberField label="Offset Y" value={settings.boss.healthBarOffsetY ?? 0} onChange={(v) => updateField("boss.healthBarOffsetY", v)} min={-200} max={200} step={1} />
+          <NumberField label="Width" value={settings.boss.healthBarWidth ?? 40} onChange={(v) => updateField("boss.healthBarWidth", v)} min={10} max={200} step={1} />
+          <NumberField label="Height" value={settings.boss.healthBarHeight ?? 6} onChange={(v) => updateField("boss.healthBarHeight", v)} min={2} max={50} step={1} />
+          <NumberField label="Text Size" value={settings.boss.healthBarTextSize ?? 8} onChange={(v) => updateField("boss.healthBarTextSize", v)} min={4} max={32} step={1} />
         </div>
       </Section>
 

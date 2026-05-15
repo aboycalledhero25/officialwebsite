@@ -1172,7 +1172,8 @@ export function draw8BitHealthBar(
   current: number,
   max: number,
   label: string,
-  fillColor?: string
+  fillColor?: string,
+  textSize?: number,
 ) {
   const ratio = Math.max(0, Math.min(1, current / max));
 
@@ -1218,7 +1219,7 @@ export function draw8BitHealthBar(
   // Label text drawn BELOW the bar so high numbers never clip
   const textY = y + height + height + 2;
   ctx.fillStyle = "#ffffff";
-  ctx.font = `${Math.max(8, Math.floor(height * 1.2))}px monospace`;
+  ctx.font = `${Math.max(8, textSize ?? Math.floor(height * 1.2))}px monospace`;
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
   ctx.textRendering = "geometricPrecision";

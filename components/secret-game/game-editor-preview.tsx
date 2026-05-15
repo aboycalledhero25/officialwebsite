@@ -45,6 +45,7 @@ type Sel =
   | { type: "boss" }
   | { type: "bossHitbox" }
   | { type: "bossBody" }
+  | { type: "bossHealthBar" }
   | { type: "orbital" }
   | { type: "spawnPoint"; index: number }
   | { type: "enemyHitbox"; index: number }
@@ -319,6 +320,24 @@ function Inspector({ sel, settings, playerSprite, bossSettings, playerHitbox, hi
           <Num label="Height" value={bossSettings.collisionHeight ?? bossSettings.height} onChange={(v) => onBossChange?.({ ...bossSettings, collisionHeight: Math.max(1, v) })} min={1} max={200} />
         </div>
       );
+    case "bossHealthBar":
+      return (
+        <div className="rounded-lg border border-[#1e1e1e] bg-[#0a0a0a]/95 p-3 space-y-2">
+          <div className="text-[11px] font-semibold text-white">Boss Health Bar</div>
+          <label className="flex items-center gap-3 cursor-pointer">
+            <div className={`relative w-11 h-6 rounded-full transition-colors ${bossSettings.healthBarVisible !== false ? "bg-[#00f0ff]" : "bg-neutral-700"}`}>
+              <input type="checkbox" checked={bossSettings.healthBarVisible !== false} onChange={(e) => onBossChange?.({ ...bossSettings, healthBarVisible: e.target.checked })} className="sr-only" />
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${bossSettings.healthBarVisible !== false ? "translate-x-5" : ""}`} />
+            </div>
+            <span className="text-[11px] text-neutral-300">Visible</span>
+          </label>
+          <Num label="Offset X" value={bossSettings.healthBarOffsetX ?? 0} onChange={(v) => onBossChange?.({ ...bossSettings, healthBarOffsetX: v })} />
+          <Num label="Offset Y" value={bossSettings.healthBarOffsetY ?? 0} onChange={(v) => onBossChange?.({ ...bossSettings, healthBarOffsetY: v })} />
+          <Num label="Width" value={bossSettings.healthBarWidth ?? 40} onChange={(v) => onBossChange?.({ ...bossSettings, healthBarWidth: Math.max(10, v) })} min={10} max={200} />
+          <Num label="Height" value={bossSettings.healthBarHeight ?? 6} onChange={(v) => onBossChange?.({ ...bossSettings, healthBarHeight: Math.max(2, v) })} min={2} max={50} />
+          <Num label="Text Size" value={bossSettings.healthBarTextSize ?? 8} onChange={(v) => onBossChange?.({ ...bossSettings, healthBarTextSize: Math.max(4, v) })} min={4} max={32} />
+        </div>
+      );
     case "orbital": {
       const orb = (roguelikeConfig as any)?.orbital ?? {};
       return (
@@ -500,15 +519,7 @@ function drawHUDOnCanvas(
     ctx.fillText("POWERUPS", px, py + psz);
   }
 
-  // Boss health bar
-  const bhb = settings.bossHealthBar;
-  if (bossSettings.enabled && bhb?.visible) {
-    const bx = bhb.x * xs;
-    const by = bhb.y;
-    const bh = bhb.size ?? 6;
-    const bw = bh * 10;
-    draw8BitHealthBar(ctx, bx, by, bw, bh, bossSettings.baseHealth ?? 500, bossSettings.baseHealth ?? 500, "BOSS", "#ff0000");
-  }
+  // Boss health bar is now drawn attached to the boss in the main draw loop
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -640,14 +651,13 @@ export function GameEditorPreview({
     const T = 8;
 
     // UI elements (topmost)
-    const uiKeys = ["hearts", "arrowKeys", "fireButton", "score", "wave", "powerUps", "bossHealthBar", "controls"];
+    const uiKeys = ["hearts", "arrowKeys", "fireButton", "score", "wave", "powerUps", "controls"];
     for (const key of uiKeys) {
       const el = (settings as any)[key];
       if (!el || el.visible === false) continue;
       let ex = el.x * xs, ey = el.y, ew = el.size ?? 20, eh = el.size ?? 20;
       if (key === "touchArea") { ew = el.width; eh = el.height; }
       if (key === "controls") { ew = (el.size ?? 24) * 3; eh = el.size ?? 24; }
-      if (key === "bossHealthBar") { ew = (el.size ?? 6) * 10; eh = el.size ?? 6; }
       if (inRect(gx, gy, ex, ey, ew, eh)) return { type: "ui", key };
     }
 
@@ -715,6 +725,17 @@ export function GameEditorPreview({
     const sprX = settings.player.x * xs + playerSprite.offsetX;
     const sprY = settings.player.y + playerSprite.offsetY;
     if (inRect(gx, gy, sprX, sprY, playerSprite.width, playerSprite.height)) return { type: "player" };
+
+    // Boss health bar (check before body/hitbox/sprite since it's on top)
+    if (bossSettings.enabled && bossSettings.healthBarVisible !== false) {
+      const bx = settings.boss.x * xs;
+      const by = settings.boss.y;
+      const barW = bossSettings.healthBarWidth ?? 40;
+      const barH = bossSettings.healthBarHeight ?? 6;
+      const barX = bx + (bossSettings.healthBarOffsetX ?? 0);
+      const barY = by + (bossSettings.healthBarOffsetY ?? -barH - 4);
+      if (inRect(gx, gy, barX, barY, barW, barH)) return { type: "bossHealthBar" };
+    }
 
     // Boss body (check before hitbox and sprite)
     if (bossSettings.enabled) {
@@ -865,6 +886,16 @@ export function GameEditorPreview({
         if (near(bcbx + bcbw, bcby + bcbh)) return "se";
         return null;
       }
+      case "bossHealthBar": {
+        const bx = settings.boss.x * xs;
+        const by = settings.boss.y;
+        const barW = bossSettings.healthBarWidth ?? 40;
+        const barH = bossSettings.healthBarHeight ?? 6;
+        const barX = bx + (bossSettings.healthBarOffsetX ?? 0);
+        const barY = by + (bossSettings.healthBarOffsetY ?? -barH - 4);
+        if (near(barX + barW, barY + barH)) return "se";
+        return null;
+      }
       case "orbital": {
         const pcx = settings.player.x * xs + playerSprite.offsetX + playerSprite.width / 2;
         const pcy = settings.player.y + playerSprite.offsetY + playerSprite.height / 2;
@@ -910,7 +941,6 @@ export function GameEditorPreview({
         let ex = u.x * xs, ey = u.y, ew = u.size ?? 20, eh = u.size ?? 20;
         if (el.key === "touchArea") { ew = u.width; eh = u.height; }
         if (el.key === "controls") { ew = (u.size ?? 24) * 3; eh = u.size ?? 24; }
-        if (el.key === "bossHealthBar") { ew = (u.size ?? 6) * 10; eh = u.size ?? 6; }
         if (near(ex + ew, ey + eh)) return "se";
         return null;
       }
@@ -1366,6 +1396,32 @@ export function GameEditorPreview({
       ctx.textAlign = "center";
       ctx.fillText("Boss Body", bcbx + bcbw / 2, bcby - 6);
       ctx.restore();
+
+      // Boss health bar (attached to boss)
+      if (bossSettings.healthBarVisible !== false) {
+        const barW = bossSettings.healthBarWidth ?? 40;
+        const barH = bossSettings.healthBarHeight ?? 6;
+        const barX = bx + (bossSettings.healthBarOffsetX ?? 0);
+        const barY = by + (bossSettings.healthBarOffsetY ?? -barH - 4);
+        const isHbBarSel = sel?.type === "bossHealthBar";
+        draw8BitHealthBar(ctx, barX, barY, barW, barH, bossSettings.baseHealth ?? 500, bossSettings.baseHealth ?? 500, "BOSS", "#ff0000", bossSettings.healthBarTextSize);
+        // Outline for editing
+        ctx.save();
+        ctx.strokeStyle = isHbBarSel ? "#fff" : "rgba(255,0,0,0.5)";
+        ctx.lineWidth = isHbBarSel ? 2 : 1;
+        ctx.setLineDash([3, 3]);
+        ctx.strokeRect(barX, barY, barW, barH);
+        ctx.setLineDash([]);
+        if (isHbBarSel) {
+          ctx.fillStyle = "#fff";
+          ctx.fillRect(barX + barW - 3, barY + barH - 3, 6, 6);
+        }
+        ctx.fillStyle = isHbBarSel ? "#ff0000" : "rgba(255,0,0,0.6)";
+        ctx.font = "bold 8px monospace";
+        ctx.textAlign = "center";
+        ctx.fillText("Boss HP Bar", barX + barW / 2, barY - 6);
+        ctx.restore();
+      }
     }
 
     // ── Aim cursor (mouse-follow) ──
@@ -1391,7 +1447,7 @@ export function GameEditorPreview({
     drawHUDOnCanvas(ctx, settings, bossSettings, 3, 123456, 5, logW);
 
     // ── UI element outlines (for editing) ──
-    const uiKeys = ["hearts", "arrowKeys", "fireButton", "score", "wave", "powerUps", "bossHealthBar", "controls"];
+    const uiKeys = ["hearts", "arrowKeys", "fireButton", "score", "wave", "powerUps", "controls"];
     for (const key of uiKeys) {
       const el = (settings as any)[key];
       if (!el || el.visible === false) continue;
@@ -1399,7 +1455,6 @@ export function GameEditorPreview({
       let ew = el.size ?? 20, eh = el.size ?? 20;
       if (key === "touchArea") { ew = el.width; eh = el.height; }
       if (key === "controls") { ew = (el.size ?? 24) * 3; eh = el.size ?? 24; }
-      if (key === "bossHealthBar") { ew = (el.size ?? 6) * 10; eh = el.size ?? 6; }
       const isSel = sel?.type === "ui" && sel.key === key;
       ctx.save();
       ctx.strokeStyle = isSel ? "#fff" : "rgba(0,240,255,0.25)";
@@ -1524,6 +1579,15 @@ export function GameEditorPreview({
             });
           }
           break;
+        case "bossHealthBar":
+          if (drag.handle === "se") {
+            onBossChange?.({
+              ...bossSettings,
+              healthBarWidth: Math.max(10, (bossSettings.healthBarWidth ?? 40) + dx),
+              healthBarHeight: Math.max(2, (bossSettings.healthBarHeight ?? 6) + dy),
+            });
+          }
+          break;
         case "orbital":
           if (drag.handle === "radius") {
             const orb = (roguelikeConfig as any)?.orbital ?? {};
@@ -1623,6 +1687,14 @@ export function GameEditorPreview({
             ...bossSettings,
             collisionOffsetX: (bossSettings.collisionOffsetX ?? 0) + dx,
             collisionOffsetY: (bossSettings.collisionOffsetY ?? 0) + dy,
+          });
+          break;
+        }
+        case "bossHealthBar": {
+          onBossChange?.({
+            ...bossSettings,
+            healthBarOffsetX: (bossSettings.healthBarOffsetX ?? 0) + dx,
+            healthBarOffsetY: (bossSettings.healthBarOffsetY ?? 0) + dy,
           });
           break;
         }

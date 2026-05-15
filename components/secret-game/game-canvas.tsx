@@ -2330,12 +2330,13 @@ export function GameCanvas({
         // No procedural fallback — only render new sprite assets
         () => {},
       );
-      // Boss health bar — fixed HUD position from editor, always red
-      const bhb = settingsRef.current.bossHealthBar;
-      if (bhb?.visible) {
-        const barH = bhb.size ?? 6;
-        const barW = barH * 10;
-        draw8BitHealthBar(ctx, bhb.x, bhb.y, barW, barH, s.boss.health, s.boss.maxHealth, "BOSS", "#ff0000");
+      // Boss health bar — attached above the boss, editable offset/size
+      if (bossCfg?.healthBarVisible !== false) {
+        const barW = bossCfg?.healthBarWidth ?? 40;
+        const barH = bossCfg?.healthBarHeight ?? 6;
+        const barX = s.boss.x + (bossCfg?.healthBarOffsetX ?? 0);
+        const barY = s.boss.y + (bossCfg?.healthBarOffsetY ?? -barH - 4);
+        draw8BitHealthBar(ctx, barX, barY, barW, barH, s.boss.health, s.boss.maxHealth, "BOSS", "#ff0000", bossCfg?.healthBarTextSize);
       }
     }
 

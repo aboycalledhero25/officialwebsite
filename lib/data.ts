@@ -244,7 +244,6 @@ export interface GamePlatformSettings {
   powerUps: GameUIElement;
   shield: GameShieldSettings;
   enemy: GameEnemySettings;
-  bossHealthBar: GameUIElement;
   boss: { x: number; y: number };
   /** Position and size of the HUD controls row (Pause / Mute / Fullscreen buttons). */
   controls?: { x: number; y: number; size: number };
@@ -284,6 +283,13 @@ export interface BossSettings {
   collisionOffsetY?: number;
   collisionWidth?: number;
   collisionHeight?: number;
+  // Boss health bar (attached to boss)
+  healthBarOffsetX?: number;
+  healthBarOffsetY?: number;
+  healthBarWidth?: number;
+  healthBarHeight?: number;
+  healthBarTextSize?: number;
+  healthBarVisible?: boolean;
 }
 
 export interface SpawnPoint {
