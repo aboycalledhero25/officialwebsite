@@ -819,10 +819,12 @@ export function GameCanvas({
       }
       const ew = enemyCfg.width;
       const eh = enemyCfg.height;
-      const ecw = enemyCfg.collisionWidth ?? ew;
-      const ech = enemyCfg.collisionHeight ?? eh;
-      const ecbOffX = enemyCfg.collisionOffsetX ?? 0;
-      const ecbOffY = enemyCfg.collisionOffsetY ?? 0;
+      // Use the same hitbox for body collision as for bullet collision —
+      // so the Live Preview Editor only needs one hitbox adjustment.
+      const ecw = enemyCfg.hitboxWidth ?? ew;
+      const ech = enemyCfg.hitboxHeight ?? eh;
+      const ecbOffX = enemyCfg.hitboxOffsetX ?? 0;
+      const ecbOffY = enemyCfg.hitboxOffsetY ?? 0;
 
       // ── Player hitbox (used by all collision sections) ─────────────────
       const hbCfg = effectiveSettingsRef.current?.playerHitbox;
@@ -2877,11 +2879,6 @@ export function GameCanvas({
       const waveEnemyCollisionDmg = s.enemyCollisionDamage;
 
       // ── Collision: enemy bullets vs player ──
-      // DEBUG: log collision state once per second
-      if (typeof window !== "undefined" && s.frame % 60 === 0) {
-        // eslint-disable-next-line no-console
-        console.log("[Game] Collision check:", { bullets: s.bullets.filter(b => !b.isPlayer).length, enemies: s.enemies.filter(e => e.alive).length, permShield: s.permShieldActive, isInvincible, px, py, pw, ph });
-      }
       const enemyBulletImpact = effectiveSettingsRef.current?.impacts?.enemyBullet ?? { w: 20, h: 20 };
       for (let bi = s.bullets.length - 1; bi >= 0; bi--) {
         const b = s.bullets[bi];
@@ -3078,12 +3075,6 @@ export function GameCanvas({
               ecby < py + ph &&
               ecby + ech > py
             );
-          }
-          // DEBUG: log first collision per session to verify hitboxes
-          if (bodyHit && typeof window !== "undefined" && !(window as any).__bodyHitLogged) {
-            (window as any).__bodyHitLogged = true;
-            // eslint-disable-next-line no-console
-            console.log("[Game] Body collision:", { ex: e.x, ey: e.y, ecw, ech, px, py, pw, ph, bodyHit });
           }
           if (bodyHit) {
             if (isInvincible || s.permShieldActive || hasShield) break;
