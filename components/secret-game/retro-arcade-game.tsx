@@ -7,7 +7,7 @@ import { GameOverlay, type RunStats } from "./game-overlay";
 import { MobileControls } from "./mobile-controls";
 import { PowerUpSelection } from "./power-up-selection";
 import { sharedKeys, sharedAim } from "./use-keyboard-controls";
-import { useAudioSfx, setSoundVolumes } from "./use-audio-sfx";
+import { useAudioSfx, setSoundVolumes, unlockAudio } from "./use-audio-sfx";
 import { useGameMusic } from "./use-game-music";
 import { getLeaderboard } from "@/lib/actions";
 import { type PermPowerUpState, computePlayerStats } from "./player-stats";
@@ -315,8 +315,11 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
   }, [phase]);
 
   // ── Wave 100 song unlock ────────────────────────────────────────────
-  const songAudioRef = useRef<HTMLAudioElement | null>(null);
-  const songPlayingRef = useRef(false);
+  // Use Web Audio API instead of <audio> element for reliable mobile playback
+  const songSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const songBufferRef = useRef<AudioBuffer | null>(null);
+  const songCtxRef = useRef<AudioContext | null>(null);
+  const songGainRef = useRef<GainNode | null>(null);
   const songEndedRef = useRef(false);
   const wasMutedRef = useRef(muted);
   const [songFinished, setSongFinished] = useState(false);
@@ -328,25 +331,24 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
 
   useEffect(() => {
     if (phase !== "songunlock") {
-      // Always clean up audio when leaving songunlock
-      if (songAudioRef.current) {
-        const a = songAudioRef.current;
-        a.pause();
-        a.src = "";
-        a.load();
-        songAudioRef.current = null;
+      // Stop and clean up Web Audio
+      if (songSourceRef.current) {
+        try { songSourceRef.current.stop(); } catch {}
+        songSourceRef.current = null;
       }
-      songPlayingRef.current = false;
+      if (songGainRef.current) {
+        try { songGainRef.current.disconnect(); } catch {}
+        songGainRef.current = null;
+      }
       songEndedRef.current = false;
       setSongUnlockNeedsTap(false);
       setSongFinished(false);
       return;
     }
 
-    // Prevent duplicate creation using the audio ref itself
-    if (songAudioRef.current) return;
+    // Prevent duplicate setup
+    if (songSourceRef.current || songBufferRef.current) return;
     songEndedRef.current = false;
-    songPlayingRef.current = false;
 
     const wasMuted = wasMutedRef.current;
 
@@ -355,86 +357,69 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
     setAudioMuted(true);
     setMusicMuted(true);
 
-    const audio = new Audio("/api/audio/reward");
-    audio.volume = 1;
-    audio.preload = "auto";
-    songAudioRef.current = audio;
+    let cancelled = false;
 
-    const onEnded = () => {
-      if (songEndedRef.current) return;
-      songEndedRef.current = true;
-      songPlayingRef.current = false;
-      setSongFinished(true);
-      setMuted(wasMuted);
-      setAudioMuted(wasMuted);
-      setMusicMuted(wasMuted);
-    };
+    const startPlayback = async () => {
+      try {
+        // Ensure AudioContext is unlocked (required on mobile)
+        unlockAudio();
 
-    const onError = () => {
-      if (songEndedRef.current) return;
-      songEndedRef.current = true;
-      songPlayingRef.current = false;
-      setSongFinished(true);
-      setMuted(wasMuted);
-      setAudioMuted(wasMuted);
-      setMusicMuted(wasMuted);
-    };
+        // Fetch and decode the audio file once
+        const res = await fetch("/api/audio/reward");
+        const arrayBuf = await res.arrayBuffer();
 
-    const onPause = () => {
-      // If paused by system (not by us ending), track it so we can resume
-      if (!songEndedRef.current && songAudioRef.current) {
-        songPlayingRef.current = false;
-      }
-    };
+        // Use shared context if available, otherwise create one
+        const ctx = songCtxRef.current ?? new AudioContext();
+        songCtxRef.current = ctx;
 
-    const onPlaying = () => {
-      songPlayingRef.current = true;
-    };
+        const buffer = await ctx.decodeAudioData(arrayBuf);
+        if (cancelled) return;
+        songBufferRef.current = buffer;
 
-    // Mobile: resume playback when user returns to the page
-    const onVisibilityChange = () => {
-      if (!document.hidden && songAudioRef.current && !songEndedRef.current && !songPlayingRef.current) {
-        songAudioRef.current.play().catch(() => {});
-      }
-    };
+        // Create gain node for volume control
+        const gain = ctx.createGain();
+        gain.gain.value = 1;
+        gain.connect(ctx.destination);
+        songGainRef.current = gain;
 
-    audio.addEventListener("ended", onEnded);
-    audio.addEventListener("error", onError);
-    audio.addEventListener("pause", onPause);
-    audio.addEventListener("playing", onPlaying);
-    document.addEventListener("visibilitychange", onVisibilityChange);
-
-    const tryPlay = () => {
-      if (!audio || songEndedRef.current || songPlayingRef.current) return;
-      audio.play().then(() => {
-        songPlayingRef.current = true;
+        // Start playback
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(gain);
+        source.onended = () => {
+          if (cancelled || songEndedRef.current) return;
+          songEndedRef.current = true;
+          setSongFinished(true);
+          setMuted(wasMuted);
+          setAudioMuted(wasMuted);
+          setMusicMuted(wasMuted);
+        };
+        songSourceRef.current = source;
+        source.start(0);
         setSongUnlockNeedsTap(false);
-      }).catch(() => {
-        // Autoplay blocked on mobile — wait for user tap
-        setSongUnlockNeedsTap(true);
-      });
+      } catch {
+        // Decoding or playback failed — show tap to retry
+        if (!cancelled) {
+          setSongUnlockNeedsTap(true);
+        }
+      }
     };
 
-    // Wait for enough data before playing to avoid mobile stutter
-    if (audio.readyState >= 3) {
-      tryPlay();
-    } else {
-      audio.addEventListener("canplaythrough", tryPlay, { once: true });
-    }
+    startPlayback();
 
     return () => {
-      audio.removeEventListener("ended", onEnded);
-      audio.removeEventListener("error", onError);
-      audio.removeEventListener("pause", onPause);
-      audio.removeEventListener("playing", onPlaying);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-      // Only destroy audio if we're truly leaving the phase
+      cancelled = true;
+      if (songSourceRef.current) {
+        try { songSourceRef.current.stop(); } catch {}
+        songSourceRef.current = null;
+      }
+      // Only fully discard buffer when leaving the phase
       if (phase !== "songunlock") {
-        audio.pause();
-        audio.src = "";
-        audio.load();
-        songAudioRef.current = null;
-        songPlayingRef.current = false;
+        songBufferRef.current = null;
+        if (songGainRef.current) {
+          try { songGainRef.current.disconnect(); } catch {}
+          songGainRef.current = null;
+        }
       }
     };
   }, [phase, setAudioMuted, setMusicMuted]);
@@ -556,8 +541,27 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
         <div
           className="absolute inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-in fade-in duration-700"
           onClick={() => {
-            if (songUnlockNeedsTap && songAudioRef.current && !songPlayingRef.current && !songEndedRef.current) {
-              songAudioRef.current.play().catch(() => {});
+            // Web Audio API playback — restart if needed
+            if (songUnlockNeedsTap && songBufferRef.current && songCtxRef.current && !songEndedRef.current) {
+              try {
+                const source = songCtxRef.current.createBufferSource();
+                source.buffer = songBufferRef.current;
+                const gain = songCtxRef.current.createGain();
+                gain.gain.value = 1;
+                gain.connect(songCtxRef.current.destination);
+                source.connect(gain);
+                source.onended = () => {
+                  if (songEndedRef.current) return;
+                  songEndedRef.current = true;
+                  setSongFinished(true);
+                  setMuted(wasMutedRef.current);
+                  setAudioMuted(wasMutedRef.current);
+                  setMusicMuted(wasMutedRef.current);
+                };
+                songSourceRef.current = source;
+                source.start(0);
+                setSongUnlockNeedsTap(false);
+              } catch {}
             }
           }}
         >
@@ -575,8 +579,26 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
               <div
                 className="mt-2 px-6 py-3 bg-[#ff006e]/20 border border-[#ff006e]/40 rounded-sm text-[#ff006e] font-bold text-sm uppercase tracking-widest animate-pulse cursor-pointer"
                 onClick={() => {
-                  if (songAudioRef.current && !songPlayingRef.current && !songEndedRef.current) {
-                    songAudioRef.current.play().catch(() => {});
+                  if (songBufferRef.current && songCtxRef.current && !songEndedRef.current) {
+                    try {
+                      const source = songCtxRef.current.createBufferSource();
+                      source.buffer = songBufferRef.current;
+                      const gain = songCtxRef.current.createGain();
+                      gain.gain.value = 1;
+                      gain.connect(songCtxRef.current.destination);
+                      source.connect(gain);
+                      source.onended = () => {
+                        if (songEndedRef.current) return;
+                        songEndedRef.current = true;
+                        setSongFinished(true);
+                        setMuted(wasMutedRef.current);
+                        setAudioMuted(wasMutedRef.current);
+                        setMusicMuted(wasMutedRef.current);
+                      };
+                      songSourceRef.current = source;
+                      source.start(0);
+                      setSongUnlockNeedsTap(false);
+                    } catch {}
                   }
                 }}
               >
