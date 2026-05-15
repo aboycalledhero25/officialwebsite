@@ -2492,7 +2492,7 @@ export function GameCanvas({
         // Procedural fallback while sprites are loading
         () => drawEnemy(ctx, sprX, sprY, e.variant, s.frame, e.cooldown > 0.75, sprW, sprH),
       );
-      // Elite glow outline
+      // Elite glow outline — soft outer glow around the sprite
       if (e.isElite && e.alive) {
         const eliteColors: Record<string, string> = {
           shielded: "#00f0ff",
@@ -2501,15 +2501,20 @@ export function GameCanvas({
           splitter: "#cc44ff",
         };
         const ec = eliteColors[e.eliteType ?? ""] ?? "#ffffff";
+        // Soft outer glow using shadow
+        ctx.save();
+        ctx.shadowColor = ec;
+        ctx.shadowBlur = 12;
+        ctx.globalAlpha = 0.7 + Math.sin(s.frame * 0.15) * 0.3; // gentle pulse
         ctx.strokeStyle = ec;
-        ctx.lineWidth = 2;
-        ctx.setLineDash([3, 3]);
-        ctx.strokeRect(sprX - 2, sprY - 2, sprW + 4, sprH + 4);
-        ctx.setLineDash([]);
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(sprX - 1, sprY - 1, sprW + 2, sprH + 2);
+        ctx.restore();
+        // Label above the enemy
         ctx.fillStyle = ec;
         ctx.font = "bold 7px monospace";
         ctx.textAlign = "center";
-        ctx.fillText(e.eliteType?.toUpperCase() ?? "ELITE", sprX + sprW / 2, sprY - 6);
+        ctx.fillText(e.eliteType?.toUpperCase() ?? "ELITE", sprX + sprW / 2, sprY - 8);
       }
       ctx.restore();
     }
