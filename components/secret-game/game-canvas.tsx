@@ -3137,7 +3137,7 @@ export function GameCanvas({
           s.announcerText = { text: `PERFECT! +${bonus}`, timer: 2.0, maxTimer: 2.0, color: "#ffd700", scale: 1 };
         }
         play("levelComplete");
-        if (s.wave === 100) {
+        if (s.wave === 5) {
           onPhaseChange("songunlock");
           return;
         }
