@@ -315,8 +315,8 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
   }, [phase]);
 
   // ── Wave 100 song unlock ────────────────────────────────────────────
-  const songUnlockStartedRef = useRef(false);
   const songAudioRef = useRef<HTMLAudioElement | null>(null);
+  const songPlayingRef = useRef(false);
   const songEndedRef = useRef(false);
   const wasMutedRef = useRef(muted);
   const [songFinished, setSongFinished] = useState(false);
@@ -336,17 +336,17 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
         a.load();
         songAudioRef.current = null;
       }
-      songUnlockStartedRef.current = false;
+      songPlayingRef.current = false;
       songEndedRef.current = false;
       setSongUnlockNeedsTap(false);
       setSongFinished(false);
       return;
     }
 
-    // Prevent duplicate creation using the audio ref itself (survives Strict Mode remounts)
+    // Prevent duplicate creation using the audio ref itself
     if (songAudioRef.current) return;
-    songUnlockStartedRef.current = true;
     songEndedRef.current = false;
+    songPlayingRef.current = false;
 
     const wasMuted = wasMutedRef.current;
 
@@ -357,11 +357,13 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
 
     const audio = new Audio("/api/audio/reward");
     audio.volume = 1;
+    audio.preload = "auto";
     songAudioRef.current = audio;
 
     const onEnded = () => {
       if (songEndedRef.current) return;
       songEndedRef.current = true;
+      songPlayingRef.current = false;
       setSongFinished(true);
       setMuted(wasMuted);
       setAudioMuted(wasMuted);
@@ -371,26 +373,41 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
     const onError = () => {
       if (songEndedRef.current) return;
       songEndedRef.current = true;
+      songPlayingRef.current = false;
       setSongFinished(true);
       setMuted(wasMuted);
       setAudioMuted(wasMuted);
       setMusicMuted(wasMuted);
     };
 
+    const onPause = () => {
+      // If paused by system (not by us ending), track it so we can resume
+      if (!songEndedRef.current && songAudioRef.current) {
+        songPlayingRef.current = false;
+      }
+    };
+
+    const onPlaying = () => {
+      songPlayingRef.current = true;
+    };
+
     // Mobile: resume playback when user returns to the page
     const onVisibilityChange = () => {
-      if (!document.hidden && songAudioRef.current && !songEndedRef.current && songAudioRef.current.paused) {
+      if (!document.hidden && songAudioRef.current && !songEndedRef.current && !songPlayingRef.current) {
         songAudioRef.current.play().catch(() => {});
       }
     };
 
     audio.addEventListener("ended", onEnded);
     audio.addEventListener("error", onError);
+    audio.addEventListener("pause", onPause);
+    audio.addEventListener("playing", onPlaying);
     document.addEventListener("visibilitychange", onVisibilityChange);
 
     const tryPlay = () => {
-      if (!audio || songEndedRef.current) return;
+      if (!audio || songEndedRef.current || songPlayingRef.current) return;
       audio.play().then(() => {
+        songPlayingRef.current = true;
         setSongUnlockNeedsTap(false);
       }).catch(() => {
         // Autoplay blocked on mobile — wait for user tap
@@ -398,18 +415,26 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
       });
     };
 
-    tryPlay();
+    // Wait for enough data before playing to avoid mobile stutter
+    if (audio.readyState >= 3) {
+      tryPlay();
+    } else {
+      audio.addEventListener("canplaythrough", tryPlay, { once: true });
+    }
 
     return () => {
       audio.removeEventListener("ended", onEnded);
       audio.removeEventListener("error", onError);
+      audio.removeEventListener("pause", onPause);
+      audio.removeEventListener("playing", onPlaying);
       document.removeEventListener("visibilitychange", onVisibilityChange);
-      // Only destroy audio if we're truly leaving the phase (not Strict Mode simulation)
+      // Only destroy audio if we're truly leaving the phase
       if (phase !== "songunlock") {
         audio.pause();
         audio.src = "";
         audio.load();
         songAudioRef.current = null;
+        songPlayingRef.current = false;
       }
     };
   }, [phase, setAudioMuted, setMusicMuted]);
@@ -531,8 +556,8 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
         <div
           className="absolute inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-in fade-in duration-700"
           onClick={() => {
-            if (songUnlockNeedsTap) {
-              songAudioRef.current?.play().catch(() => {});
+            if (songUnlockNeedsTap && songAudioRef.current && !songPlayingRef.current && !songEndedRef.current) {
+              songAudioRef.current.play().catch(() => {});
             }
           }}
         >
@@ -549,7 +574,11 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
             {songUnlockNeedsTap && !songFinished && (
               <div
                 className="mt-2 px-6 py-3 bg-[#ff006e]/20 border border-[#ff006e]/40 rounded-sm text-[#ff006e] font-bold text-sm uppercase tracking-widest animate-pulse cursor-pointer"
-                onClick={() => songAudioRef.current?.play().catch(() => {})}
+                onClick={() => {
+                  if (songAudioRef.current && !songPlayingRef.current && !songEndedRef.current) {
+                    songAudioRef.current.play().catch(() => {});
+                  }
+                }}
               >
                 Tap to play
               </div>
