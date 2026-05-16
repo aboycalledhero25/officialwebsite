@@ -38,6 +38,62 @@ import {
   drawPlayerSprite,
   type PlayerFacing,
 } from "./player-sprite";
+
+// ── Reusable offscreen canvas for sprite tinting ─────────────────────
+// Canvas 2D "source-atop" only works correctly on a transparent background.
+// We draw the sprite here, tint it, then composite the result back.
+let _tintCanvas: HTMLCanvasElement | null = null;
+let _tintCtx: CanvasRenderingContext2D | null = null;
+function getTintCanvas(w: number, h: number) {
+  if (!_tintCanvas) {
+    _tintCanvas = document.createElement("canvas");
+    _tintCtx = _tintCanvas.getContext("2d", { willReadFrequently: false })!;
+  }
+  if (_tintCanvas.width < w) _tintCanvas.width = w;
+  if (_tintCanvas.height < h) _tintCanvas.height = h;
+  return { canvas: _tintCanvas, ctx: _tintCtx! };
+}
+
+/**
+ * Tint a sprite region on the main canvas without affecting the background.
+ * Works by drawing the sprite to an offscreen transparent canvas, applying
+ * the tint with source-atop (which only affects non-transparent pixels),
+ * then drawing the result back.
+ */
+/** Format a damage value for display — shows 1 decimal place when fractional. */
+function fmtDmg(n: number): string {
+  const rounded = Math.round(n);
+  return Math.abs(n - rounded) < 0.05 ? String(rounded) : n.toFixed(1);
+}
+
+function tintSpriteRegion(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  tintColor: string,
+  alpha: number,
+  drawSprite: (c: CanvasRenderingContext2D, sx: number, sy: number, sw: number, sh: number) => void,
+) {
+  const { canvas: tCan, ctx: tCtx } = getTintCanvas(Math.ceil(w), Math.ceil(h));
+  tCtx.clearRect(0, 0, tCan.width, tCan.height);
+
+  // Draw sprite onto transparent offscreen canvas
+  drawSprite(tCtx, 0, 0, w, h);
+
+  // Tint only the sprite pixels (source-atop on transparent bg works correctly)
+  tCtx.globalCompositeOperation = "source-atop";
+  tCtx.fillStyle = tintColor;
+  tCtx.fillRect(0, 0, w, h);
+  tCtx.globalCompositeOperation = "source-over";
+
+  // Draw tinted result back onto main canvas
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(tCan, 0, 0, w, h, x, y, w, h);
+  ctx.restore();
+}
 import {
   loadEffectSprites,
   spawnEffect,
@@ -335,6 +391,9 @@ export function GameCanvas({
       alreadyHit?: Set<number>;
       // Ricochet: how many enemy bounces remaining
       ricochetRemaining?: number;
+      // Projectile size scaling: track spawn position
+      spawnX?: number;
+      spawnY?: number;
     }[],
     particles: [] as {
       x: number; y: number; vx: number; vy: number;
@@ -1736,9 +1795,11 @@ export function GameCanvas({
           const bounces = playerStats.hasBounce ? playerStats.bounceCount : 0;
           const pierce = playerStats.hasPierce ? playerStats.pierceCount : 0;
           const isOvercharge = overchargeActive;
+          const spawnBX = bpx + offsetX;
+          const spawnBY = bpy + offsetY;
           s.bullets.push({
-            x: bpx + offsetX,
-            y: bpy + offsetY,
+            x: spawnBX,
+            y: spawnBY,
             vx: Math.cos(angle) * speed,
             vy: Math.sin(angle) * speed,
             angle,
@@ -1749,6 +1810,8 @@ export function GameCanvas({
             bouncesRemaining: bounces,
             pierceRemaining: isOvercharge ? Math.max(pierce, 2) : pierce,
             alreadyHit: isOvercharge ? new Set<number>() : undefined,
+            spawnX: spawnBX,
+            spawnY: spawnBY,
           });
           if (isOvercharge) {
             s.overchargeShots--;
@@ -2596,9 +2659,9 @@ export function GameCanvas({
                 if (isCrit) {
                   // Crit: show "Crit" label above the damage number
                   s.damageNumbers.push({ x: dnX, y: e.y - 6, value: "Crit", timer: 1.0, maxTimer: 1.0, color: "#ff0000" });
-                  s.damageNumbers.push({ x: dnX, y: e.y, value: String(Math.round(bulletDmg)), timer: 1.0, maxTimer: 1.0, color: "#ff8800" });
+                  s.damageNumbers.push({ x: dnX, y: e.y, value: fmtDmg(bulletDmg), timer: 1.0, maxTimer: 1.0, color: "#ff8800" });
                 } else {
-                  s.damageNumbers.push({ x: dnX, y: e.y, value: String(Math.round(bulletDmg)), timer: 1.0, maxTimer: 1.0, color: dmgColor });
+                  s.damageNumbers.push({ x: dnX, y: e.y, value: fmtDmg(bulletDmg), timer: 1.0, maxTimer: 1.0, color: dmgColor });
                 }
               }
               if (e.hp <= 0) {
@@ -2848,7 +2911,7 @@ export function GameCanvas({
                 : b.superBulletDamage != null
                   ? "#ff4400"
                   : (dnCfg2?.playerBulletColor ?? "#ffffff");
-              if (s.damageNumbers.length < 100) s.damageNumbers.push({ x: b.x + (Math.random() - 0.5) * 10, y: s.boss.y - 2, value: String(Math.round(damage)), timer: 1.0, maxTimer: 1.0, color: bossDmgColor });
+              if (s.damageNumbers.length < 100) s.damageNumbers.push({ x: b.x + (Math.random() - 0.5) * 10, y: s.boss.y - 2, value: fmtDmg(damage), timer: 1.0, maxTimer: 1.0, color: bossDmgColor });
             }
             // Virus infection on boss hit
             if (playerStats.hasVirus && s.boss.virusStacks < playerStats.virusMaxStacks) {
@@ -3379,36 +3442,27 @@ export function GameCanvas({
         ctx.textAlign = "center";
         ctx.fillText(e.eliteType?.toUpperCase() ?? "ELITE", sprX + sprW / 2, sprY - 8);
       }
-      // ── DOT status flash overlays ──────────────────────────────────────
-      // Virus: toxic green flash
+      // ── DOT status flash overlays (tint only sprite pixels, not bg) ──
       if (e.virusStacks > 0 && e.alive) {
-        const flash = Math.sin(s.frame * 0.3) * 0.3 + 0.3; // 0–0.6 pulse
-        ctx.save();
-        ctx.globalAlpha = flash;
-        ctx.globalCompositeOperation = "source-atop";
-        ctx.fillStyle = "#39ff14";
-        ctx.fillRect(sprX, sprY, sprW, sprH);
-        ctx.restore();
+        const flash = Math.sin(s.frame * 0.3) * 0.3 + 0.3;
+        tintSpriteRegion(ctx, sprX, sprY, sprW, sprH, "#39ff14", flash, (c, sx, sy, sw, sh) => {
+          drawEnemySprite(c, sx, sy, e.variant, e.animState, e.facing, e.animAccum, sw, sh,
+            () => drawEnemy(c, sx, sy, e.variant, s.frame, e.cooldown > 0.75, sw, sh));
+        });
       }
-      // Pyromaniac: burn orange-red flash
       if (e.burnStacks > 0 && e.alive) {
-        const flash = Math.sin(s.frame * 0.4) * 0.25 + 0.25; // 0–0.5 pulse
-        ctx.save();
-        ctx.globalAlpha = flash;
-        ctx.globalCompositeOperation = "source-atop";
-        ctx.fillStyle = "#ff4400";
-        ctx.fillRect(sprX, sprY, sprW, sprH);
-        ctx.restore();
+        const flash = Math.sin(s.frame * 0.4) * 0.25 + 0.25;
+        tintSpriteRegion(ctx, sprX, sprY, sprW, sprH, "#ff4400", flash, (c, sx, sy, sw, sh) => {
+          drawEnemySprite(c, sx, sy, e.variant, e.animState, e.facing, e.animAccum, sw, sh,
+            () => drawEnemy(c, sx, sy, e.variant, s.frame, e.cooldown > 0.75, sw, sh));
+        });
       }
-      // Cold Feet: frost white-cyan flash
       if (e.coldStacks > 0 && e.alive) {
-        const flash = Math.sin(s.frame * 0.35) * 0.25 + 0.25; // 0–0.5 pulse
-        ctx.save();
-        ctx.globalAlpha = flash;
-        ctx.globalCompositeOperation = "source-atop";
-        ctx.fillStyle = "#a5f3fc";
-        ctx.fillRect(sprX, sprY, sprW, sprH);
-        ctx.restore();
+        const flash = Math.sin(s.frame * 0.35) * 0.25 + 0.25;
+        tintSpriteRegion(ctx, sprX, sprY, sprW, sprH, "#a5f3fc", flash, (c, sx, sy, sw, sh) => {
+          drawEnemySprite(c, sx, sy, e.variant, e.animState, e.facing, e.animAccum, sw, sh,
+            () => drawEnemy(c, sx, sy, e.variant, s.frame, e.cooldown > 0.75, sw, sh));
+        });
       }
       ctx.restore();
     }
@@ -3537,72 +3591,57 @@ export function GameCanvas({
         s.boss.skinIndex,
         s.boss.animState,
         s.boss.animAccum,
-        s.boss.hitFlash,
+        0, // hurt flash handled below with tintSpriteRegion
         // No procedural fallback — only render new sprite assets
         () => {},
       );
-      // Phase 4 enrage tint — follows actual sprite shape via source-atop
+      // Boss hurt flash — tint only sprite pixels red
+      if (s.boss.hitFlash > 0) {
+        const flashAlpha = 0.5 + Math.sin(Date.now() * 0.02) * 0.5;
+        tintSpriteRegion(ctx, sprX, sprY, sprW, sprH, "#ff0000", flashAlpha, (c, sx, sy, sw, sh) => {
+          drawBossSprite(c, sx, sy, sw, sh, s.boss!.skinIndex, s.boss!.animState, s.boss!.animAccum, 0, () => {});
+        });
+      }
+      // Phase 4 enrage tint — tint only sprite pixels
       if (s.boss.phase === 4) {
-        ctx.save();
-        // Pulsing intensity for enrage effect
         const pulse = 0.35 + Math.sin(s.frame * 0.15) * 0.15;
-        ctx.globalCompositeOperation = "source-atop";
-        ctx.fillStyle = `rgba(255, 20, 20, ${pulse})`;
-        ctx.fillRect(sprX, sprY, sprW, sprH);
-        ctx.restore();
+        tintSpriteRegion(ctx, sprX, sprY, sprW, sprH, "#ff1414", pulse, (c, sx, sy, sw, sh) => {
+          drawBossSprite(c, sx, sy, sw, sh, s.boss!.skinIndex, s.boss!.animState, s.boss!.animAccum, 0, () => {});
+        });
         // Red outer glow — redraw sprite with shadow to create silhouette glow
         ctx.save();
         ctx.globalCompositeOperation = "source-over";
         ctx.shadowColor = `rgba(255, 0, 0, ${0.4 + Math.sin(s.frame * 0.15) * 0.2})`;
         ctx.shadowBlur = 10 + Math.sin(s.frame * 0.15) * 5;
-        drawBossSprite(
-          ctx,
-          sprX, sprY, sprW, sprH,
-          s.boss.skinIndex,
-          s.boss.animState,
-          s.boss.animAccum,
-          0,
-          () => {},
-        );
+        drawBossSprite(ctx, sprX, sprY, sprW, sprH, s.boss.skinIndex, s.boss.animState, s.boss.animAccum, 0, () => {});
         ctx.restore();
       }
-      // Low-health red tint (< 30% HP) — sprite turns red, no box outline
+      // Low-health red tint (< 30% HP) — tint only sprite pixels
       const healthRatio = s.boss.health / s.boss.maxHealth;
       if (healthRatio < 0.3 && s.boss.phase !== 4) {
-        ctx.save();
         const pulse = 0.25 + Math.sin(s.frame * 0.2) * 0.15;
-        ctx.globalCompositeOperation = "source-atop";
-        ctx.fillStyle = `rgba(255, 40, 40, ${pulse})`;
-        ctx.fillRect(sprX, sprY, sprW, sprH);
-        ctx.restore();
+        tintSpriteRegion(ctx, sprX, sprY, sprW, sprH, "#ff2828", pulse, (c, sx, sy, sw, sh) => {
+          drawBossSprite(c, sx, sy, sw, sh, s.boss!.skinIndex, s.boss!.animState, s.boss!.animAccum, 0, () => {});
+        });
       }
-      // Boss DOT status flash overlays
+      // Boss DOT status flash overlays (tint only sprite pixels)
       if (s.boss.virusStacks > 0) {
         const flash = Math.sin(s.frame * 0.3) * 0.3 + 0.3;
-        ctx.save();
-        ctx.globalAlpha = flash;
-        ctx.globalCompositeOperation = "source-atop";
-        ctx.fillStyle = "#39ff14";
-        ctx.fillRect(sprX, sprY, sprW, sprH);
-        ctx.restore();
+        tintSpriteRegion(ctx, sprX, sprY, sprW, sprH, "#39ff14", flash, (c, sx, sy, sw, sh) => {
+          drawBossSprite(c, sx, sy, sw, sh, s.boss!.skinIndex, s.boss!.animState, s.boss!.animAccum, 0, () => {});
+        });
       }
       if (s.boss.burnStacks > 0) {
         const flash = Math.sin(s.frame * 0.4) * 0.25 + 0.25;
-        ctx.save();
-        ctx.globalAlpha = flash;
-        ctx.globalCompositeOperation = "source-atop";
-        ctx.fillStyle = "#ff4400";
-        ctx.fillRect(sprX, sprY, sprW, sprH);
-        ctx.restore();
+        tintSpriteRegion(ctx, sprX, sprY, sprW, sprH, "#ff4400", flash, (c, sx, sy, sw, sh) => {
+          drawBossSprite(c, sx, sy, sw, sh, s.boss!.skinIndex, s.boss!.animState, s.boss!.animAccum, 0, () => {});
+        });
       }
       if (s.boss.coldStacks > 0) {
         const flash = Math.sin(s.frame * 0.35) * 0.25 + 0.25;
-        ctx.save();
-        ctx.globalAlpha = flash;
-        ctx.globalCompositeOperation = "source-atop";
-        ctx.fillStyle = "#a5f3fc";
-        ctx.fillRect(sprX, sprY, sprW, sprH);
-        ctx.restore();
+        tintSpriteRegion(ctx, sprX, sprY, sprW, sprH, "#a5f3fc", flash, (c, sx, sy, sw, sh) => {
+          drawBossSprite(c, sx, sy, sw, sh, s.boss!.skinIndex, s.boss!.animState, s.boss!.animAccum, 0, () => {});
+        });
       }
       // Boss health bar — attached above the boss, editable offset/size
       if (bossCfg?.healthBarVisible !== false) {
@@ -3691,7 +3730,15 @@ export function GameCanvas({
           ctx.restore();
         } else {
           const platProjSizes = siteData.secretGame?.[_renderPlatform]?.projectileSizes;
-          const bulletSize = platProjSizes?.playerBullet ?? 4;
+          const finalSize = platProjSizes?.playerBullet ?? 4;
+          // Scale from size 1 at spawn up to finalSize at autoFireRange distance
+          const autoRange = effectiveSettingsRef.current?.autoFireRange ?? 0;
+          const rangeLimit = autoRange > 0 ? autoRange : 120; // fallback when unlimited
+          const distTraveled = Math.sqrt(
+            (b.x - (b.spawnX ?? b.x)) ** 2 + (b.y - (b.spawnY ?? b.y)) ** 2
+          );
+          const progress = Math.min(1, distTraveled / rangeLimit);
+          const bulletSize = 1 + (finalSize - 1) * progress;
           const bulletAngle = b.angle ?? Math.atan2(b.vy, b.vx);
           drawPlayerBullet(ctx, b.x, b.y, s.frame, bulletSize, bulletAngle);
         }
