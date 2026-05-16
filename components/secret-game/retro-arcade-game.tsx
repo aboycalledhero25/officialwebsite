@@ -584,7 +584,16 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
               You made it!
             </div>
             <div className="text-white/90 text-lg md:text-xl leading-relaxed">
-              Here&apos;s a new song - Can&apos;t Let Her Go
+              Here&apos;s a new song!
+            </div>
+            <div className="text-[#ff006e] text-xl md:text-2xl font-bold leading-relaxed">
+              Now Playing
+            </div>
+            <div className="text-white text-lg md:text-xl font-semibold leading-relaxed">
+              A Boy Called Hero - Can&apos;t Let Her Go
+            </div>
+            <div className="text-white/70 text-base md:text-lg leading-relaxed">
+              Enjoy!
             </div>
             {songUnlockNeedsTap && !songFinished && (
               <div
