@@ -4017,9 +4017,7 @@ export const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(function Ga
     ctx.restore();
   }
 
-  // Cap to 30fps on mobile to reduce thermal throttling and battery drain
-  const isMobileDevice = typeof navigator !== "undefined" && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-  useGameLoop(update, phase === "playing" || phase === "menu" || phase === "paused" || phase === "bossreward" || phase === "wavereward", isMobileDevice ? 30 : undefined);
+  useGameLoop(update, phase === "playing" || phase === "menu" || phase === "paused" || phase === "bossreward" || phase === "wavereward");
 
   // Expose quitToGameOver so the parent can trigger game over from the pause menu
   useImperativeHandle(ref, () => ({
