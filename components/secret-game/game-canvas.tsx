@@ -1177,7 +1177,7 @@ export function GameCanvas({
                 spawnParticles(s.boss.x + 20, s.boss.y + 15, "#ff8800", 20);
                 play("levelComplete");
                 s.boss = null;
-                onPhaseChange("bossreward");
+                onPhaseChange(s.wave === 50 ? "songunlock" : "bossreward");
                 return;
               }
             }
@@ -1342,7 +1342,7 @@ export function GameCanvas({
               spawnEffect(s.activeEffects, "boss", s.boss.x + 20, s.boss.y + 15, effectiveSettingsRef.current?.impacts?.boss ?? { w: 80, h: 80 });
               play("levelComplete");
               s.boss = null;
-              onPhaseChange("bossreward");
+              onPhaseChange(s.wave === 50 ? "songunlock" : "bossreward");
               onScoreChange(s.score);
               return;
             }
@@ -1386,7 +1386,7 @@ export function GameCanvas({
               onScoreChange(s.score);
               play("levelComplete");
               s.boss = null;
-              onPhaseChange("bossreward");
+              onPhaseChange(s.wave === 50 ? "songunlock" : "bossreward");
               return;
             }
           }
@@ -1409,7 +1409,7 @@ export function GameCanvas({
             onScoreChange(s.score);
             play("levelComplete");
             s.boss = null;
-            onPhaseChange("bossreward");
+            onPhaseChange(s.wave === 50 ? "songunlock" : "bossreward");
             return;
           }
         }
@@ -1431,7 +1431,7 @@ export function GameCanvas({
             onScoreChange(s.score);
             play("levelComplete");
             s.boss = null;
-            onPhaseChange("bossreward");
+            onPhaseChange(s.wave === 50 ? "songunlock" : "bossreward");
             return;
           }
         }
@@ -1480,7 +1480,7 @@ export function GameCanvas({
                 onScoreChange(s.score);
                 play("levelComplete");
                 s.boss = null;
-                onPhaseChange("bossreward");
+                onPhaseChange(s.wave === 50 ? "songunlock" : "bossreward");
                 return;
               }
             }
@@ -1670,7 +1670,7 @@ export function GameCanvas({
                   onScoreChange(s.score);
                   play("levelComplete");
                   s.boss = null;
-                  onPhaseChange("bossreward");
+                  onPhaseChange(s.wave === 50 ? "songunlock" : "bossreward");
                   return;
                 }
               }
@@ -2948,7 +2948,7 @@ export function GameCanvas({
               spawnParticles(s.boss.x + bw / 2, s.boss.y + bh / 2, "#00f0ff", 10);
               play("levelComplete");
               s.boss = null;
-              onPhaseChange("bossreward");
+              onPhaseChange(s.wave === 50 ? "songunlock" : "bossreward");
               return;
             }
           }
@@ -3215,14 +3215,6 @@ export function GameCanvas({
           s.announcerText = { text: `PERFECT! +${bonus}`, timer: 2.0, maxTimer: 2.0, color: "#ffd700", scale: 1 };
         }
         play("levelComplete");
-        // eslint-disable-next-line no-console
-        console.log("[WaveComplete] Wave", s.wave, "complete. enemiesToSpawn:", s.enemiesToSpawn, "alive:", aliveEnemies.length, "boss:", !!s.boss);
-        if (s.wave === 50) {
-          // eslint-disable-next-line no-console
-          console.log("[WaveComplete] Triggering songunlock!");
-          onPhaseChange("songunlock");
-          return;
-        }
         // If wave rewards are enabled, go straight to the power-up selection screen;
         // otherwise show the brief "Wave X Clear!" overlay then auto-advance.
         // Default waveRewardEnabled to true so the screen shows even if the field is
