@@ -3215,7 +3215,11 @@ export function GameCanvas({
           s.announcerText = { text: `PERFECT! +${bonus}`, timer: 2.0, maxTimer: 2.0, color: "#ffd700", scale: 1 };
         }
         play("levelComplete");
+        // eslint-disable-next-line no-console
+        console.log("[WaveComplete] Wave", s.wave, "complete. enemiesToSpawn:", s.enemiesToSpawn, "alive:", aliveEnemies.length, "boss:", !!s.boss);
         if (s.wave === 50) {
+          // eslint-disable-next-line no-console
+          console.log("[WaveComplete] Triggering songunlock!");
           onPhaseChange("songunlock");
           return;
         }

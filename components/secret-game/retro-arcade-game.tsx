@@ -334,6 +334,8 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
   }, [muted]);
 
   useEffect(() => {
+    // eslint-disable-next-line no-console
+    console.log("[SongUnlock] Effect running, phase:", phase, "buffer:", !!songBufferRef.current, "source:", !!songSourceRef.current);
     if (phase !== "songunlock") {
       // Stop and clean up Web Audio
       if (songSourceRef.current) {
@@ -351,7 +353,11 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
     }
 
     // Prevent duplicate setup
-    if (songSourceRef.current || songBufferRef.current) return;
+    if (songSourceRef.current || songBufferRef.current) {
+      // eslint-disable-next-line no-console
+      console.log("[SongUnlock] Skipping setup — already has buffer or source");
+      return;
+    }
     songEndedRef.current = false;
 
     const wasMuted = wasMutedRef.current;
@@ -365,19 +371,27 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
 
     const startPlayback = async () => {
       try {
+        // eslint-disable-next-line no-console
+        console.log("[SongUnlock] Starting playback setup...");
         // Ensure AudioContext is unlocked (required on mobile)
         unlockAudio();
 
         // Fetch and decode the audio file once
         const res = await fetch("/api/audio/reward");
+        // eslint-disable-next-line no-console
+        console.log("[SongUnlock] Fetch response:", res.status, res.ok);
         if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
         const arrayBuf = await res.arrayBuffer();
 
         // Use the shared AudioContext (already unlocked by gameplay)
         const ctx = getSharedAudioContext();
+        // eslint-disable-next-line no-console
+        console.log("[SongUnlock] AudioContext:", ctx?.state);
         if (!ctx) throw new Error("No AudioContext");
 
         const buffer = await ctx.decodeAudioData(arrayBuf);
+        // eslint-disable-next-line no-console
+        console.log("[SongUnlock] Decoded buffer duration:", buffer.duration);
         if (cancelled) return;
         songBufferRef.current = buffer;
 
@@ -402,6 +416,8 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
         };
         songSourceRef.current = source;
         source.start(0);
+        // eslint-disable-next-line no-console
+        console.log("[SongUnlock] Playback started!");
         setSongUnlockNeedsTap(false);
       } catch (err) {
         // eslint-disable-next-line no-console
