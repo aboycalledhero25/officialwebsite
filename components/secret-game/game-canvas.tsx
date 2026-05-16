@@ -66,6 +66,65 @@ function fmtDmg(n: number): string {
   return Math.abs(n - rounded) < 0.05 ? String(rounded) : n.toFixed(1);
 }
 
+// ── Spatial Hash for collision detection ─────────────────────────────
+// Divides the play area into uniform grid cells. Each cell stores indices
+// of enemies that overlap it. Bullet collision only checks enemies in the
+// same cell (and immediate neighbours), reducing O(b×e) to O(b + e).
+
+const SPATIAL_CELL_SIZE = 40; // tuned for typical enemy size (~20–40px)
+
+interface SpatialHash {
+  cells: Map<string, number[]>;
+  cellSize: number;
+}
+
+function createSpatialHash(cellSize: number): SpatialHash {
+  return { cells: new Map(), cellSize };
+}
+
+function spatialKey(cx: number, cy: number): string {
+  return `${cx},${cy}`;
+}
+
+function spatialInsert(hash: SpatialHash, x: number, y: number, w: number, h: number, idx: number) {
+  const cs = hash.cellSize;
+  const minCX = Math.floor(x / cs);
+  const minCY = Math.floor(y / cs);
+  const maxCX = Math.floor((x + w) / cs);
+  const maxCY = Math.floor((y + h) / cs);
+  for (let cy = minCY; cy <= maxCY; cy++) {
+    for (let cx = minCX; cx <= maxCX; cx++) {
+      const key = spatialKey(cx, cy);
+      let arr = hash.cells.get(key);
+      if (!arr) {
+        arr = [];
+        hash.cells.set(key, arr);
+      }
+      arr.push(idx);
+    }
+  }
+}
+
+function spatialQuery(hash: SpatialHash, x: number, y: number): number[] {
+  const cs = hash.cellSize;
+  const cx = Math.floor(x / cs);
+  const cy = Math.floor(y / cs);
+  const out: number[] = [];
+  // Check this cell and all 8 neighbours
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      const key = spatialKey(cx + dx, cy + dy);
+      const arr = hash.cells.get(key);
+      if (arr) out.push(...arr);
+    }
+  }
+  return out;
+}
+
+function spatialClear(hash: SpatialHash) {
+  hash.cells.clear();
+}
+
 function tintSpriteRegion(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -405,6 +464,7 @@ export const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(function Ga
     particles: [] as {
       x: number; y: number; vx: number; vy: number;
       life: number; maxLife: number; color: string; size: number;
+      active: boolean;
     }[],
     powerups: [] as PowerUp[],
     activePowerUps: [] as ActivePowerUp[],
@@ -776,10 +836,26 @@ export const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(function Ga
     (x: number, y: number, color: string, count: number) => {
       const s = stateRef.current;
       const MAX_PARTICLES = 200;
-      const available = MAX_PARTICLES - s.particles.length;
-      if (available <= 0) return;
-      const actual = Math.min(count, available);
-      for (let i = 0; i < actual; i++) {
+      let spawned = 0;
+      // First, try to reuse dead (inactive) particles
+      for (let i = 0; i < s.particles.length && spawned < count; i++) {
+        const p = s.particles[i];
+        if (!p.active) {
+          p.x = x;
+          p.y = y;
+          p.vx = (Math.random() - 0.5) * 60;
+          p.vy = (Math.random() - 0.5) * 60;
+          p.life = 0.3 + Math.random() * 0.4;
+          p.maxLife = 0.7;
+          p.color = color;
+          p.size = 1 + Math.random() * 2;
+          p.active = true;
+          spawned++;
+        }
+      }
+      // If pool is full of active particles, only add new ones if under max
+      const remaining = Math.min(count - spawned, MAX_PARTICLES - s.particles.length);
+      for (let i = 0; i < remaining; i++) {
         s.particles.push({
           x,
           y,
@@ -789,6 +865,7 @@ export const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(function Ga
           maxLife: 0.7,
           color,
           size: 1 + Math.random() * 2,
+          active: true,
         });
       }
     },
@@ -2458,12 +2535,22 @@ export const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(function Ga
       const ehbW    = enemyCfg.hitboxWidth  ?? ew;
       const ehbH    = enemyCfg.hitboxHeight ?? eh;
 
+      // Build spatial hash for alive enemies — reduces bullet-enemy collision from O(b×e) to O(b + e)
+      const enemyHash = createSpatialHash(SPATIAL_CELL_SIZE);
+      for (let ei = 0; ei < s.enemies.length; ei++) {
+        const e = s.enemies[ei];
+        if (!e.alive) continue;
+        spatialInsert(enemyHash, e.x + ehbOffX, e.y + ehbOffY, ehbW, ehbH, ei);
+      }
+
       for (let bi = s.bullets.length - 1; bi >= 0; bi--) {
         const b = s.bullets[bi];
         if (!b.isPlayer) continue;
-        for (let ei = s.enemies.length - 1; ei >= 0; ei--) {
+        const nearby = spatialQuery(enemyHash, b.x, b.y);
+        for (let ni = 0; ni < nearby.length; ni++) {
+          const ei = nearby[ni];
           const e = s.enemies[ei];
-          if (!e.alive) continue;
+          if (!e || !e.alive) continue;
           const ehx = e.x + ehbOffX;
           const ehy = e.y + ehbOffY;
           if (
@@ -2818,10 +2905,20 @@ export const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(function Ga
       // loop's `bi` may now be >= the new array length. Guard both accesses with a
       // null-check so we never dereference `undefined`.
       const ENEMY_BULLET_HITBOX = 10;
+      // Build spatial hash for enemy bullets — reduces O(b²) to O(b)
+      const enemyBulletHash = createSpatialHash(SPATIAL_CELL_SIZE);
+      for (let ebi = 0; ebi < s.bullets.length; ebi++) {
+        const eb = s.bullets[ebi];
+        if (!eb || eb.isPlayer) continue;
+        spatialInsert(enemyBulletHash, eb.x - ENEMY_BULLET_HITBOX, eb.y - ENEMY_BULLET_HITBOX, ENEMY_BULLET_HITBOX * 2, ENEMY_BULLET_HITBOX * 2, ebi);
+      }
       for (let bi = s.bullets.length - 1; bi >= 0; bi--) {
         const pb = s.bullets[bi];
         if (!pb || !pb.isPlayer) continue;
-        for (let ebi = s.bullets.length - 1; ebi >= 0; ebi--) {
+        const nearbyEB = spatialQuery(enemyBulletHash, pb.x, pb.y);
+        let collided = false;
+        for (let ni = 0; ni < nearbyEB.length; ni++) {
+          const ebi = nearbyEB[ni];
           const eb = s.bullets[ebi];
           if (!eb || eb.isPlayer) continue;
           if (
@@ -2832,6 +2929,8 @@ export const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(function Ga
           ) {
             s.bullets.splice(bi, 1);
             s.bullets.splice(ebi > bi ? ebi - 1 : ebi, 1);
+            // Remove from hash so no other player bullet collides with it
+            collided = true;
             s.score += 5 * s.wave;
             onScoreChange(s.score);
             spawnParticles(eb.x, eb.y, "#ffffff", 3);
@@ -2855,6 +2954,7 @@ export const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(function Ga
             break;
           }
         }
+        if (collided) continue;
       }
 
       // ── Collision: player bullets vs boss ──
@@ -3260,10 +3360,11 @@ export const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(function Ga
       // ── Particles ──
       for (let i = s.particles.length - 1; i >= 0; i--) {
         const p = s.particles[i];
+        if (!p.active) continue;
         p.x += p.vx * dt;
         p.y += p.vy * dt;
         p.life -= dt;
-        if (p.life <= 0) s.particles.splice(i, 1);
+        if (p.life <= 0) p.active = false;
       }
 
       // ── Screen shake decay ──
@@ -3835,6 +3936,7 @@ export const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(function Ga
 
     // Draw particles
     for (const p of s.particles) {
+      if (!p.active) continue;
       const alpha = p.life / p.maxLife;
       ctx.globalAlpha = alpha;
       drawParticle(ctx, p.x, p.y, p.color, p.size);
@@ -3915,7 +4017,9 @@ export const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(function Ga
     ctx.restore();
   }
 
-  useGameLoop(update, phase === "playing" || phase === "menu" || phase === "paused" || phase === "bossreward" || phase === "wavereward");
+  // Cap to 30fps on mobile to reduce thermal throttling and battery drain
+  const isMobileDevice = typeof navigator !== "undefined" && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  useGameLoop(update, phase === "playing" || phase === "menu" || phase === "paused" || phase === "bossreward" || phase === "wavereward", isMobileDevice ? 30 : undefined);
 
   // Expose quitToGameOver so the parent can trigger game over from the pause menu
   useImperativeHandle(ref, () => ({
