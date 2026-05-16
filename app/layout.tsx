@@ -3,6 +3,7 @@ import { Inter, Bebas_Neue } from "next/font/google";
 import "./globals.css";
 import { Navigation } from "@/components/navigation";
 import { Footer } from "@/components/footer";
+import { RouteAwareWrapper } from "@/components/route-aware-wrapper";
 import { DataProvider } from "@/components/data-provider";
 import { TwitchProvider } from "@/components/twitch-status";
 import { getData, getGuitarColors } from "@/lib/data-server";
@@ -128,9 +129,13 @@ export default async function RootLayout({
           <DataProvider initialData={data}>
             <TwitchProvider>
               <AdminWrapper isAdmin={isAdmin}>
-                <Navigation />
+                <RouteAwareWrapper hideOnRoutes={["/secret-game"]}>
+                  <Navigation />
+                </RouteAwareWrapper>
                 <main className="flex-1">{children}</main>
-                <Footer />
+                <RouteAwareWrapper hideOnRoutes={["/secret-game"]}>
+                  <Footer />
+                </RouteAwareWrapper>
               </AdminWrapper>
             </TwitchProvider>
           </DataProvider>

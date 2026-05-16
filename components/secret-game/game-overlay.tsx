@@ -231,7 +231,7 @@ export function GameOverlay({
               onClick={onClose}
               className="px-6 py-2 bg-white/10 hover:bg-white/20 text-white font-medium rounded-sm transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-white/50"
             >
-              Quit to Menu
+              Home
             </button>
           </div>
         );
@@ -347,7 +347,7 @@ export function GameOverlay({
               onClick={onClose}
               className="px-6 py-2 bg-white/10 hover:bg-white/20 text-white font-medium rounded-sm transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-white/50"
             >
-              Main Menu
+              Home
             </button>
             <LeaderboardTable />
           </div>
