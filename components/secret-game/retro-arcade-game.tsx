@@ -653,7 +653,7 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
             )}
             {songFinished && (
               <button
-                onClick={() => setPhase("wavereward")}
+                onClick={() => setPhase("bossreward")}
                 className="mt-4 px-10 py-4 bg-[#ff006e] hover:bg-[#e6005f] text-white font-bold text-lg rounded-sm uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(255,0,110,0.4)] hover:shadow-[0_0_30px_rgba(255,0,110,0.6)] active:scale-95 focus:outline-none focus:ring-2 focus:ring-white/50"
               >
                 Continue
