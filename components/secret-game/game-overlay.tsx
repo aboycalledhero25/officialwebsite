@@ -38,6 +38,7 @@ export interface OverlayProps {
   onResumeSaved: () => void;
   onRestart: () => void;
   onClose: () => void;
+  onQuit?: () => void;
   runStats?: RunStats;
   hasSave?: boolean;
 }
@@ -60,6 +61,7 @@ export function GameOverlay({
   onResumeSaved,
   onRestart,
   onClose,
+  onQuit,
   runStats,
   hasSave = false,
 }: OverlayProps) {
@@ -227,6 +229,14 @@ export function GameOverlay({
               onMusicVolume={onMusicVolume}
               onSfxVolume={onSfxVolume}
             />
+            {onQuit && (
+              <button
+                onClick={onQuit}
+                className="px-6 py-2 bg-white/10 hover:bg-white/20 text-white font-medium rounded-sm transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-white/50"
+              >
+                Quit
+              </button>
+            )}
             <button
               onClick={onClose}
               className="px-6 py-2 bg-white/10 hover:bg-white/20 text-white font-medium rounded-sm transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-white/50"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useCallback, useState } from "react";
+import { useRef, useEffect, useCallback, useState, useImperativeHandle, forwardRef } from "react";
 import { useGameLoop } from "./use-game-loop";
 import { useKeyboardControls, sharedKeys, sharedTouch, sharedAim } from "./use-keyboard-controls";
 import { useAudioSfx } from "./use-audio-sfx";
@@ -167,6 +167,11 @@ interface ActivePowerUp {
   stacks: number;
 }
 
+export interface GameCanvasRef {
+  /** Trigger game over from outside (e.g. Quit button). Returns current total damage. */
+  quitToGameOver: () => number;
+}
+
 interface GameCanvasProps {
   phase: GamePhase;
   resetKey: number;
@@ -188,7 +193,7 @@ interface GameCanvasProps {
   healthRefillTrigger?: number;
 }
 
-export function GameCanvas({
+export const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(function GameCanvas({
   phase,
   resetKey,
   onPhaseChange,
@@ -203,7 +208,7 @@ export function GameCanvas({
   wave,
   playerStats,
   healthRefillTrigger = 0,
-}: GameCanvasProps) {
+}, ref) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const dimsRef = useRef({ w: BASE_W, h: BASE_H, scale: 1 });
 
@@ -3912,6 +3917,21 @@ export function GameCanvas({
 
   useGameLoop(update, phase === "playing" || phase === "menu" || phase === "paused" || phase === "bossreward" || phase === "wavereward");
 
+  // Expose quitToGameOver so the parent can trigger game over from the pause menu
+  useImperativeHandle(ref, () => ({
+    quitToGameOver: () => {
+      const s = stateRef.current;
+      play("gameOver");
+      onRunStatsChange?.(Math.round(s.totalDamageDealt));
+      onPhaseChange("gameover");
+      try {
+        const currentHigh = parseInt(localStorage.getItem("abch-guitar-invaders-highscore") || "0", 10);
+        if (s.score > currentHigh) localStorage.setItem("abch-guitar-invaders-highscore", String(s.score));
+      } catch {}
+      return Math.round(s.totalDamageDealt);
+    },
+  }));
+
   return (
     <canvas
       ref={canvasRef}
@@ -3920,6 +3940,6 @@ export function GameCanvas({
       onContextMenu={(e) => e.preventDefault()}
     />
   );
-}
+});
 
 

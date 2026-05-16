@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { GameCanvas, GamePhase } from "./game-canvas";
+import { GameCanvas, GamePhase, type GameCanvasRef } from "./game-canvas";
 import { GameHUD } from "./game-hud";
 import { GameOverlay, type RunStats } from "./game-overlay";
 import { MobileControls } from "./mobile-controls";
@@ -53,6 +53,7 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
   const [muted, setMuted] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const [hasSave, setHasSave] = useState(false);
+  const canvasRef = useRef<GameCanvasRef>(null);
   const [activePowerUps, setActivePowerUps] = useState<{ type: "rapid" | "shield" | "wideshot" | "extralife" | "invincible" | "projectile" | "timewarp" | "doubleshot" | "ricochet" | "overcharge" | "groupie"; timer: number; stacks: number }[]>([]);
   const [songUnlockNeedsTap, setSongUnlockNeedsTap] = useState(false);
 
@@ -490,10 +491,16 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
     sharedKeys.shoot = active;
   }, []);
 
+  /** Quit from pause menu — trigger game over so the player can save their score */
+  const handleQuit = useCallback(() => {
+    canvasRef.current?.quitToGameOver();
+  }, []);
+
   return (
     <div className="fixed inset-0 w-screen h-screen overflow-hidden">
       {/* Canvas fills the entire viewport */}
       <GameCanvas
+        ref={canvasRef}
         phase={phase}
         resetKey={resetKey}
         onPhaseChange={setPhase}
@@ -546,6 +553,7 @@ export function RetroArcadeGame({ title, instructions, onClose }: RetroArcadeGam
         onResumeSaved={handleResumeSaved}
         onRestart={handleRestart}
         onClose={onClose}
+        onQuit={handleQuit}
         runStats={runStats}
         hasSave={hasSave}
       />
