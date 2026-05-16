@@ -123,8 +123,14 @@ export function GameHUD({ score, lives, wave, muted, activePowerUps, onPause, on
     // The only way to get true fullscreen on iOS is "Add to Home Screen" → standalone PWA.
     if (isIOS) {
       if (iosHintTimer.current) clearTimeout(iosHintTimer.current);
-      setIosHint(true);
-      iosHintTimer.current = setTimeout(() => setIosHint(false), 6000);
+      // Toggle: if hint is already showing, close it; otherwise show it
+      if (iosHint) {
+        setIosHint(false);
+        iosHintTimer.current = null;
+      } else {
+        setIosHint(true);
+        iosHintTimer.current = setTimeout(() => setIosHint(false), 6000);
+      }
       return;
     }
 
