@@ -8,7 +8,7 @@ import { Music, Eye, EyeOff, AlertCircle } from "lucide-react";
 export default function AdminLoginPage() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/admin";
-  const [email, setEmail] = useState("admin@aboycalledhero.com");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
