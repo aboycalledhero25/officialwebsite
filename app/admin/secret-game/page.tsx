@@ -449,19 +449,32 @@ export default function SecretGameAdminPage() {
       </Section>
 
       <Section title="Projectile Sizes (Platform Override)">
-        <p className="text-xs text-neutral-500 mb-3">Override projectile visual sizes for {platform}. Falls back to global defaults when left at 0.</p>
+        <p className="text-xs text-neutral-500 mb-3">Override projectile visual sizes per platform. Falls back to global defaults when left at 0.</p>
         {(() => {
-          const ps = plat.projectileSizes ?? {};
-          const upPs = (patch: Partial<NonNullable<typeof plat.projectileSizes>>) => updateField(`${platform}.projectileSizes`, { ...ps, ...patch });
+          const desktopPs = settings.desktop.projectileSizes ?? {};
+          const mobilePs = settings.mobile.projectileSizes ?? {};
+          const upPs = (platKey: "desktop" | "mobile", patch: Partial<NonNullable<GamePlatformSettings["projectileSizes"]>>) => {
+            const current = platKey === "desktop" ? desktopPs : mobilePs;
+            updateField(`${platKey}.projectileSizes`, { ...current, ...patch });
+          };
+          const fields = [
+            { key: "boss", label: "Boss Projectile", max: 100 },
+            { key: "playerBullet", label: "Player Bullet", max: 30 },
+            { key: "superRed", label: "Super Red", max: 50 },
+            { key: "superPurple", label: "Super Purple", max: 50 },
+            { key: "superGold", label: "Super Gold", max: 50 },
+            { key: "seeker", label: "Seeker Missile", max: 50 },
+            { key: "orbital", label: "Orbital Orb", max: 50 },
+          ] as const;
           return (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <NumberField label="Boss Projectile" value={ps.boss ?? 0} onChange={(v) => upPs({ boss: v || undefined })} min={0} max={100} step={1} />
-              <NumberField label="Player Bullet" value={ps.playerBullet ?? 0} onChange={(v) => upPs({ playerBullet: v || undefined })} min={0} max={30} step={1} />
-              <NumberField label="Super Red" value={ps.superRed ?? 0} onChange={(v) => upPs({ superRed: v || undefined })} min={0} max={50} step={1} />
-              <NumberField label="Super Purple" value={ps.superPurple ?? 0} onChange={(v) => upPs({ superPurple: v || undefined })} min={0} max={50} step={1} />
-              <NumberField label="Super Gold" value={ps.superGold ?? 0} onChange={(v) => upPs({ superGold: v || undefined })} min={0} max={50} step={1} />
-              <NumberField label="Seeker Missile" value={ps.seeker ?? 0} onChange={(v) => upPs({ seeker: v || undefined })} min={0} max={50} step={1} />
-              <NumberField label="Orbital Orb" value={ps.orbital ?? 0} onChange={(v) => upPs({ orbital: v || undefined })} min={0} max={50} step={1} />
+            <div className="space-y-3">
+              {fields.map(({ key, label, max }) => (
+                <div key={key} className="grid grid-cols-[1fr_120px_120px] gap-3 items-center">
+                  <span className="text-sm text-neutral-300">{label}</span>
+                  <NumberField label="Desktop" value={(desktopPs as Record<string, number>)[key] ?? 0} onChange={(v) => upPs("desktop", { [key]: v || undefined })} min={0} max={max} step={1} />
+                  <NumberField label="Mobile" value={(mobilePs as Record<string, number>)[key] ?? 0} onChange={(v) => upPs("mobile", { [key]: v || undefined })} min={0} max={max} step={1} />
+                </div>
+              ))}
             </div>
           );
         })()}
