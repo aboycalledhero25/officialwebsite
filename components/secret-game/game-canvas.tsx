@@ -394,6 +394,8 @@ export function GameCanvas({
       // Projectile size scaling: track spawn position
       spawnX?: number;
       spawnY?: number;
+      // Frenzy: hot pink orb projectile (no size scaling)
+      isFrenzy?: boolean;
     }[],
     particles: [] as {
       x: number; y: number; vx: number; vy: number;
@@ -1299,6 +1301,7 @@ export function GameCanvas({
               isPlayer: true,
               bouncesRemaining: playerStats.hasBounce ? playerStats.bounceCount : 0,
               pierceRemaining: playerStats.hasPierce ? playerStats.pierceCount : 0,
+              isFrenzy: true,
             });
           }
           play("shoot");
@@ -3689,8 +3692,23 @@ export function GameCanvas({
     // Draw bullets
     for (const b of s.bullets) {
       if (b.isPlayer) {
-        if (b.isSuperBullet && b.superBulletTier != null && b.superBulletTier > 0) {
-          // Super bullet: large, colored
+        if (b.isFrenzy) {
+          // Frenzy: hot pink orb — fixed size, no scaling
+          const orbSize = 5;
+          ctx.save();
+          ctx.shadowColor = "#ff1493";
+          ctx.shadowBlur = 10;
+          ctx.fillStyle = "#ff1493";
+          ctx.beginPath();
+          ctx.arc(b.x, b.y, orbSize, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#ff69b4";
+          ctx.beginPath();
+          ctx.arc(b.x - 1, b.y - 1, orbSize * 0.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        } else if (b.isSuperBullet && b.superBulletTier != null && b.superBulletTier > 0) {
+          // Super bullet: large, colored — scales with distance like normal bullets
           const tier = b.superBulletTier;
           const color = tier >= 3 ? "#ffd700" : tier === 2 ? "#cc44ff" : "#ff2222";
           const glowColor = tier >= 3 ? "#ffaa00" : tier === 2 ? "#9900ff" : "#ff0000";
@@ -3700,7 +3718,15 @@ export function GameCanvas({
             platProjSizes?.superPurple ?? playerStats2.superBulletSizes[1],
             platProjSizes?.superGold ?? playerStats2.superBulletSizes[2],
           ];
-          const sz = tierSizes[tier - 1] ?? 10;
+          const finalSize = tierSizes[tier - 1] ?? 10;
+          // Apply same distance-based scaling as normal bullets
+          const autoRange = effectiveSettingsRef.current?.autoFireRange ?? 0;
+          const rangeLimit = autoRange > 0 ? autoRange : 120;
+          const distTraveled = Math.sqrt(
+            (b.x - (b.spawnX ?? b.x)) ** 2 + (b.y - (b.spawnY ?? b.y)) ** 2
+          );
+          const progress = Math.min(1, distTraveled / rangeLimit);
+          const sz = 1 + (finalSize - 1) * progress;
           ctx.save();
           ctx.shadowColor = glowColor;
           ctx.shadowBlur = 12;
